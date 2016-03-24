@@ -1,5 +1,5 @@
 module pci_target #(
-	ADDR_VALID_BITS=24
+	parameter ADDR_VALID_BITS=24
 )
 (
 	input [31:0] ADDR,
@@ -12,8 +12,9 @@ module pci_target #(
 	output S_ABORT,
 	input S_WRDN,
 	input S_SRC_EN,
+	input S_DATA,
 	input S_DATA_VLD,
-	input S_CBE,
+	input [3:0] S_CBE,
 	input RST,
 	input CLK,	
 
@@ -46,8 +47,9 @@ module pci_target #(
 reg s_term_r;
 reg s_ready_r;
 reg s_abort_r;
-reg s_addr_r;
-reg s_data_r;
+reg [31:0] s_addr_r;
+reg [3:0] s_be_r;
+reg [31:0] s_data_r;
 reg awvalid_r;
 reg wvalid_r;
 reg bready_r;
@@ -60,14 +62,18 @@ reg rready_r;
 reg [31:0] araddr_r;
 reg [31:0] read_data;
 reg read_ready;
+reg write_enable;
+reg write_enable_1;
+reg read_enable;
+reg read_enable_1;
 
 integer state, state_next;
 integer ws, ws_next;
 integer rs, rs_next;
 
 localparam S_IDLE=0, S_WRITE_0=1, S_WRITE_1=2, S_READ_0=3, S_READ_1=4;
-localparam WS_IDLE=0, WS_LAT=1, WS_WRITE_REQ=2, WS_WRITE_ACK=3, WS_WRITE_WAIT=4;
-localparam RS_IDLE=0, RS_LAT=1, RS_READ_ASTB=2, RS_READ_AWAIT=3, RS_READ_DWAIT=4, RS_READ_LATCH=5, RS_READ_READY=6;
+localparam WS_IDLE=0, WS_WRITE_REQ=1, WS_WRITE_ACK=2, WS_WRITE_WAIT=3, WS_DONE=4;
+localparam RS_IDLE=0, RS_READ_ASTB=1, RS_READ_AWAIT=2, RS_READ_DWAIT=3, RS_READ_LATCH=4, RS_DONE=5;
 
 assign ADIO_IN = s_data_r;
 assign S_TERM = s_term_r;
@@ -98,10 +104,7 @@ begin
 		S_IDLE: begin
 			if(BASE_HIT)
 				if(S_WRDN)
-					if(write_ready)
-						state_next = S_WRITE_1;
-					else
-						state_next = S_WRITE_0;
+					state_next = S_WRITE_0;
 				else
 					state_next = S_READ_0;
 			else
@@ -148,22 +151,29 @@ begin
 		s_ready_r <= 1'b0;
 		s_abort_r <= 1'b0;
 		s_data_r <= 'bx;
+		s_be_r <= 'bx;
+		write_enable <= 1'b0;
+		read_enable <= 1'b0;
 	end
 	else case(state_next)
 		S_IDLE: begin
 			s_term_r <= 1'b0;
 			s_ready_r <= 1'b0;
 			s_abort_r <= 1'b0;
+			write_enable <= 1'b0;
+			read_enable <= 1'b0;
 		end
 		S_WRITE_0: begin
+			s_data_r <= ADIO_OUT;
+			s_be_r <= ~S_CBE;
+			write_enable <= 1'b1;
 		end
 		S_WRITE_1: begin
 			s_term_r <= 1'b1;
 			s_ready_r <= 1'b1;
-			s_data_r <= ADIO_OUT;
-			be_r <= ~S_CBE;
 		end
 		S_READ_0: begin
+			read_enable <= 1'b1;
 		end
 		S_READ_1: begin
 			s_data_r <= read_data;
@@ -189,17 +199,22 @@ begin
 		ws <= ws_next;
 end
 
+always @(posedge tgt_m_aclk, negedge tgt_m_aresetn)
+begin
+	if(!tgt_m_aresetn)
+		write_enable_1 <= 1'b0;
+	else
+		write_enable_1 <= write_enable;
+end
+
 always @(*)
 begin
 	case(ws)
 		WS_IDLE: begin
-			if(state==S_WRITE_1) 
-				ws_next = WS_LAT;
+			if(write_enable_1) 
+				ws_next = WS_WRITE_REQ;
 			else
 				ws_next = WS_IDLE;
-		end
-		WS_LAT: begin
-			ws_next = WS_WRITE_REQ;
 		end
 		WS_WRITE_REQ: begin
 			ws_next = WS_WRITE_ACK;
@@ -213,9 +228,15 @@ begin
 		end
 		WS_WRITE_WAIT: begin
 			if(tgt_m_bvalid)
-				ws_next = WS_IDLE;
+				ws_next = WS_DONE;
 			else
 				ws_next = WS_WRITE_WAIT;
+		end
+		WS_DONE: begin
+			if(!write_enable_1)
+				ws_next = WS_IDLE;
+			else
+				ws_next = WS_DONE;
 		end
 	endcase
 end
@@ -236,16 +257,13 @@ begin
 			awvalid_r <= 1'b0;
 			wvalid_r <= 1'b0;
 			bready_r <= 1'b0;
-			write_ready <= 1'b1;
-		end
-		WS_LAT: begin
 			write_ready <= 1'b0;
 		end
 		WS_WRITE_REQ: begin
 			awaddr_r <= s_addr_r;
 			awvalid_r <= 1'b1;
 			wdata_r <= s_data_r;
-			wstrb <= be_r;
+			wstrb_r <= s_be_r;
 			wvalid_r <= 1'b1;
 		end
 		WS_WRITE_ACK: begin
@@ -259,6 +277,10 @@ begin
 			wvalid_r <= 1'b0;
 			bready_r <= 1'b1;
 		end
+		WS_DONE: begin
+			write_ready <= 1'b1;
+			bready_r <= 1'b0;
+		end
 	endcase
 end
 
@@ -270,17 +292,22 @@ begin
 		rs <= rs_next;
 end
 
+always @(posedge tgt_m_aclk, negedge tgt_m_aresetn)
+begin
+	if(!tgt_m_aresetn)
+		read_enable_1 <= 1'b0;
+	else
+		read_enable_1 <= read_enable;
+end
+
 always @(*)
 begin
 	case(rs)
 		RS_IDLE: begin
-			if(state==S_READ)
-				rs_next = RS_LAT;
+			if(read_enable_1)
+				rs_next = RS_READ_ASTB;
 			else
 				rs_next = RS_IDLE;
-		end
-		RS_LAT: begin
-			rs_next = RS_READ_ASTB;
 		end
 		RS_READ_ASTB,RS_READ_AWAIT: begin
 			if(tgt_m_arready)
@@ -294,11 +321,11 @@ begin
 			else
 				rs_next = RS_READ_DWAIT;
 		end
-		RS_READ_LATCH,RS_READ_READY: begin
-			if(state!=S_READ_0)
+		RS_READ_LATCH,RS_DONE: begin
+			if(!read_enable_1)
 				rs_next = RS_IDLE;
 			else
-				rs_next = RS_READ_READY;
+				rs_next = RS_DONE;
 		end
 		default: begin
 			rs_next = 'bx;
@@ -321,8 +348,6 @@ begin
 			rready_r <= 1'b0;
 			read_ready <= 1'b0;
 		end
-		RS_LAT: begin
-		end
 		RS_READ_ASTB: begin
 			araddr_r <= s_addr_r;
 			arvalid_r <= 1'b1;
@@ -336,7 +361,7 @@ begin
 			read_data <= tgt_m_rdata;
 			rready_r <= 1'b1;
 		end
-		RS_READ_READY: begin
+		RS_DONE: begin
 			read_ready <= 1'b1;
 			rready_r <= 1'b0;
 		end

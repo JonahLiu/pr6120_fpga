@@ -22,6 +22,32 @@ module pci_axi_top(
 	output clock_out,
 	output reset_out,
 
+	// Configuration Space Access Port
+	input cfg_s_aclk,
+	input cfg_s_aresetn,
+
+	input [31:0] cfg_s_awaddr,
+	input cfg_s_awvalid,
+	output	cfg_s_awready,
+
+	input [31:0] cfg_s_wdata,
+	input [3:0] cfg_s_wstrb,
+	input cfg_s_wvalid,
+	output	cfg_s_wready,
+
+	output	[1:0] cfg_s_bresp,
+	output	cfg_s_bvalid,
+	input cfg_s_bready,
+
+	input [31:0] cfg_s_araddr,
+	input cfg_s_arvalid,
+	output	cfg_s_arready,
+
+	output	[31:0] cfg_s_rdata,
+	output	[1:0] cfg_s_rresp,
+	output	cfg_s_rvalid,
+	output	cfg_s_rready,
+
 	// Register Space Access Port
 	input tgt_m_aclk,
 	input tgt_m_aresetn,
@@ -46,49 +72,49 @@ module pci_axi_top(
 	input	[31:0] tgt_m_rdata,
 	input	[1:0] tgt_m_rresp,
 	input	tgt_m_rvalid,
-	input	tgt_m_rready,
+	output tgt_m_rready,
 
 	// DMA Port
-	input ini_m_aclk,
-	input ini_m_aresetn,
+	input mst_s_aclk,
+	input mst_s_aresetn,
 
-	input [3:0] ini_m_awid,
-	input [63:0] ini_m_awaddr,
+	input [3:0] mst_s_awid,
+	input [63:0] mst_s_awaddr,
 
-	input [3:0] ini_m_awlen,
-	input [2:0] ini_m_awsize,
-	input [1:0] ini_m_awburst,
-	input [3:0] ini_m_awcache,
-	input ini_m_awvalid,
-	output ini_m_awready,
+	input [3:0] mst_s_awlen,
+	input [2:0] mst_s_awsize,
+	input [1:0] mst_s_awburst,
+	input [3:0] mst_s_awcache,
+	input mst_s_awvalid,
+	output mst_s_awready,
 
-	input [3:0] ini_m_wid,
-	input [31:0] ini_m_wdata,
-	input [3:0] ini_m_wstrb,
-	input ini_m_wlast,
-	input ini_m_wvalid,
-	output ini_m_wready,
+	input [3:0] mst_s_wid,
+	input [31:0] mst_s_wdata,
+	input [3:0] mst_s_wstrb,
+	input mst_s_wlast,
+	input mst_s_wvalid,
+	output mst_s_wready,
 
-	input [3:0] ini_m_bid,
-	input [1:0] ini_m_bresp,
-	input ini_m_bvalid,
-	output ini_m_bready,
+	input [3:0] mst_s_bid,
+	input [1:0] mst_s_bresp,
+	input mst_s_bvalid,
+	output mst_s_bready,
 
-	input [3:0] ini_m_arid,
-	input [63:0] ini_m_araddr,
-	input [3:0] ini_m_arlen,
-	input [2:0] ini_m_arsize,
-	input [1:0] ini_m_arburst,
-	input [3:0] ini_m_arcache,
-	input ini_m_arvalid,
-	output ini_m_arready,
+	input [3:0] mst_s_arid,
+	input [63:0] mst_s_araddr,
+	input [3:0] mst_s_arlen,
+	input [2:0] mst_s_arsize,
+	input [1:0] mst_s_arburst,
+	input [3:0] mst_s_arcache,
+	input mst_s_arvalid,
+	output mst_s_arready,
 
-	input [3:0] ini_m_rid,
-	input [31:0] ini_m_rdata,
-	input [1:0] ini_m_rresp,
-	input ini_m_rlast,
-	input ini_m_rvalid,
-	output ini_m_rready
+	input [3:0] mst_s_rid,
+	input [31:0] mst_s_rdata,
+	input [1:0] mst_s_rresp,
+	input mst_s_rlast,
+	input mst_s_rvalid,
+	output mst_s_rready
 );
 // Internal wiring to connect instances
 
@@ -146,6 +172,22 @@ wire          RTR;
 wire  [511:0] CFG_BUS;
 wire          RST;
 wire          CLK;
+
+// Reserved for master
+assign C_TERM = 1'b1;
+assign C_READY = 1'b1;
+assign REQUEST = 1'b0;
+assign REQUESTHOLD = 1'b0;
+assign COMPLETE = 1'b0;
+assign M_WRDN = 1'b0;
+assign M_READY = 1'b0;
+assign M_CBE = 'b0;
+assign CFG_SELF = 1'b0;
+assign INT_N = 1'b1;
+assign PME_N = 1'b1;
+assign KEEPOUT = 1'b0;
+assign BW_DETECT_DIS = 1'b1;
+assign BW_MANUAL_32B = 1'b1;
 
 // Instantiation of the PCI interface
 
@@ -235,6 +277,7 @@ pci_target pci_target_i(
 	.S_ABORT(S_ABORT),
 	.S_WRDN(S_WRDN),
 	.S_SRC_EN(S_SRC_EN),
+	.S_DATA(S_DATA),
 	.S_DATA_VLD(S_DATA_VLD),
 	.S_CBE(S_CBE),
 	.RST(RST),
@@ -265,4 +308,5 @@ pci_target pci_target_i(
 	.tgt_m_rdata(tgt_m_rdata),
 	.tgt_m_rresp(tgt_m_rresp)
 );
+
 endmodule

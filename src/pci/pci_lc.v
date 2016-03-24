@@ -68,7 +68,7 @@ module PCI_LC  (
                 IRDY_IO,
                 STOP_IO,
                 DEVSEL_IO,
-                //IDSEL_I,
+                IDSEL_I,
                 PERR_IO,
                 SERR_IO,
                 INT_O,
@@ -145,7 +145,7 @@ module PCI_LC  (
   inout         IRDY_IO;
   inout         STOP_IO;
   inout         DEVSEL_IO;
-//  input         IDSEL_I;
+  input         IDSEL_I;
   inout         PERR_IO;
   inout         SERR_IO;
   output        INT_O;
@@ -394,9 +394,9 @@ module PCI_LC  (
   wire          GNTD;
   wire          GNTF;
 
-//  wire          IDSELI;
-//  wire          IDSELD;
-//  wire          IDSELF;
+  wire          IDSELI;
+  wire          IDSELD;
+  wire          IDSELF;
 
   IOBUF      XPCI_FRAME (.O(FRAMEI), .IO(FRAME_IO), .I(FRAMEO), .T(FRAMET) );
   IOBUF      XPCI_TRDY  (.O(TRDYI),  .IO(TRDY_IO),  .I(TRDYO),  .T(TRDYT)  );
@@ -411,7 +411,7 @@ module PCI_LC  (
   OBUFT      XPCI_REQ   (.O(REQ_O),.T(REQT),.I(REQO));
 
   IBUF       XPCI_GNT   (.O(GNTI),.I(GNT_I));
-//  IBUF       XPCI_IDSEL (.O(IDSELI),.I(IDSEL_I));
+  IBUF       XPCI_IDSEL (.O(IDSELI),.I(IDSEL_I));
 
   ZHOLD_DELAY  XPCI_FRAMED  (.DLYFABRIC(FRAMEF),  .DLYIFF(FRAMED), .DLYIN(FRAMEI));
   ZHOLD_DELAY  XPCI_TRDYD   (.DLYFABRIC(TRDYF),   .DLYIFF(TRDYD),  .DLYIN(TRDYI));
@@ -421,7 +421,7 @@ module PCI_LC  (
   ZHOLD_DELAY  XPCI_PERRD   (.DLYFABRIC(PERRF),   .DLYIFF(PERRD),  .DLYIN(PERRI));
   ZHOLD_DELAY  XPCI_SERRD   (.DLYFABRIC(SERRF),   .DLYIFF(SERRD),  .DLYIN(SERRI));
 
-//  ZHOLD_DELAY  XPCI_IDSELD  (.DLYFABRIC(IDSELF),  .DLYIFF(IDSELD), .DLYIN(IDSELI));
+  ZHOLD_DELAY  XPCI_IDSELD  (.DLYFABRIC(IDSELF),  .DLYIFF(IDSELD), .DLYIN(IDSELI));
   ZHOLD_DELAY  XPCI_GNTD    (.DLYFABRIC(GNTF),    .DLYIFF(GNTD),   .DLYIN(GNTI));
 
 
@@ -489,10 +489,8 @@ module PCI_LC  (
                 .reqt(REQT),
                 .gnti(GNTF),
                 .gntd(GNTD),
-                //.idseli(IDSELD),
-                //.idseld(IDSELF),
-                .idseli(ADI[16]),
-                .idseld(ADI[16]),
+                .idseli(IDSELD),
+                .idseld(IDSELF),
                 .frameq_n(FRAMEQ_N),
                 .trdyq_n(TRDYQ_N),
                 .irdyq_n(IRDYQ_N),
