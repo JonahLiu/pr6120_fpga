@@ -95,8 +95,8 @@ module e1000_top(
 );
 
 e1000_regs cmd_i(
-	.axi_s_aclk(axi_s_aclk),
-	.axi_s_aresetn(axi_s_aresetn),
+	.axi_s_aclk(aclk),
+	.axi_s_aresetn(aresetn),
 
 	.axi_s_awvalid(axi_s_awvalid),
 	.axi_s_awready(axi_s_awready),
