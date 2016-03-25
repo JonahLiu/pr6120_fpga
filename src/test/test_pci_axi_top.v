@@ -6,7 +6,7 @@
 `define CONF_BAR1_OFFSET  (8'h14)
 `define CONF_BAR2_OFFSET  (8'h18)
 `define TGT_BAR0_BASE (32'h8002_0000)
-`define TGT_BAR1_BASE (32'h8003_0000)
+`define TGT_BAR1_BASE (32'h8004_0000)
 `define TGT_BAR2_BASE (32'h0000_0010)
 module test_pci_axi_top;
 
@@ -398,6 +398,14 @@ begin:T0
 	master.memory_write(`TGT_BAR0_BASE, 32'hDEADBEEF, 4'hF);
 
 	master.memory_read(`TGT_BAR0_BASE, data);
+
+	master.memory_write(`TGT_BAR1_BASE, 32'h0ACEFACE, 4'hF);
+
+	master.memory_read(`TGT_BAR1_BASE, data);
+
+	master.io_write(`TGT_BAR2_BASE, 32'h12345678, 4'hF);
+
+	master.io_read(`TGT_BAR2_BASE, data);
 
 	#100000;
 	$finish;

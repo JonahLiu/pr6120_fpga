@@ -239,4 +239,70 @@ begin
 end
 endtask
 
+
+task io_write(
+	input [31:0] address,
+	input [31:0] data,
+	input [3:0] be
+);
+begin
+	request_bus;
+	@(posedge clk);
+	ad_o <= `BD address;
+	cbe_o <= `BD CMD_IO_WRITE;
+	frame_n_o <= `BD 1'b0;
+	par_o <= `BD 1'b0;
+	@(posedge clk);
+	frame_n_o <= 1'b1;
+	irdy_n_o <= `BD 1'b0;
+	par_o <= `BD ^{ad_o, cbe_o};
+	ad_o <= `BD data;
+	cbe_o <= `BD ~be;
+	@(posedge clk);
+	par_o <= `BD ^{ad_o, cbe_o};
+	while(devsel_n_i) @(posedge clk);
+	@(posedge clk);
+	par_o <= `BD ^{ad_o, cbe_o};
+	while(trdy_n_i && stop_n_i && perr_n_i && serr_n_i) @(posedge clk);
+	irdy_n_o <= `BD 1'b1;
+	ad_o <= `BD 'bz;
+	cbe_o <= `BD 'bz;
+	@(posedge clk);
+	irdy_n_o <= `BD 1'bz;
+	par_o <= `BD 'bz;
+	release_bus;
+end
+endtask
+
+task io_read(
+	input [31:0] address,
+	output [31:0] data
+);
+begin
+	request_bus;
+	@(posedge clk);
+	ad_o <= `BD address;
+	cbe_o <= `BD CMD_IO_READ;
+	frame_n_o <= `BD 1'b0;
+	par_o <= `BD 1'b0;
+	@(posedge clk);
+	par_o <= `BD ^{ad_o, cbe_o};
+	frame_n_o <= `BD 1'b1;
+	irdy_n_o <= `BD 1'b0;
+	ad_o <= `BD 'bz;
+	cbe_o <= `BD 'b0;
+	@(posedge clk);
+	par_o <= `BD 'bz;
+	while(devsel_n_i) @(posedge clk);
+	@(posedge clk);
+	while(trdy_n_i && stop_n_i && perr_n_i && serr_n_i) @(posedge clk);
+	data = ad_i;
+	irdy_n_o <= `BD 1'b1;
+	cbe_o <= `BD 'bz;
+	@(posedge clk);
+	irdy_n_o <= `BD 1'bz;
+	release_bus;
+end
+endtask
+
 endmodule

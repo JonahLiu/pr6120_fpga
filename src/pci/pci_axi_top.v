@@ -1,4 +1,7 @@
-module pci_axi_top(
+module pci_axi_top #(
+	parameter TARGET_ADDR_BITS=24
+)
+(
 	// PCI Bus Signals
 	inout  [31:0] AD,
 	inout   [3:0] CBE,
@@ -189,6 +192,10 @@ assign KEEPOUT = 1'b0;
 assign BW_DETECT_DIS = 1'b1;
 assign BW_MANUAL_32B = 1'b1;
 
+
+assign clock_out = CLK;
+assign reset_out = RST;
+
 // Instantiation of the PCI interface
 
 PCI_LC XPCI_WRAP (
@@ -266,7 +273,10 @@ PCI_LC XPCI_WRAP (
 	.CLK(CLK)
 );
 
-pci_target pci_target_i(
+pci_target #(
+	.ADDR_VALID_BITS(TARGET_ADDR_BITS)
+)
+pci_target_i(
 	.ADDR(ADDR),
 	.ADIO_IN(ADIO_IN),
 	.ADIO_OUT(ADIO_OUT),
