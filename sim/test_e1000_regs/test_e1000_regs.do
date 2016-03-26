@@ -8,6 +8,7 @@ vlib work
 vlog $vlog_opts ../../src/test/test_e1000_regs.v
 vlog $vlog_opts ../../src/test/axi_lite_model.v
 vlog $vlog_opts ../../src/e1000/e1000_regs.v
+vlog $vlog_opts ../../src/e1000/e1000_register.v
 
 vopt +acc test_e1000_regs -o test_e1000_regs_opt
 
