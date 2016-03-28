@@ -23,7 +23,16 @@ module e1000_regs(
 	output	[31:0] axi_s_rdata,
 	output	[1:0] axi_s_rresp,
 	output	axi_s_rvalid,
-	input axi_s_rready
+	input axi_s_rready,
+
+	output [31:0] EECD,
+	input 	EECD_DO_i,
+	input	EECD_GNT_i,
+
+	output [31:0] EERD,
+	output EERD_START,
+	input EERD_DONE_i,
+	input [15:0] EERD_DATA_i
 );
 
 reg awready_r;
@@ -215,12 +224,13 @@ reg EECD_wstb;
 reg EECD_rstb;
 wire [31:0] EECD_o;
 wire [31:0] EECD_i;
-e1000_register #(.init(32'h0000_2110)) EECD_reg_i( 
+e1000_register #(.init(32'h0000_0110)) EECD_reg_i( 
 	.clk_i(aclk), .arst_i(!aresetn), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(EECD_wstb), .q_o(EECD_o)
 );
-assign EECD_i = EECD_o;
+assign EECD = EECD_o;
+assign EECD_i = {24'h0000_01,EECD_GNT_i,EECD_o[6:4],EECD_DO_i,EECD[2:0]};
 
 reg EERD_wstb;
 reg EERD_rstb;
@@ -231,7 +241,12 @@ e1000_register #(.init(32'h0)) EERD_reg_i(
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(EERD_wstb), .q_o(EERD_o)
 );
-assign EERD_i = EERD_o;
+assign EERD = EERD_o;
+assign EERD_i = {EERD_DATA_i,EERD_o[15:8],3'b0,EERD_DONE_i,4'b0};
+reg EERD_wstb_0;
+always @(posedge aclk) EERD_wstb_0 <= EERD_wstb;
+assign EERD_START = EERD_o[0]&EERD_wstb_0;
+
 
 // FLA is ignored
 reg FLA_wstb;

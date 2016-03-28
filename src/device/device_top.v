@@ -571,6 +571,7 @@ e1000_top e1000_i(
 );
 
 // Dual redundancy fault-tolerant
+/*
 phy_ft phy_ft_i(
 	.clk_i(core_clk),
 	.rst_i(core_rst),
@@ -628,6 +629,20 @@ phy_ft phy_ft_i(
 	.phy1_mdio_oe(p1_mdio_oe),
 	.phy1_int(p1_int),
 	.phy1_reset_out(p1_reset_out),
+);
+*/
+
+eeprom_emu eeprom_emu_i(
+	.clk_i(aclk),
+	.rst_i(!aresetn),
+	.sk_i(eesk),
+	.cs_i(eecs),
+	.di_i(eedi),
+	.do_o(eedo),
+	.do_oe_o(),
+	.read_addr(eeprom_raddr),
+	.read_enable(eeprom_ren),
+	.read_data(eeprom_rdata)
 );
 
 // EMS CPC-PCI SJA1000 Emulation
