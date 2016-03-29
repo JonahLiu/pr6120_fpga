@@ -32,7 +32,12 @@ module e1000_regs(
 	output [31:0] EERD,
 	output EERD_START,
 	input EERD_DONE_i,
-	input [15:0] EERD_DATA_i
+	input [15:0] EERD_DATA_i,
+
+	output [31:0] MDIC,
+	output MDIC_start,
+	input MDIC_R_i,
+	input [15:0] MDIC_DATA_i
 );
 
 reg awready_r;
@@ -274,7 +279,11 @@ e1000_register #(.init(32'h0)) MDIC_reg_i(
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(MDIC_wstb), .q_o(MDIC_o)
 );
-assign MDIC_i = MDIC_o;
+assign MDIC = MDIC_o;
+assign MDIC_i = {2'b0,MDIC_o[29],MDIC_R_i,MDIC_o[27:16],MDIC_DATA_i};
+reg MDIC_wstb_0;
+always @(posedge aclk) MDIC_wstb_0 <= MDIC_wstb;
+assign MDIC_start = MDIC_wstb_0;
 
 reg FCAL_wstb;
 reg FCAL_rstb;

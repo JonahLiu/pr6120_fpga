@@ -125,7 +125,7 @@ module shift_mdio #(
           cnt<=cnt+'d1;
         end
 
-        if(dreg[29:28]==2'b10 && cnt>46 && num==0)begin
+        if(dreg[29:28]==2'b10 && cnt>45 && num==0)begin
           mdio_oe<=0;
           fifo_wr_reg<={fifo_wr_reg[14:0], mdio_i};
         end else if(num==0)begin
