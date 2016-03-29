@@ -238,6 +238,9 @@ begin
 			else
 				ws_next = WS_DONE;
 		end
+		default: begin
+			ws_next = 'bx;
+		end
 	endcase
 end
 

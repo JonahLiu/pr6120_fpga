@@ -1,5 +1,6 @@
 module pci_axi_top #(
-	parameter TARGET_ADDR_BITS=24
+	parameter TARGET_ADDR_BITS=24,
+	parameter HARDWIRE_IDSEL=0
 )
 (
 	// PCI Bus Signals
@@ -198,7 +199,7 @@ assign reset_out = RST;
 
 // Instantiation of the PCI interface
 
-PCI_LC XPCI_WRAP (
+PCI_LC #(.HARDWIRE_IDSEL(HARDWIRE_IDSEL)) XPCI_WRAP (
 	.AD_IO(AD),
 	.CBE_IO(CBE),
 	.PAR_IO(PAR),

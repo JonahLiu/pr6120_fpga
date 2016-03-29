@@ -133,6 +133,7 @@ module PCI_LC  (
                 RST,
                 CLK
                 );
+parameter HARDWIRE_IDSEL=0;
 
 
   // Declare the port directions
@@ -411,7 +412,6 @@ module PCI_LC  (
   OBUFT      XPCI_REQ   (.O(REQ_O),.T(REQT),.I(REQO));
 
   IBUF       XPCI_GNT   (.O(GNTI),.I(GNT_I));
-  IBUF       XPCI_IDSEL (.O(IDSELI),.I(IDSEL_I));
 
   ZHOLD_DELAY  XPCI_FRAMED  (.DLYFABRIC(FRAMEF),  .DLYIFF(FRAMED), .DLYIN(FRAMEI));
   ZHOLD_DELAY  XPCI_TRDYD   (.DLYFABRIC(TRDYF),   .DLYIFF(TRDYD),  .DLYIN(TRDYI));
@@ -421,8 +421,18 @@ module PCI_LC  (
   ZHOLD_DELAY  XPCI_PERRD   (.DLYFABRIC(PERRF),   .DLYIFF(PERRD),  .DLYIN(PERRI));
   ZHOLD_DELAY  XPCI_SERRD   (.DLYFABRIC(SERRF),   .DLYIFF(SERRD),  .DLYIN(SERRI));
 
-  ZHOLD_DELAY  XPCI_IDSELD  (.DLYFABRIC(IDSELF),  .DLYIFF(IDSELD), .DLYIN(IDSELI));
   ZHOLD_DELAY  XPCI_GNTD    (.DLYFABRIC(GNTF),    .DLYIFF(GNTD),   .DLYIN(GNTI));
+
+  generate
+  if(HARDWIRE_IDSEL>10 && HARDWIRE_IDSEL<32) begin
+	  assign IDSELF=ADF[HARDWIRE_IDSEL];
+	  assign IDSELD=ADF[HARDWIRE_IDSEL];
+  end
+  else begin
+	  IBUF       XPCI_IDSEL (.O(IDSELI),.I(IDSEL_I));
+	  ZHOLD_DELAY  XPCI_IDSELD  (.DLYFABRIC(IDSELF),  .DLYIFF(IDSELD), .DLYIN(IDSELI));
+  end
+  endgenerate
 
 
   // Instantiate PCI interface

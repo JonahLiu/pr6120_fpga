@@ -6,7 +6,7 @@ module config_rom(
 	output reg [15:0] read_data
 );
 
-always @(clk_i)
+always @(posedge clk_i)
 begin
 	case(read_addr)
 		8'h00: read_data <= 16'h0E00; // MAC[15:0]

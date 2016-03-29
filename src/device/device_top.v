@@ -36,7 +36,7 @@ module device_top(
 	output	p0_mdc,
 	inout	p0_mdio,
 	input	p0_int,
-	output	p0_resetn
+	output	p0_resetn,
 
 	// Ethernet 1 GMII
 	input	[7:0]	p1_rxdat,
@@ -58,10 +58,12 @@ module device_top(
 	// CAN 0
 	input	can0_rx,
 	output	can0_tx,
+	output  can0_rs,
 
 	// CAN 1
 	input	can1_rx,
 	output	can1_tx,
+	output  can1_rs,
 
 	// UART 0
 	input	uart0_rx,
@@ -88,6 +90,9 @@ module device_top(
 	output	uart3_txen
 );
 
+// Workaround for hardwares with no IDSEL fanout
+parameter HARDWIRE_IDSEL=24; 
+
 wire ext_clk;
 wire ext_rst;
 
@@ -97,6 +102,7 @@ wire core_rst;
 wire clk_locked;
 
 wire aclk;
+wire areset;
 wire aresetn;
 
 wire cfg_s_aclk;
@@ -174,8 +180,8 @@ wire mst_s_rlast;
 wire mst_s_rvalid;
 wire mst_s_rready;
 
-wire nic_s_aclk;
-wire nic_s_aresetn;
+wire nic_aclk;
+wire nic_aresetn;
 wire nic_s_awvalid;
 wire nic_s_awready;
 wire [31:0] nic_s_awaddr;
@@ -194,8 +200,6 @@ wire nic_s_rready;
 wire [31:0] nic_s_rdata;
 wire [1:0] nic_s_rresp;
 
-wire nic_m_aclk;
-wire nic_m_aresetn;
 wire [3:0] nic_m_awid;
 wire [63:0] nic_m_awaddr;
 wire [3:0] nic_m_awlen;
@@ -256,6 +260,15 @@ wire	p1_mdio_i;
 wire	p1_mdio_o;
 wire	p1_mdio_oe;
 
+wire	eesk;
+wire	eecs;
+wire	eedo;
+wire	eedi;
+
+wire	[7:0] eeprom_raddr;
+wire	eeprom_ren;
+wire	[15:0] eeprom_rdata;
+
 wire can_s_aclk;
 wire can_s_aresetn;
 wire can_s_awvalid;
@@ -299,8 +312,8 @@ wire uart_s_rready;
 wire [31:0] uart_s_rdata;
 wire [1:0] uart_s_rresp;
 
-wire uart0_tx;
-wire uart0_rx;
+//wire uart0_tx;
+//wire uart0_rx;
 wire uart0_rts;
 wire uart0_cts;
 wire uart0_dtr;
@@ -308,8 +321,8 @@ wire uart0_dsr;
 wire uart0_ri;
 wire uart0_dcd;
 
-wire uart1_tx;
-wire uart1_rx;
+//wire uart1_tx;
+//wire uart1_rx;
 wire uart1_rts;
 wire uart1_cts;
 wire uart1_dtr;
@@ -317,8 +330,8 @@ wire uart1_dsr;
 wire uart1_ri;
 wire uart1_dcd;
 
-wire uart2_tx;
-wire uart2_rx;
+//wire uart2_tx;
+//wire uart2_rx;
 wire uart2_rts;
 wire uart2_cts;
 wire uart2_dtr;
@@ -326,8 +339,8 @@ wire uart2_dsr;
 wire uart2_ri;
 wire uart2_dcd;
 
-wire uart3_tx;
-wire uart3_rx;
+//wire uart3_tx;
+//wire uart3_rx;
 wire uart3_rts;
 wire uart3_cts;
 wire uart3_dtr;
@@ -335,52 +348,165 @@ wire uart3_dsr;
 wire uart3_ri;
 wire uart3_dcd;
 
+reg core_rst_r;
+
+assign PCI_EN_N = 1'b0;
+
+assign can0_tx = 1'b0;
+assign can0_rs = 1'b0;
+assign can1_tx = 1'b0;
+assign can1_rs = 1'b0;
+
+assign uart0_rxen_n = 1'b0;
+assign uart0_tx = 1'b1;
+assign uart0_txen = 1'b1;
+
+assign uart1_rxen_n = 1'b0;
+assign uart1_tx = 1'b1;
+assign uart1_txen = 1'b1;
+
+assign uart2_rxen_n = 1'b0;
+assign uart2_tx = 1'b1;
+assign uart2_txen = 1'b1;
+
+assign uart3_rxen_n = 1'b0;
+assign uart3_tx = 1'b1;
+assign uart3_txen = 1'b1;
+
 assign	p0_mdio = p0_mdio_oe?p0_mdio_o:1'bz;
+assign  p0_mdio_i = p0_mdio;
 assign	p0_resetn = !p0_reset_out;
 assign	p1_mdio = p1_mdio_oe?p1_mdio_o:1'bz;
+assign  p1_mdio_i = p1_mdio;
 assign	p1_resetn = !p1_reset_out;
 
-reg core_rst_r;
+//FIXIT: Only P0 implemented currently
+assign p0_mdc = phy_mdc;
+assign p0_mdio_o = phy_mdio_o;
+assign p0_mdio_oe = phy_mdio_oe;
+assign p0_reset_out = phy_reset_out;
+assign phy_mdio_i = p0_mdio_i;
+
+assign p1_mdc = 1'b0;
+assign p1_mdio_o = 1'b0;
+assign p1_mdio_oe = 1'b0;
+assign p1_reset_out = 1'b1;
+
+//FIXIT: Configuration access not implemented
+assign cfg_s_awvalid = 1'b0;
+assign cfg_s_wvalid = 1'b0;
+assign cfg_s_bready = 1'b0;
+assign cfg_s_arvalid = 1'b0;
+assign cfg_s_rready = 1'b0;
+
+// Wire PCI Target to NIC
+assign nic_s_awvalid = tgt_m_awvalid;
+assign nic_s_awaddr = tgt_m_awaddr;
+assign tgt_m_awready = nic_s_awready;
+
+assign nic_s_wvalid = tgt_m_wvalid;
+assign nic_s_wdata = tgt_m_wdata;
+assign nic_s_wstrb = tgt_m_wstrb;
+assign tgt_m_wready = nic_s_wready;
+
+assign tgt_m_bvalid = nic_s_bvalid;
+assign tgt_m_bresp = nic_s_bresp;
+assign nic_s_bready = tgt_m_bready;
+
+assign nic_s_arvalid = tgt_m_arvalid;
+assign nic_s_araddr = tgt_m_araddr;
+assign tgt_m_arready = nic_s_arready;
+
+assign tgt_m_rvalid = nic_s_rvalid;
+assign tgt_m_rdata = nic_s_rdata;
+assign tgt_m_rresp = nic_s_rresp;
+assign nic_s_rready = tgt_m_rready;
+
+assign mst_s_awvalid = 1'b0;
+assign mst_s_wvalid = 1'b0;
+assign mst_s_bready = 1'b0;
+assign mst_s_arvalid = 1'b0;
+assign mst_s_rready = 1'b0;
+
+assign nic_m_awready = 1'b0;
+assign nic_m_wready = 1'b0;
+assign nic_m_bready = 1'b0;
+assign nic_m_arready = 1'b0;
+assign nic_m_rready = 1'b0;
+
+assign mac_rxdat = p0_rxdat;
+assign mac_rxdv = p0_rxdv;
+assign mac_rxer = p0_rxer;
+assign mac_rxsclk = p0_rxsclk;
+assign mac_txsclk = p0_txsclk;
+assign mac_crs = p0_crs;
+assign mac_col = p0_col;
+assign p0_txdat = mac_txdat;
+assign p0_txen = mac_txen;
+assign p0_txer = mac_txer;
+assign p0_gtxsclk = mac_gtxsclk;
+
+assign p1_txdat = 'b0;
+assign p1_txen = 1'b0;
+assign p1_txer = 1'b0;
+assign p1_gtxsclk = 1'b0;
+
+assign core_rst = core_rst_r;
+
+assign aclk = core_clk;
+assign areset = core_rst;
+assign aresetn = !core_rst;
+
+assign cfg_s_aclk = aclk;
+assign cfg_s_aresetn = aresetn;
+
+assign tgt_m_aclk = aclk;
+assign tgt_m_aresetn = aresetn;
+
+assign nic_aclk = aclk;
+assign nic_aresetn = aresetn;
+
+assign mst_s_aclk = aclk;
+assign mst_s_aresetn = aresetn;
+
 always @(posedge core_clk, posedge ext_rst)
 begin
 	if(ext_rst) begin
-		core_rst <= 1'b1;
+		core_rst_r <= 1'b1;
 	end
 	else if(clk_locked) begin
-		core_rst <= 1'b0;
+		core_rst_r <= 1'b0;
 	end
 end
-assign core_rst = core_rst_r;
-assign aclk = core_clk;
-assign aresetn = !core_rst;
 
 clock_generation clk_gen_i(
 	.reset(ext_rst),
-	.clk_in(ext_clk),
-	.clk0_out(core_clk),
+	.clk_in1(ext_clk),
+	.clk_out1(core_clk),
 	.locked(clk_locked)
 );
 
 // PCI to AXI interface controller
-pci_axi_top pci_axi_i(
+pci_axi_top #(.HARDWIRE_IDSEL(HARDWIRE_IDSEL))pci_axi_i(
 	// PCI Local Bus
-	.AD_IO(AD),
-	.CBE_IO(CBE),
-	.PAR_IO(PAR),
-	.FRAME_IO(FRAME_N),
-	.TRDY_IO(TRDY_N),
-	.IRDY_IO(IRDY_N),
-	.STOP_IO(STOP_N),
-	.DEVSEL_IO(DEVSEL_N),
-	.IDSEL_I(IDSEL),
-	.PERR_IO(PERR_N),
-	.SERR_IO(SERR_N),
-	.INT_O(INTA_N),
-	.PME_O(PMEA_N),
-	.REQ_O(REQ_N),
-	.GNT_I(GNT_N),
-	.RST_I(RST_N),
-	.CLK_I(PCLK),
+	.AD(AD),
+	.CBE(CBE),
+	.PAR(PAR),
+	.FRAME_N(FRAME_N),
+	.TRDY_N(TRDY_N),
+	.IRDY_N(IRDY_N),
+	.STOP_N(STOP_N),
+	.DEVSEL_N(DEVSEL_N),
+	//.IDSEL(IDSEL),
+	.IDSEL(1'b0),
+	.PERR_N(PERR_N),
+	.SERR_N(SERR_N),
+	.INTA_N(INTA_N),
+	.PMEA_N(PMEA_N),
+	.REQ_N(REQ_N),
+	.GNT_N(GNT_N),
+	.RST_N(RST_N),
+	.PCLK(PCLK),
 
 	// Misc
 	.clock_out(ext_clk),
@@ -482,10 +608,10 @@ pci_axi_top pci_axi_i(
 );
 
 e1000_top e1000_i(
-	// AXI4-lite for memory mapped registers
-	.axi_s_aclk(nic_s_aclk),
-	.axi_s_aresetn(nic_s_aresetn),
+	.aclk(nic_aclk),
+	.aresetn(nic_aresetn),
 
+	// AXI4-lite for memory mapped registers
 	.axi_s_awvalid(nic_s_awvalid),
 	.axi_s_awready(nic_s_awready),
 	.axi_s_awaddr(nic_s_awaddr),
@@ -509,9 +635,6 @@ e1000_top e1000_i(
 	.axi_s_rresp(nic_s_rresp),
 
 	// AXI4 for DMA
-	.axi_m_aclk(nic_m_aclk),
-	.axi_m_aresetn(nic_m_aresetn),
-
 	.axi_m_awid(nic_m_awid),
 	.axi_m_awaddr(nic_m_awaddr),
 	.axi_m_awlen(nic_m_awlen),
@@ -549,7 +672,7 @@ e1000_top e1000_i(
 	.axi_m_rvalid(nic_m_rvalid),
 	.axi_m_rready(nic_m_rready),
 
-	// PHY interface
+	// GMII interface
 	.mac_rxdat(mac_rxdat),
 	.mac_rxdv(mac_rxdv),
 	.mac_rxer(mac_rxer),
@@ -562,12 +685,21 @@ e1000_top e1000_i(
 	.mac_crs(mac_crs),
 	.mac_col(mac_col),
 
+	// MDIO interface
 	.phy_mdc(phy_mdc),
 	.phy_mdio_i(phy_mdio_i),
 	.phy_mdio_o(phy_mdio_o),
 	.phy_mdio_oe(phy_mdio_oe),
+
+	// PHY interrupt
 	.phy_int(phy_int),
-	.phy_reset_out(phy_reset_out)
+	.phy_reset_out(phy_reset_out),
+
+	// EEPROM interface
+	.eesk(eesk),
+	.eecs(eecs),
+	.eedo(eedo),
+	.eedi(eedi)
 );
 
 // Dual redundancy fault-tolerant
@@ -633,8 +765,8 @@ phy_ft phy_ft_i(
 */
 
 eeprom_emu eeprom_emu_i(
-	.clk_i(aclk),
-	.rst_i(!aresetn),
+	.clk_i(core_clk),
+	.rst_i(aresetn),
 	.sk_i(eesk),
 	.cs_i(eecs),
 	.di_i(eedi),
@@ -645,6 +777,15 @@ eeprom_emu eeprom_emu_i(
 	.read_data(eeprom_rdata)
 );
 
+config_rom rom_i(
+	.clk_i(aclk),
+	.rst_i(aresetn),
+	.read_addr(eeprom_raddr),
+	.read_enable(eeprom_ren),
+	.read_data(eeprom_rdata)
+);
+
+/*
 // EMS CPC-PCI SJA1000 Emulation
 ems_cpc_top emc_cpc_i(
 	// AXI4-Lite for memory mapped registers
@@ -920,4 +1061,5 @@ master_crossbar master_crossbar_i(
 	.s0_axi_rready(nic_m_rready)
 
 );
+*/
 endmodule

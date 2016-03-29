@@ -23,7 +23,7 @@ module e1000_top(
 	output	[31:0] axi_s_rdata,
 	output	[1:0] axi_s_rresp,
 	output	axi_s_rvalid,
-	output	axi_s_rready,
+	input axi_s_rready,
 
 	// DMA Port
 	input [3:0] axi_m_awid,
@@ -94,9 +94,24 @@ module e1000_top(
 	output	eedi
 );
 
+wire [31:0] EECD;
+wire [31:0] EERD;
+wire EERD_START;
+
+wire ee_busy;
+wire [31:0] ee_rdatao;
+
+wire [31:0] MDIC;
+wire MDIC_start;
+wire [15:0] mm_rdatao;
+wire mm_rd_doneo;
+wire mm_wr_doneo;
+
+assign phy_reset_out = !aresetn;
+
 e1000_regs cmd_i(
-	.axi_s_aclk(aclk),
-	.axi_s_aresetn(aresetn),
+	.aclk(aclk),
+	.aresetn(aresetn),
 
 	.axi_s_awvalid(axi_s_awvalid),
 	.axi_s_awready(axi_s_awready),
@@ -120,9 +135,54 @@ e1000_regs cmd_i(
 	.axi_s_rdata(axi_s_rdata),
 	.axi_s_rresp(axi_s_rresp),
 
+	.EECD(EECD),
+	.EECD_DO_i(eedo),
+	.EECD_GNT_i(!ee_busy),
 
+	.EERD(EERD),
+	.EERD_START(EERD_START),
+	.EERD_DONE_i(ee_rdatao[4]),
+	.EERD_DATA_i(ee_rdatao[31:16]),
+
+	.MDIC(MDIC),
+	.MDIC_start(MDIC_start),
+	.MDIC_R_i(mm_rd_doneo&&mm_wr_doneo),
+	.MDIC_DATA_i(mm_rdatao)
 );
 
+shift_eeprom shift_eeprom_i(
+	.clk(aclk),
+	.rst(!aresetn),
+	.sk(eesk),
+	.cs(eecs),
+	.di(eedi),
+	.do(eedo),
+	.wdatai(EERD),
+	.eni(EERD_START),
+	.eerd_busy(ee_busy),
+	.sk_eecd(EECD[0]),
+	.cs_eecd(EECD[1]),
+	.di_eecd(EECD[2]),
+	.eecd_busy(EECD[6]),
+	.rdatao(ee_rdatao)
+);
+
+shift_mdio shift_mdio_i(
+	.clk(aclk),
+	.rst(!aresetn),
+	.mdc_o(phy_mdc),
+	.mdio_i(phy_mdio_i),
+	.mdio_o(phy_mdio_o),
+	.mdio_oe(phy_mdio_oe),
+	.rdatao(mm_rdatao),
+	.rd_doneo(mm_rd_doneo),
+	.eni(MDIC_start),
+	.wdatai({2'b01,MDIC[27:26], MDIC[25:16],2'b10,MDIC[15:0]}),
+	.wr_doneo(mm_wr_doneo)
+);
+
+
+/*
 rx_path rx_path_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
@@ -470,5 +530,6 @@ eeprom_ctrl eeprom_ctrl_i(
 	.eedo(eedo),
 	.eedi(eedi)
 );
+*/
 
 endmodule

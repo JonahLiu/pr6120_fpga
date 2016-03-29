@@ -160,13 +160,11 @@ end
 always @(posedge aclk, negedge aresetn) 
 begin
 	if(!aresetn) begin
-		arready_r <= 1'b1;
 		rvalid_r <= 1'b0;
 		rresp_r <= 2'b0;
 		rdata_r <= 'bx;
 	end
 	else if(arready_r && axi_s_arvalid) begin
-		arready_r <= 1'b0;
 		read_addr <= axi_s_araddr;
 		read_enable <= 1'b1;
 	end
@@ -179,7 +177,6 @@ begin
 	end
 	else if(rvalid_r && axi_s_rready) begin
 		rvalid_r <= 1'b0;
-		arready_r <= 1'b1;
 	end
 end
 
@@ -1289,7 +1286,7 @@ begin
 			16'h3820: TIDV_wstb <= 1'b1;
 			16'h3000: TXDMAC_wstb <= 1'b1;
 			16'h3828: TXDCTL_wstb <= 1'b1;
-			16'h282C: TADV_wstb <= 1'b1;
+			16'h382C: TADV_wstb <= 1'b1;
 			16'h3830: TSPMT_wstb <= 1'b1;
 			16'h2828: RXDCTL_wstb <= 1'b1;
 			16'h5000: RXCSUM_wstb <= 1'b1;
@@ -1659,7 +1656,7 @@ begin
 			16'h3820: TIDV_rstb <= 1'b1;
 			16'h3000: TXDMAC_rstb <= 1'b1;
 			16'h3828: TXDCTL_rstb <= 1'b1;
-			16'h282C: TADV_rstb <= 1'b1;
+			16'h382C: TADV_rstb <= 1'b1;
 			16'h3830: TSPMT_rstb <= 1'b1;
 			16'h2828: RXDCTL_rstb <= 1'b1;
 			16'h5000: RXCSUM_rstb <= 1'b1;
@@ -1908,7 +1905,7 @@ begin
 			16'h3820: read_data <= TIDV_i;
 			16'h3000: read_data <= TXDMAC_i;
 			16'h3828: read_data <= TXDCTL_i;
-			16'h282C: read_data <= TADV_i;
+			16'h382C: read_data <= TADV_i;
 			16'h3830: read_data <= TSPMT_i;
 			16'h2828: read_data <= RXDCTL_i;
 			16'h5000: read_data <= RXCSUM_i;
