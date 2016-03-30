@@ -92,6 +92,10 @@ module device_top(
 
 // Workaround for hardwares with no IDSEL fanout
 parameter HARDWIRE_IDSEL=24; 
+// Workaround for hardwares with different PHY address 
+// Default PHY address in e1000 is 5'b00001
+// Change this according to hardware design
+parameter PHY_ADDR=5'b0;
 
 wire ext_clk;
 wire ext_rst;
@@ -607,7 +611,7 @@ pci_axi_top #(.HARDWIRE_IDSEL(HARDWIRE_IDSEL))pci_axi_i(
 
 );
 
-e1000_top e1000_i(
+e1000_top #(.PHY_ADDR(PHY_ADDR)) e1000_i(
 	.aclk(nic_aclk),
 	.aresetn(nic_aresetn),
 
@@ -765,8 +769,8 @@ phy_ft phy_ft_i(
 */
 
 eeprom_emu eeprom_emu_i(
-	.clk_i(core_clk),
-	.rst_i(aresetn),
+	.clk_i(aclk),
+	.rst_i(areset),
 	.sk_i(eesk),
 	.cs_i(eecs),
 	.di_i(eedi),
@@ -779,7 +783,7 @@ eeprom_emu eeprom_emu_i(
 
 config_rom rom_i(
 	.clk_i(aclk),
-	.rst_i(aresetn),
+	.rst_i(areset),
 	.read_addr(eeprom_raddr),
 	.read_enable(eeprom_ren),
 	.read_data(eeprom_rdata)
@@ -1062,4 +1066,29 @@ master_crossbar master_crossbar_i(
 
 );
 */
+
+ila_axi_0 ila_axi_0_i(
+	.clk(tgt_m_aclk), // input wire clk
+
+
+	.probe0(tgt_m_awvalid), // input wire [0:0] probe0  
+	.probe1(tgt_m_awaddr), // input wire [31:0]  probe1 
+	.probe2(tgt_m_bresp), // input wire [1:0]  probe2 
+	.probe3(tgt_m_awready), // input wire [0:0]  probe3 
+	.probe4(tgt_m_wvalid), // input wire [0:0]  probe4 
+	.probe5(tgt_m_wdata), // input wire [31:0]  probe5 
+	.probe6(tgt_m_wready), // input wire [0:0]  probe6 
+	.probe7(tgt_m_bvalid), // input wire [0:0]  probe7 
+	.probe8(tgt_m_bready), // input wire [0:0]  probe8 
+	.probe9(tgt_m_arvalid), // input wire [0:0]  probe9 
+	.probe10(tgt_m_araddr), // input wire [31:0]  probe10 
+	.probe11(tgt_m_arready), // input wire [0:0]  probe11 
+	.probe12(tgt_m_rvalid), // input wire [0:0]  probe12 
+	.probe13(tgt_m_rresp), // input wire [1:0]  probe13 
+	.probe14(tgt_m_rdata), // input wire [31:0]  probe14 
+	.probe15(tgt_m_wstrb), // input wire [3:0]  probe15 
+	.probe16(1'b0), // input wire [0:0]  probe16 
+	.probe17(3'b0), // input wire [2:0]  probe17  
+	.probe18(3'b0) // input wire [2:0]  probe18
+);
 endmodule

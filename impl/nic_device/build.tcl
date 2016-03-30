@@ -1,8 +1,9 @@
-# create_bft_batch.tcl
-# bft sample design
+# build.tcl
 # A Vivado script that demonstrates a very simple RTL-to-bitstream batch flow
 #
-# NOTE: typical usage would be "vivado -mode tcl -source create_bft_batch.tcl"
+# NOTE: typical usage would be "vivado -mode tcl -source build.tcl"
+#       or in vival tcl shell "source build.tcl"
+
 #
 # STEP#0: define output directory area.
 #
@@ -30,8 +31,6 @@ read_verilog ../../src/pci/pci_lc.v
 read_verilog ../../src/pci/pci_target.v
 #read_verilog ../../src/pci/pci32_0.v
 
-#read_checkpoint ../../netlist/clock_generation.dcp
-
 file mkdir pci32_0
 file copy -force ../../ip/pci32_0.xci pci32_0
 read_ip pci32_0/pci32_0.xci
@@ -42,7 +41,18 @@ file copy -force ../../ip/clock_generation.xci clock_generation
 read_ip clock_generation/clock_generation.xci
 generate_target -force {all} [get_ips clock_generation]
 
-#read_ip ../../src/device/clock_generation.xci
+file mkdir ila_axi_0
+file copy -force ../../ip/ila_axi_0.xci ila_axi_0
+file copy -force ../../ip/ila_axi_0.xml ila_axi_0
+read_ip ila_axi_0/ila_axi_0.xci
+set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files ila_axi_0/ila_axi_0.xci]
+generate_target -force {all} [get_ips ila_axi_0]
+
+#file mkdir ila_axi_0
+#create_ip -name ila -vendor xilinx.com -library ip -version 5.0 -module_name ila_axi_0 
+#set_property -dict [list CONFIG.C_SLOT_0_AXI_ID_WIDTH {0} CONFIG.C_SLOT_0_AXI_PROTOCOL {AXI4LITE} CONFIG.C_MONITOR_TYPE {AXI} CONFIG.C_NUM_OF_PROBES {19} CONFIG.C_ENABLE_ILA_AXI_MON {true}] [get_ips ila_axi_0]
+#generate_target -force {all} [get_ips ila_axi_0]
+#synth_ip [get_ips ila_axi_0]
 
 read_xdc ../../constraints/io_default.xdc
 read_xdc ../../constraints/pci.xdc
@@ -50,6 +60,7 @@ read_xdc ../../constraints/eth.xdc
 read_xdc ../../constraints/can.xdc
 read_xdc ../../constraints/uart.xdc
 read_xdc ../../constraints/device.xdc
+read_xdc ../../src/device/timing.xdc
 
 #generate_target -force {all} [get_files ../../src/pci/pci32_0.xci]
 #generate_target -force {all} [get_files ../../src/device/clock_generation.xci]
@@ -71,7 +82,7 @@ report_power -file $outputDir/post_synth_power.rpt
 # STEP#3: run placement and logic optimization, report utilization and timing estimates, write checkpoint design
 #
 opt_design
-write_debug_probes $outputDir/debug.ltx
+write_debug_probes -force $outputDir/debug.ltx
 #power_opt_design
 place_design
 #phys_opt_design

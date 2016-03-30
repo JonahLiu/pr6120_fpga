@@ -25,6 +25,8 @@ module e1000_regs(
 	output	axi_s_rvalid,
 	input axi_s_rready,
 
+	output [31:0] CTRL,
+
 	output [31:0] EECD,
 	input 	EECD_DO_i,
 	input	EECD_GNT_i,
@@ -216,6 +218,7 @@ e1000_register #(.init(32'h0000_0201)) CTRL_reg_i(
 	.srst_i(1'b0), .wen_i(CTRL_wstb), .q_o(CTRL_o)
 );
 assign CTRL_i = CTRL_o;
+assign CTRL = CTRL_o;
 
 reg STATUS_wstb;
 reg STATUS_rstb;
@@ -232,7 +235,7 @@ e1000_register #(.init(32'h0000_0110)) EECD_reg_i(
 	.srst_i(1'b0), .wen_i(EECD_wstb), .q_o(EECD_o)
 );
 assign EECD = EECD_o;
-assign EECD_i = {24'h0000_01,EECD_GNT_i,EECD_o[6:4],EECD_DO_i,EECD[2:0]};
+assign EECD_i = {24'h0000_07,EECD_GNT_i,EECD_o[6:4],EECD_DO_i,EECD[2:0]};
 
 reg EERD_wstb;
 reg EERD_rstb;

@@ -94,6 +94,10 @@ module e1000_top(
 	output	eedi
 );
 
+parameter PHY_ADDR=5'b0;
+
+wire [31:0] CTRL;
+
 wire [31:0] EECD;
 wire [31:0] EERD;
 wire EERD_START;
@@ -107,7 +111,7 @@ wire [15:0] mm_rdatao;
 wire mm_rd_doneo;
 wire mm_wr_doneo;
 
-assign phy_reset_out = !aresetn;
+assign phy_reset_out = CTRL[31] || !aresetn;
 
 e1000_regs cmd_i(
 	.aclk(aclk),
@@ -134,6 +138,8 @@ e1000_regs cmd_i(
 	.axi_s_rready(axi_s_rready),
 	.axi_s_rdata(axi_s_rdata),
 	.axi_s_rresp(axi_s_rresp),
+
+	.CTRL(CTRL),
 
 	.EECD(EECD),
 	.EECD_DO_i(eedo),
@@ -177,7 +183,7 @@ shift_mdio shift_mdio_i(
 	.rdatao(mm_rdatao),
 	.rd_doneo(mm_rd_doneo),
 	.eni(MDIC_start),
-	.wdatai({2'b01,MDIC[27:26], MDIC[25:16],2'b10,MDIC[15:0]}),
+	.wdatai({2'b01,MDIC[27:26],PHY_ADDR[4:0],MDIC[20:16],2'b10,MDIC[15:0]}),
 	.wr_doneo(mm_wr_doneo)
 );
 
