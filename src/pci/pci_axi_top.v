@@ -118,7 +118,10 @@ module pci_axi_top #(
 	input [1:0] mst_s_rresp,
 	input mst_s_rlast,
 	input mst_s_rvalid,
-	output mst_s_rready
+	output mst_s_rready,
+
+	// Interrupt Request
+	input intr_request
 );
 // Internal wiring to connect instances
 
@@ -187,7 +190,7 @@ assign M_WRDN = 1'b0;
 assign M_READY = 1'b0;
 assign M_CBE = 'b0;
 assign CFG_SELF = 1'b0;
-assign INT_N = 1'b1;
+assign INT_N = !intr_request;
 assign PME_N = 1'b1;
 assign KEEPOUT = 1'b0;
 assign BW_DETECT_DIS = 1'b1;

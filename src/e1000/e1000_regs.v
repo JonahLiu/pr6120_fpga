@@ -39,7 +39,25 @@ module e1000_regs(
 	output [31:0] MDIC,
 	output MDIC_start,
 	input MDIC_R_i,
-	input [15:0] MDIC_DATA_i
+	input [15:0] MDIC_DATA_i,
+
+	output [31:0] ICR,
+	input [31:0] ICR_fb_i,
+	output ICR_set,
+	output ICR_get,
+
+	output [31:0] ITR,
+	output ITR_set,
+
+	output [31:0] ICS,
+	output ICS_set,
+
+	output [31:0] IMS,
+	output IMS_set,
+
+	output [31:0] IMC,
+	output IMC_set
+
 );
 
 reg awready_r;
@@ -384,7 +402,14 @@ e1000_register #(.init(32'h0)) ICR_reg_i(
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(ICR_wstb), .q_o(ICR_o)
 );
-assign ICR_i = {17'b0,ICR_o[14:0]};
+reg ICR_wstb_0;
+always @(posedge aclk) ICR_wstb_0 <= ICR_wstb;
+assign ICR_set = ICR_wstb_0;
+reg ICR_rstb_0;
+always @(posedge aclk) ICR_rstb_0 <= ICR_rstb;
+assign ICR_get = ICR_rstb_0;
+assign ICR_i = ICR_fb_i;
+assign ICR = ICR_o;
 
 reg ITR_wstb;
 reg ITR_rstb;
@@ -396,6 +421,10 @@ e1000_register #(.init(32'h0)) ITR_reg_i(
 	.srst_i(1'b0), .wen_i(ITR_wstb), .q_o(ITR_o)
 );
 assign ITR_i = {16'b0,ITR_o[15:0]};
+reg ITR_wstb_0;
+always @(posedge aclk) ITR_wstb_0 <= ITR_wstb;
+assign ITR_set = ITR_wstb_0;
+assign ITR = ITR_o;
 
 reg ICS_wstb;
 reg ICS_rstb;
@@ -407,6 +436,10 @@ e1000_register #(.init(32'h0)) ICS_reg_i(
 	.srst_i(1'b0), .wen_i(ICS_wstb), .q_o(ICS_o)
 );
 assign ICS_i = {16'b0,ICS_o[15:0]};
+reg ICS_wstb_0;
+always @(posedge aclk) ICS_wstb_0 <= ICS_wstb;
+assign ICS_set = ICS_wstb_0;
+assign ICS = ICS_o;
 
 reg IMS_wstb;
 reg IMS_rstb;
@@ -418,6 +451,10 @@ e1000_register #(.init(32'h0)) IMS_reg_i(
 	.srst_i(1'b0), .wen_i(IMS_wstb), .q_o(IMS_o)
 );
 assign IMS_i = {15'b0,IMS_o[16:0]};
+reg IMS_wstb_0;
+always @(posedge aclk) IMS_wstb_0 <= IMS_wstb;
+assign IMS_set = IMS_wstb_0;
+assign IMS = IMS_o;
 
 reg IMC_wstb;
 reg IMC_rstb;
@@ -429,6 +466,10 @@ e1000_register #(.init(32'h0)) IMC_reg_i(
 	.srst_i(1'b0), .wen_i(IMC_wstb), .q_o(IMC_o)
 );
 assign IMC_i = {15'b0,IMC_o[16:0]};
+reg IMC_wstb_0;
+always @(posedge aclk) IMC_wstb_0 <= IMC_wstb;
+assign IMC_set = IMC_wstb_0;
+assign IMC = IMC_o;
 
 reg RCTL_wstb;
 reg RCTL_rstb;

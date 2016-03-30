@@ -25,6 +25,9 @@ module e1000_top(
 	output	axi_s_rvalid,
 	input axi_s_rready,
 
+	// Interrupt request
+	output intr_request,
+
 	// DMA Port
 	input [3:0] axi_m_awid,
 	input [63:0] axi_m_awaddr,
@@ -95,6 +98,7 @@ module e1000_top(
 );
 
 parameter PHY_ADDR=5'b0;
+parameter CLK_PERIOD_NS=8;
 
 wire [31:0] CTRL;
 
@@ -110,6 +114,23 @@ wire MDIC_start;
 wire [15:0] mm_rdatao;
 wire mm_rd_doneo;
 wire mm_wr_doneo;
+
+wire [31:0] ICR;
+wire [31:0] ICR_fb;
+wire ICR_set;
+wire ICR_get;
+
+wire [31:0] ITR;
+wire ITR_set;
+
+wire [31:0] ICS;
+wire ICS_set;
+
+wire [31:0] IMS;
+wire IMS_set;
+
+wire [31:0] IMC;
+wire IMC_set;
 
 assign phy_reset_out = CTRL[31] || !aresetn;
 
@@ -153,7 +174,24 @@ e1000_regs cmd_i(
 	.MDIC(MDIC),
 	.MDIC_start(MDIC_start),
 	.MDIC_R_i(mm_rd_doneo&&mm_wr_doneo),
-	.MDIC_DATA_i(mm_rdatao)
+	.MDIC_DATA_i(mm_rdatao),
+
+	.ICR(ICR),
+	.ICR_fb_i(ICR_fb),
+	.ICR_set(ICR_set),
+	.ICR_get(ICR_get),
+
+	.ITR(ITR),
+	.ITR_set(ITR_set),
+	
+	.ICS(ICS),
+	.ICS_set(ICS_set),
+
+	.IMS(IMS),
+	.IMS_set(IMS_set),
+	
+	.IMC(IMC),
+	.IMC_set(IMC_set)
 );
 
 shift_eeprom shift_eeprom_i(
@@ -185,6 +223,35 @@ shift_mdio shift_mdio_i(
 	.eni(MDIC_start),
 	.wdatai({2'b01,MDIC[27:26],PHY_ADDR[4:0],MDIC[20:16],2'b10,MDIC[15:0]}),
 	.wr_doneo(mm_wr_doneo)
+);
+
+intr_ctrl #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) intr_ctrl_i(
+	.clk_i(aclk),
+	.rst_i(!aresetn),
+
+	.ICR(ICR),
+	.ICR_fb_o(ICR_fb),
+	.ICR_set(ICR_set),
+	.ICR_get(ICR_get),
+
+	.ITR(ITR),
+	.ITR_set(ITR_set),
+
+	.ICS(ICS),
+	.ICS_set(ICS_set),
+	
+	.IMS(IMS),
+	.IMS_set(IMS_set),
+
+	.IMC(IMC),
+	.IMC_set(IMC_set),
+
+	.intr_request(intr_request),
+
+	.RXT0_req(1'b0),
+	.TXDW_req(1'b0),
+	.RXDMT0_req(1'b0),
+	.LSC_req(1'b0)
 );
 
 

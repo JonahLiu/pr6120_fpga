@@ -26,6 +26,7 @@ read_verilog ../../src/e1000/e1000_top.v
 read_verilog ../../src/e1000/eeprom_emu.v
 read_verilog ../../src/e1000/shift_mdio.v
 read_verilog ../../src/e1000/shift_eeprom.v
+read_verilog ../../src/e1000/intr_ctrl.v
 read_verilog ../../src/pci/pci_axi_top.v
 read_verilog ../../src/pci/pci_lc.v
 read_verilog ../../src/pci/pci_target.v

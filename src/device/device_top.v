@@ -96,6 +96,7 @@ parameter HARDWIRE_IDSEL=24;
 // Default PHY address in e1000 is 5'b00001
 // Change this according to hardware design
 parameter PHY_ADDR=5'b0;
+parameter CORE_CLK_PERIOD_NS=8;
 
 wire ext_clk;
 wire ext_rst;
@@ -148,6 +149,8 @@ wire tgt_m_rvalid;
 wire tgt_m_rready;
 wire [31:0] tgt_m_rdata;
 wire [1:0] tgt_m_rresp;
+
+wire intr_request;
 
 wire mst_s_aclk;
 wire mst_s_aresetn;
@@ -607,11 +610,17 @@ pci_axi_top #(.HARDWIRE_IDSEL(HARDWIRE_IDSEL))pci_axi_i(
 	.mst_s_rresp(mst_s_rresp),
 	.mst_s_rlast(mst_s_rlast),
 	.mst_s_rvalid(mst_s_rvalid),
-	.mst_s_rready(mst_s_rready)
+	.mst_s_rready(mst_s_rready),
+
+	.intr_request(intr_request)
 
 );
 
-e1000_top #(.PHY_ADDR(PHY_ADDR)) e1000_i(
+e1000_top #(
+	.PHY_ADDR(PHY_ADDR),
+	.CLK_PERIOD_NS(CORE_CLK_PERIOD_NS)
+
+) e1000_i(
 	.aclk(nic_aclk),
 	.aresetn(nic_aresetn),
 
@@ -637,6 +646,9 @@ e1000_top #(.PHY_ADDR(PHY_ADDR)) e1000_i(
 	.axi_s_rready(nic_s_rready),
 	.axi_s_rdata(nic_s_rdata),
 	.axi_s_rresp(nic_s_rresp),
+
+	// Interrupt Request
+	.intr_request(intr_request),
 
 	// AXI4 for DMA
 	.axi_m_awid(nic_m_awid),

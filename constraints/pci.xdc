@@ -102,6 +102,7 @@ set_property LOC AA25 [get_ports {AD[1]}]
 set_property IOSTANDARD PCI33_3 [get_ports {AD[0]}]
 set_property LOC Y30 [get_ports {AD[0]}]
 
+set_property IOSTANDARD LVCMOS33 [get_ports {PCI_EN_N}]
 set_property LOC AJ28 [get_ports {PCI_EN_N}]
 
 create_clock -period 30.000 -name pci_clock -waveform {0.000 15.000} [get_ports {PCLK}]
