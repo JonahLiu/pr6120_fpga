@@ -97,6 +97,7 @@ parameter HARDWIRE_IDSEL=24;
 // Change this according to hardware design
 parameter PHY_ADDR=5'b0;
 parameter CORE_CLK_PERIOD_NS=8;
+parameter UART_CLK_PERIOD_NS=7.5;
 
 wire ext_clk;
 wire ext_rst;
@@ -104,11 +105,10 @@ wire ext_rst;
 wire core_clk;
 wire core_rst;
 
-wire clk_locked;
+wire uart_clk;
+wire uart_rst;
 
-wire aclk;
-wire areset;
-wire aresetn;
+wire clk_locked;
 
 wire cfg_s_aclk;
 wire cfg_s_aresetn;
@@ -334,6 +334,7 @@ wire uart3_ri;
 wire uart3_dcd;
 
 reg core_rst_r;
+reg uart_rst_r;
 
 assign PCI_EN_N = 1'b0;
 
@@ -452,22 +453,19 @@ assign p1_txer = 1'b0;
 assign p1_gtxsclk = 1'b0;
 
 assign core_rst = core_rst_r;
+assign uart_rst = uart_rst_r;
 
-assign aclk = core_clk;
-assign areset = core_rst;
-assign aresetn = !core_rst;
+assign cfg_s_aclk = core_clk;
+assign cfg_s_aresetn = !core_rst;
 
-assign cfg_s_aclk = aclk;
-assign cfg_s_aresetn = aresetn;
+assign tgt_m_aclk = uart_clk;
+assign tgt_m_aresetn = !uart_rst;
 
-assign tgt_m_aclk = aclk;
-assign tgt_m_aresetn = aresetn;
+assign mps_s_aclk = uart_clk;
+assign mps_s_aresetn = !uart_rst;
 
-assign mps_s_aclk = aclk;
-assign mps_s_aresetn = aresetn;
-
-assign mst_s_aclk = aclk;
-assign mst_s_aresetn = aresetn;
+assign mst_s_aclk = core_clk;
+assign mst_s_aresetn = !core_rst;
 
 always @(posedge core_clk, posedge ext_rst)
 begin
@@ -479,10 +477,21 @@ begin
 	end
 end
 
+always @(posedge uart_clk, posedge ext_rst)
+begin
+	if(ext_rst) begin
+		uart_rst_r <= 1'b1;
+	end
+	else if(clk_locked) begin
+		uart_rst_r <= 1'b0;
+	end
+end
+
 clock_generation clk_gen_i(
 	.reset(ext_rst),
 	.clk_in1(ext_clk),
-	.clk_out1(core_clk),
+	.clk_out1(uart_clk), // 133.333MHz
+	.clk_out2(core_clk), // 125MHz 
 	.locked(clk_locked)
 );
 
@@ -610,7 +619,7 @@ pci_axi_top #(.HARDWIRE_IDSEL(HARDWIRE_IDSEL))pci_axi_i(
 
 );
 
-mps_top #(.CLK_PERIOD_NS(CORE_CLK_PERIOD_NS))mps_top(
+mps_top #(.BASE_BAUD(460800),.CLK_PERIOD_NS(UART_CLK_PERIOD_NS))mps_top(
 	.aclk(mps_s_aclk),
 	.aresetn(mps_s_aresetn),
 

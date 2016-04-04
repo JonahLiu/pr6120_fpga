@@ -45,8 +45,9 @@ module mps_top #(
 	input   [PORT_NUM-1:0] dcdn
 );
 
+localparam PRESCALE_F =(1_000_000_000.0/(BASE_BAUD*16.0))/CLK_PERIOD_NS;
 
-localparam CLOCK_PRESCALE = ((1_000_000_000/(BASE_BAUD*16))+(CLK_PERIOD_NS/2))/CLK_PERIOD_NS;
+localparam integer CLOCK_PRESCALE = PRESCALE_F;
 
 multi_serial #(.PORT_NUM(PORT_NUM),.CLOCK_PRESCALE(CLOCK_PRESCALE)) 
 multi_serial_i (
