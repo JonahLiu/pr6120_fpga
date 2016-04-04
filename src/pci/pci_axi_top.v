@@ -180,6 +180,8 @@ wire  [511:0] CFG_BUS;
 wire          RST;
 wire          CLK;
 
+reg intr_n_sync;
+
 // Reserved for master
 assign C_TERM = 1'b1;
 assign C_READY = 1'b1;
@@ -190,7 +192,7 @@ assign M_WRDN = 1'b0;
 assign M_READY = 1'b0;
 assign M_CBE = 'b0;
 assign CFG_SELF = 1'b0;
-assign INT_N = !intr_request;
+assign INT_N = intr_n_sync;
 assign PME_N = 1'b1;
 assign KEEPOUT = 1'b0;
 assign BW_DETECT_DIS = 1'b1;
@@ -322,5 +324,10 @@ pci_target_i(
 	.tgt_m_rdata(tgt_m_rdata),
 	.tgt_m_rresp(tgt_m_rresp)
 );
+
+always @(posedge CLK)
+begin
+	intr_n_sync <= !intr_request;
+end
 
 endmodule

@@ -246,6 +246,7 @@ ier, iir, fcr, mcr, lcr, msr, lsr, rf_count, tf_count, tstate, rstate,
 `endif
 
 	);
+parameter clock_prescale = 1;
 
 input 									clk;
 input 									wb_rst_i;
@@ -318,6 +319,7 @@ reg 										int_o;
 reg [3:0] 								trigger_level; // trigger level of the receiver FIFO
 reg 										rx_reset;
 reg 										tx_reset;
+reg [15:0] 								prec;  // 16-bit prescaler
 
 wire 										dlab;			   // divisor latch access bit
 wire 										cts_pad_i, dsr_pad_i, ri_pad_i, dcd_pad_i; // modem status bits
@@ -688,16 +690,32 @@ always @(posedge clk or posedge wb_rst_i)
 	if (wb_rst_i) lsr7r <= #1 0;
 	else lsr7r <= #1 lsr_mask ? 0 : lsr7r || (lsr7 && ~lsr7_d);
 
+// Prescaler
+always @(posedge clk or posedge wb_rst_i) 
+begin
+	if (wb_rst_i)
+		prec <= #1 0;
+	else
+		if (start_dlc | (~(|prec)))
+  			prec <= #1 clock_prescale - 1;               // preset counter
+		else
+			prec <= #1 prec - 1;              // decrement counter
+end
+
 // Frequency divider
 always @(posedge clk or posedge wb_rst_i) 
 begin
 	if (wb_rst_i)
 		dlc <= #1 0;
 	else
-		if (start_dlc | ~ (|dlc))
+		if (start_dlc)
   			dlc <= #1 dl - 1;               // preset counter
-		else
-			dlc <= #1 dlc - 1;              // decrement counter
+		else if(~(|prec))
+		//else
+			if(~(|dlc))
+  			        dlc <= #1 dl - 1;               // preset counter
+		        else
+			        dlc <= #1 dlc - 1;              // decrement counter
 end
 
 // Enable signal generation logic
@@ -706,7 +724,7 @@ begin
 	if (wb_rst_i)
 		enable <= #1 1'b0;
 	else
-		if (|dl & ~(|dlc))     // dl>0 & dlc==0
+		if ((|dl) & (~(|dlc)) & (~(|prec)))     // dl>0 & dlc==0 & prec==0
 			enable <= #1 1'b1;
 		else
 			enable <= #1 1'b0;
