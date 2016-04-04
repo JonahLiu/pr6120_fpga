@@ -70,6 +70,7 @@ module pci_axi_top #(
 	output tgt_m_bready,
 
 	output [31:0] tgt_m_araddr,
+	output [3:0] tgt_m_aruser, // Pass byte enables for IO space
 	output tgt_m_arvalid,
 	input	tgt_m_arready,
 
@@ -318,6 +319,7 @@ pci_target_i(
 	.tgt_m_arvalid(tgt_m_arvalid),
 	.tgt_m_arready(tgt_m_arready),
 	.tgt_m_araddr(tgt_m_araddr),
+	.tgt_m_aruser(tgt_m_aruser),
 
 	.tgt_m_rvalid(tgt_m_rvalid),
 	.tgt_m_rready(tgt_m_rready),

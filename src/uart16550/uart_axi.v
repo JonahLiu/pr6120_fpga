@@ -16,6 +16,7 @@ module uart_axi (
 	input axi_s_bready,
 
 	input [31:0] axi_s_araddr,
+	input [3:0] axi_s_aruser,
 	input axi_s_arvalid,
 	output	axi_s_arready,
 

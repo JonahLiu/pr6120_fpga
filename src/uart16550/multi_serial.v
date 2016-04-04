@@ -20,6 +20,7 @@ module multi_serial #(
 	input axi_s_bready,
 
 	input [31:0] axi_s_araddr,
+	input [3:0] axi_s_aruser,
 	input axi_s_arvalid,
 	output	axi_s_arready,
 
@@ -71,6 +72,7 @@ uart_axi uart_axi_i(
 	.axi_s_bready(axi_s_bready),
 
 	.axi_s_araddr(axi_s_araddr),
+	.axi_s_aruser(axi_s_aruser),
 	.axi_s_arvalid(axi_s_arvalid),
 	.axi_s_arready(axi_s_arready),
 

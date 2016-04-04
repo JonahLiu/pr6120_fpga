@@ -35,6 +35,7 @@ module pci_target #(
 	output tgt_m_bready,
 
 	output [31:0] tgt_m_araddr,
+	output [3:0] tgt_m_aruser,
 	output tgt_m_arvalid,
 	input	tgt_m_arready,
 
@@ -60,6 +61,7 @@ reg write_ready;
 reg arvalid_r;
 reg rready_r;
 reg [31:0] araddr_r;
+reg [3:0] rstrb_r;
 reg [31:0] read_data;
 reg read_ready;
 reg write_enable;
@@ -87,6 +89,7 @@ assign tgt_m_wstrb = wstrb_r;
 assign tgt_m_wvalid = wvalid_r;
 assign tgt_m_bready = bready_r;
 assign tgt_m_araddr = araddr_r;
+assign tgt_m_aruser = rstrb_r;
 assign tgt_m_arvalid = arvalid_r;
 assign tgt_m_rready = rready_r;
 
@@ -174,6 +177,7 @@ begin
 		end
 		S_READ_0: begin
 			read_enable <= 1'b1;
+			s_be_r <= ~S_CBE;
 		end
 		S_READ_1: begin
 			s_data_r <= read_data;
@@ -186,8 +190,18 @@ end
 always @(posedge CLK)
 begin
 	if(BASE_HIT) begin
-		s_addr_r[ADDR_VALID_BITS-1:0] <= ADDR;
 		s_addr_r[31:ADDR_VALID_BITS] <= BASE_HIT;
+		s_addr_r[ADDR_VALID_BITS-1:2] <= ADDR[31:2];
+		// Fix-up non-aligned address
+		// PCI protocol use last two bits as address increment
+		// indication, but AXI needs actual address bits
+		casex(S_CBE) 
+			4'bxxx0: s_addr_r[1:0] <= 2'b00;
+			4'bxx01: s_addr_r[1:0] <= 2'b01;
+			4'bx011: s_addr_r[1:0] <= 2'b10;
+			4'b0111: s_addr_r[1:0] <= 2'b11;
+			default: s_addr_r[1:0] <= 2'b00;
+		endcase
 	end
 end
 
@@ -344,6 +358,7 @@ begin
 		read_ready <= 1'b0;
 		araddr_r <= 'bx;
 		read_data <= 'bx;
+		rstrb_r <= 'bx;
 	end
 	else case(rs_next)
 		RS_IDLE: begin
@@ -353,6 +368,7 @@ begin
 		end
 		RS_READ_ASTB: begin
 			araddr_r <= s_addr_r;
+			rstrb_r <= s_be_r;
 			arvalid_r <= 1'b1;
 		end
 		RS_READ_AWAIT: begin

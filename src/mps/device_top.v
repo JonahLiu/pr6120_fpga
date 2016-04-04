@@ -145,6 +145,7 @@ wire [1:0] tgt_m_bresp;
 wire tgt_m_arvalid;
 wire tgt_m_arready;
 wire [31:0] tgt_m_araddr;
+wire [3:0] tgt_m_aruser;
 wire tgt_m_rvalid;
 wire tgt_m_rready;
 wire [31:0] tgt_m_rdata;
@@ -202,6 +203,7 @@ wire [1:0] mps_s_bresp;
 wire mps_s_arvalid;
 wire mps_s_arready;
 wire [31:0] mps_s_araddr;
+wire [3:0] mps_s_aruser;
 wire mps_s_rvalid;
 wire mps_s_rready;
 wire [31:0] mps_s_rdata;
@@ -412,6 +414,7 @@ assign mps_s_bready = tgt_m_bready;
 
 assign mps_s_arvalid = tgt_m_arvalid;
 assign mps_s_araddr = tgt_m_araddr;
+assign mps_s_aruser = tgt_m_aruser;
 assign tgt_m_arready = mps_s_arready;
 
 assign tgt_m_rvalid = mps_s_rvalid;
@@ -555,6 +558,7 @@ pci_axi_top #(.HARDWIRE_IDSEL(HARDWIRE_IDSEL))pci_axi_i(
 	.tgt_m_arvalid(tgt_m_arvalid),
 	.tgt_m_arready(tgt_m_arready),
 	.tgt_m_araddr(tgt_m_araddr),
+	.tgt_m_aruser(tgt_m_aruser),
 
 	.tgt_m_rvalid(tgt_m_rvalid),
 	.tgt_m_rready(tgt_m_rready),
@@ -626,6 +630,7 @@ mps_top #(.CLK_PERIOD_NS(CORE_CLK_PERIOD_NS))mps_top(
 	.axi_s_arvalid(mps_s_arvalid),
 	.axi_s_arready(mps_s_arready),
 	.axi_s_araddr(mps_s_araddr),
+	.axi_s_aruser(mps_s_aruser),
 
 	.axi_s_rvalid(mps_s_rvalid),
 	.axi_s_rready(mps_s_rready),
