@@ -228,6 +228,7 @@ output        sampled_bit_q;
 output        tx_point;
 output        hard_sync;
 
+reg     [7:0] clk_precnt;
 reg     [6:0] clk_cnt;
 reg           clk_en;
 reg           clk_en_q;
@@ -263,12 +264,23 @@ assign resync     =  (~rx_idle) & (~rx_inter) & (~rx) & sampled_bit & (~sync_blo
 /* Generating general enable signal that defines baud rate. */
 always @ (posedge clk or posedge rst)
 begin
+  if(rst)
+    clk_precnt <= 8'h0;
+  else if(clk_precnt == (`CLK_PRESCALE-1))
+    clk_precnt <=#Tp 8'h0;
+  else
+    clk_precnt <=#Tp clk_precnt + 1'b1;
+end
+
+always @ (posedge clk or posedge rst)
+begin
   if (rst)
     clk_cnt <= 7'h0;
-  else if (clk_cnt >= (preset_cnt-1'b1))
-    clk_cnt <=#Tp 7'h0;
-  else
-    clk_cnt <=#Tp clk_cnt + 1'b1;
+  else if(clk_precnt == (`CLK_PRESCALE-1))
+    if (clk_cnt == (preset_cnt-1'b1))
+      clk_cnt <=#Tp 7'h0;
+    else
+      clk_cnt <=#Tp clk_cnt + 1'b1;
 end
 
 
@@ -276,7 +288,7 @@ always @ (posedge clk or posedge rst)
 begin
   if (rst)
     clk_en  <= 1'b0;
-  else if ({1'b0, clk_cnt} == (preset_cnt-1'b1))
+  else if ({1'b0, clk_cnt} == (preset_cnt-1'b1) && clk_precnt == (`CLK_PRESCALE-1))
     clk_en  <=#Tp 1'b1;
   else
     clk_en  <=#Tp 1'b0;

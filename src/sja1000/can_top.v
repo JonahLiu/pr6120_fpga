@@ -46,6 +46,10 @@
 //// from Bosch.                                                  ////
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
+// Change Log
+//
+// 2016/04/05 Jonah
+// Add CAN_SYNC_IF and CLK_PRESCALE for high speed designs.
 //
 // CVS Revision History
 //
@@ -213,6 +217,14 @@
 
 module can_top
 ( 
+  `ifdef CAN_SYNC_IF
+    rst_i,
+    addr_i,
+    data_i,
+    data_o,
+    wr_i,
+    rd_i,
+  `else
   `ifdef CAN_WISHBONE_IF
     wb_clk_i,
     wb_rst_i,
@@ -230,6 +242,7 @@ module can_top
     wr_i,
     port_0_io,
     cs_can_i,
+  `endif
   `endif
   clk_i,
   rx_i,
@@ -250,7 +263,17 @@ module can_top
 
 parameter Tp = 1;
 
-
+`ifdef CAN_SYNC_IF
+  input rst_i;
+  input	[7:0]	addr_i;
+  input	[7:0]	data_i;
+  output	[7:0]	data_o;
+  input	wr_i;
+  input	rd_i;
+  reg          wr_i_q;
+  reg          rd_i_q;
+  wire         cs_can_i;
+`else
 `ifdef CAN_WISHBONE_IF
   input        wb_clk_i;
   input        wb_rst_i;
@@ -284,6 +307,7 @@ parameter Tp = 1;
   reg    [7:0] addr_latched;
   reg          wr_i_q;
   reg          rd_i_q;
+`endif
 `endif
 
 input        clk_i;
@@ -779,6 +803,35 @@ end
 
 
 
+`ifdef CAN_SYNC_IF
+
+  assign cs_can_i = 1'b1;
+
+  // Generating delayed wr_i and rd_i signals
+  always @ (posedge clk_i or posedge rst)
+  begin
+    if (rst)
+      begin
+        wr_i_q <= 1'b0;
+        rd_i_q <= 1'b0;
+      end
+    else
+      begin
+        wr_i_q <=#Tp wr_i;
+        rd_i_q <=#Tp rd_i;
+      end
+  end
+
+
+  assign cs = ((wr_i & (~wr_i_q)) | (rd_i & (~rd_i_q))) & cs_can_i;
+
+
+  assign rst       = rst_i;
+  assign we        = wr_i;
+  assign addr      = addr_i;
+  assign data_in   = data_i;
+  assign data_o = data_out;
+`else
 `ifdef CAN_WISHBONE_IF
 
   assign cs_can_i = 1'b1;
@@ -868,6 +921,7 @@ end
   assign data_in   = port_0_io;
   assign port_0_io = (cs_can_i & rd_i)? data_out : 8'hz;
 
+`endif
 `endif
 
 
