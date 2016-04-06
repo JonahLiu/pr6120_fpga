@@ -487,11 +487,10 @@ begin
 	end
 end
 
-clock_generation clk_gen_i(
+uart_clk_gen uart_clk_gen_i(
 	.reset(ext_rst),
 	.clk_in1(ext_clk),
 	.clk_out1(uart_clk), // 133.333MHz
-	.clk_out2(core_clk), // 125MHz 
 	.locked(clk_locked)
 );
 
@@ -658,28 +657,66 @@ mps_top #(.BASE_BAUD(460800),.CLK_PERIOD_NS(UART_CLK_PERIOD_NS))mps_top(
 	.dcdn(mps_dcdn)
 );
 
-ila_axi_0 ila_axi_0_i(
+
+reg [15:0] read_count;
+reg [15:0] write_count;
+reg [15:0] access_count;
+
+always @(posedge tgt_m_aclk, negedge tgt_m_aresetn)
+begin
+	if(!tgt_m_aresetn)
+		read_count <= 'b0;
+	else if(tgt_m_arvalid && tgt_m_arready)
+		read_count <= read_count+1;
+end
+
+always @(posedge tgt_m_aclk, negedge tgt_m_aresetn)
+begin
+	if(!tgt_m_aresetn)
+		write_count <= 'b0;
+	else if(tgt_m_awvalid && tgt_m_awready)
+		write_count <= write_count+1;
+end
+
+always @(posedge tgt_m_aclk, negedge tgt_m_aresetn)
+begin
+	if(!tgt_m_aresetn)
+		access_count <= 'b0;
+	else if(tgt_m_arvalid && tgt_m_arready)
+		access_count <= access_count+1;
+	else if(tgt_m_awvalid && tgt_m_awready)
+		access_count <= access_count+1;
+end
+
+ila_0 ila_0_i(
 	.clk(tgt_m_aclk), // input wire clk
+	.probe0({
+		tgt_m_awaddr,
+		tgt_m_awvalid,
+		tgt_m_awready,
 
+		tgt_m_wdata,
+		tgt_m_wstrb,
+		tgt_m_wvalid,
+		tgt_m_wready,
 
-	.probe0(tgt_m_awvalid), // input wire [0:0] probe0  
-	.probe1(tgt_m_awaddr), // input wire [31:0]  probe1 
-	.probe2(tgt_m_bresp), // input wire [1:0]  probe2 
-	.probe3(tgt_m_awready), // input wire [0:0]  probe3 
-	.probe4(tgt_m_wvalid), // input wire [0:0]  probe4 
-	.probe5(tgt_m_wdata), // input wire [31:0]  probe5 
-	.probe6(tgt_m_wready), // input wire [0:0]  probe6 
-	.probe7(tgt_m_bvalid), // input wire [0:0]  probe7 
-	.probe8(tgt_m_bready), // input wire [0:0]  probe8 
-	.probe9(tgt_m_arvalid), // input wire [0:0]  probe9 
-	.probe10(tgt_m_araddr), // input wire [31:0]  probe10 
-	.probe11(tgt_m_arready), // input wire [0:0]  probe11 
-	.probe12(tgt_m_rvalid), // input wire [0:0]  probe12 
-	.probe13(tgt_m_rresp), // input wire [1:0]  probe13 
-	.probe14(tgt_m_rdata), // input wire [31:0]  probe14 
-	.probe15(tgt_m_wstrb), // input wire [3:0]  probe15 
-	.probe16(tgt_m_rready), // input wire [0:0]  probe16 
-	.probe17({2'b0,intr_request}), // input wire [2:0]  probe17  
-	.probe18(3'b0) // input wire [2:0]  probe18
+		tgt_m_bresp,
+		tgt_m_bvalid,
+		tgt_m_bready,
+
+		tgt_m_araddr,
+		tgt_m_arvalid,
+		tgt_m_arready,
+
+		tgt_m_rdata,
+		tgt_m_rresp,
+		tgt_m_rvalid,
+		tgt_m_rready,
+
+		intr_request,
+
+		read_count,
+		write_count,
+		access_count})
 );
 endmodule
