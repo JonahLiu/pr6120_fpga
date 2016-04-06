@@ -101,14 +101,10 @@ parameter CORE_CLK_PERIOD_NS=8;
 wire ext_clk;
 wire ext_rst;
 
-wire core_clk;
-wire core_rst;
+wire nic_clk;
+wire nic_rst;
 
 wire clk_locked;
-
-wire aclk;
-wire areset;
-wire aresetn;
 
 wire cfg_s_aclk;
 wire cfg_s_aresetn;
@@ -355,7 +351,7 @@ wire uart3_dsr;
 wire uart3_ri;
 wire uart3_dcd;
 
-reg core_rst_r;
+reg nic_rst_r;
 
 assign PCI_EN_N = 1'b0;
 
@@ -458,38 +454,34 @@ assign p1_txen = 1'b0;
 assign p1_txer = 1'b0;
 assign p1_gtxsclk = 1'b0;
 
-assign core_rst = core_rst_r;
+assign nic_rst = nic_rst_r;
 
-assign aclk = core_clk;
-assign areset = core_rst;
-assign aresetn = !core_rst;
+assign cfg_s_aclk = nic_clk;
+assign cfg_s_aresetn = !nic_rst;
 
-assign cfg_s_aclk = aclk;
-assign cfg_s_aresetn = aresetn;
+assign tgt_m_aclk = nic_clk;
+assign tgt_m_aresetn = !nic_rst;
 
-assign tgt_m_aclk = aclk;
-assign tgt_m_aresetn = aresetn;
+assign nic_aclk = nic_clk;
+assign nic_aresetn = !nic_rst;
 
-assign nic_aclk = aclk;
-assign nic_aresetn = aresetn;
+assign mst_s_aclk = nic_clk;
+assign mst_s_aresetn = !nic_rst;
 
-assign mst_s_aclk = aclk;
-assign mst_s_aresetn = aresetn;
-
-always @(posedge core_clk, posedge ext_rst)
+always @(posedge nic_clk, posedge ext_rst)
 begin
 	if(ext_rst) begin
-		core_rst_r <= 1'b1;
+		nic_rst_r <= 1'b1;
 	end
 	else if(clk_locked) begin
-		core_rst_r <= 1'b0;
+		nic_rst_r <= 1'b0;
 	end
 end
 
-clock_generation clk_gen_i(
+nic_clk_gen nic_clk_gen_i(
 	.reset(ext_rst),
 	.clk_in1(ext_clk),
-	.clk_out1(core_clk),
+	.clk_out1(nic_clk),
 	.locked(clk_locked)
 );
 
@@ -721,8 +713,8 @@ e1000_top #(
 // Dual redundancy fault-tolerant
 /*
 phy_ft phy_ft_i(
-	.clk_i(core_clk),
-	.rst_i(core_rst),
+	.clk_i(nic_clk),
+	.rst_i(nic_rst),
 
 	.rxdat(mac_rxdat),
 	.rxdv(mac_rxdv),
@@ -781,8 +773,8 @@ phy_ft phy_ft_i(
 */
 
 eeprom_emu eeprom_emu_i(
-	.clk_i(aclk),
-	.rst_i(areset),
+	.clk_i(nic_aclk),
+	.rst_i(nic_areset),
 	.sk_i(eesk),
 	.cs_i(eecs),
 	.di_i(eedi),
@@ -794,8 +786,8 @@ eeprom_emu eeprom_emu_i(
 );
 
 config_rom rom_i(
-	.clk_i(aclk),
-	.rst_i(areset),
+	.clk_i(nic_aclk),
+	.rst_i(nic_areset),
 	.read_addr(eeprom_raddr),
 	.read_enable(eeprom_ren),
 	.read_data(eeprom_rdata)
@@ -906,8 +898,8 @@ xr17c154_top xr17c154_i(
 );
 
 target_crossbar target_crossbar_i(
-	.aclk(aclk),
-	.aresetn(aresetn),
+	.aclk(nic_aclk),
+	.aresetn(nic_aresetn),
 
 	.s0_axi_awvalid(tgt_m_awvalid),
 	.s0_axi_awready(tgt_m_awready),
@@ -999,8 +991,8 @@ target_crossbar target_crossbar_i(
 );
 
 master_crossbar master_crossbar_i(
-	.aclk(aclk),
-	.aresetn(aresetn),
+	.aclk(nic_aclk),
+	.aresetn(nic_aresetn),
 
 	.m0_axi_awid(mst_s_awid),
 	.m0_axi_awaddr(mst_s_awaddr),
@@ -1079,28 +1071,35 @@ master_crossbar master_crossbar_i(
 );
 */
 
-ila_axi_0 ila_axi_0_i(
+ila_0 ila_0_i(
 	.clk(tgt_m_aclk), // input wire clk
+	.probe0({
+		tgt_m_awaddr,
+		tgt_m_awvalid,
+		tgt_m_awready,
 
+		tgt_m_wdata,
+		tgt_m_wstrb,
+		tgt_m_wvalid,
+		tgt_m_wready,
 
-	.probe0(tgt_m_awvalid), // input wire [0:0] probe0  
-	.probe1(tgt_m_awaddr), // input wire [31:0]  probe1 
-	.probe2(tgt_m_bresp), // input wire [1:0]  probe2 
-	.probe3(tgt_m_awready), // input wire [0:0]  probe3 
-	.probe4(tgt_m_wvalid), // input wire [0:0]  probe4 
-	.probe5(tgt_m_wdata), // input wire [31:0]  probe5 
-	.probe6(tgt_m_wready), // input wire [0:0]  probe6 
-	.probe7(tgt_m_bvalid), // input wire [0:0]  probe7 
-	.probe8(tgt_m_bready), // input wire [0:0]  probe8 
-	.probe9(tgt_m_arvalid), // input wire [0:0]  probe9 
-	.probe10(tgt_m_araddr), // input wire [31:0]  probe10 
-	.probe11(tgt_m_arready), // input wire [0:0]  probe11 
-	.probe12(tgt_m_rvalid), // input wire [0:0]  probe12 
-	.probe13(tgt_m_rresp), // input wire [1:0]  probe13 
-	.probe14(tgt_m_rdata), // input wire [31:0]  probe14 
-	.probe15(tgt_m_wstrb), // input wire [3:0]  probe15 
-	.probe16(1'b0), // input wire [0:0]  probe16 
-	.probe17(3'b0), // input wire [2:0]  probe17  
-	.probe18(3'b0) // input wire [2:0]  probe18
+		tgt_m_bresp,
+		tgt_m_bvalid,
+		tgt_m_bready,
+
+		tgt_m_araddr,
+		tgt_m_arvalid,
+		tgt_m_arready,
+
+		tgt_m_rdata,
+		tgt_m_rresp,
+		tgt_m_rvalid,
+		tgt_m_rready,
+
+		intr_request,
+
+		read_count,
+		write_count,
+		access_count})
 );
 endmodule

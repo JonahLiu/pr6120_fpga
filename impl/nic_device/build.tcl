@@ -35,19 +35,21 @@ read_verilog ../../src/pci/pci_target.v
 file mkdir pci32_0
 file copy -force ../../ip/pci32_0.xci pci32_0
 read_ip pci32_0/pci32_0.xci
+#set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files pci32_0/pci32_0.xci]
 generate_target -force {all} [get_ips pci32_0]
 
-file mkdir clock_generation
-file copy -force ../../ip/clock_generation.xci clock_generation
-read_ip clock_generation/clock_generation.xci
-generate_target -force {all} [get_ips clock_generation]
+file mkdir nic_clk_gen
+file copy -force ../../ip/nic_clk_gen.xci nic_clk_gen
+read_ip nic_clk_gen/nic_clk_gen.xci
+set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files nic_clk_gen/nic_clk_gen.xci]
+generate_target -force {all} [get_ips nic_clk_gen]
 
-file mkdir ila_axi_0
-file copy -force ../../ip/ila_axi_0.xci ila_axi_0
-file copy -force ../../ip/ila_axi_0.xml ila_axi_0
-read_ip ila_axi_0/ila_axi_0.xci
-set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files ila_axi_0/ila_axi_0.xci]
-generate_target -force {all} [get_ips ila_axi_0]
+file mkdir ila_0
+file copy -force ../../ip/ila_0.xci ila_0
+file copy -force ../../ip/ila_0.xml ila_0
+read_ip ila_0/ila_0.xci
+set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files ila_0/ila_0.xci]
+generate_target -force {all} [get_ips ila_0]
 
 #file mkdir ila_axi_0
 #create_ip -name ila -vendor xilinx.com -library ip -version 5.0 -module_name ila_axi_0 
