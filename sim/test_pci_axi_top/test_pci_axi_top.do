@@ -12,10 +12,16 @@ vlog +incdir+../../src/test $vlog_opts ../../src/test/pci_blue_arbiter.v
 
 vlog $vlog_opts ../../src/test/test_pci_axi_top.v
 vlog $vlog_opts ../../src/test/pci_behavioral_master.v
+vlog $vlog_opts ../../src/test/pci_behavioral_target.v
 vlog $vlog_opts ../../src/test/axi_memory_model.v
 
 vlog $vlog_opts ../../src/pci/pci_axi_top.v
 vlog $vlog_opts ../../src/pci/pci_target.v
+vlog $vlog_opts ../../src/pci/pci_master.v
+vlog $vlog_opts ../../src/pci/pci_master_wpath.v
+vlog $vlog_opts ../../src/pci/pci_master_rpath.v
+vlog $vlog_opts ../../src/pci/pci_master_ctrl.v
+vlog $vlog_opts ../../src/pci/fifo_async.v
 vlog $vlog_opts ../../src/pci/pci_lc.v
 vlog $vlog_opts ../../src/pci/pci32_0.v
 #vlog $vlog_opts ../../src/pci/pci32_0_top.v
