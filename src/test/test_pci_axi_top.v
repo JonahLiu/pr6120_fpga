@@ -64,6 +64,7 @@ wire tgt_m_bvalid;
 wire tgt_m_bready;
 wire [1:0] tgt_m_bresp;
 wire tgt_m_arvalid;
+wire [3:0] tgt_m_aruser;
 wire tgt_m_arready;
 wire [31:0] tgt_m_araddr;
 wire tgt_m_rvalid;
@@ -75,7 +76,7 @@ wire mst_s_aclk;
 wire mst_s_aresetn;
 wire [3:0] mst_s_awid;
 wire [63:0] mst_s_awaddr;
-wire [3:0] mst_s_awlen;
+wire [7:0] mst_s_awlen;
 wire [2:0] mst_s_awsize;
 wire [1:0] mst_s_awburst;
 wire [3:0] mst_s_awcache;
@@ -93,7 +94,7 @@ wire mst_s_bvalid;
 wire mst_s_bready;
 wire [3:0] mst_s_arid;
 wire [63:0] mst_s_araddr;
-wire [3:0] mst_s_arlen;
+wire [7:0] mst_s_arlen;
 wire [2:0] mst_s_arsize;
 wire [1:0] mst_s_arburst;
 wire [3:0] mst_s_arcache;
@@ -222,6 +223,7 @@ pci_axi_top pci_axi_i(
 	.tgt_m_bresp(tgt_m_bresp),
 
 	.tgt_m_arvalid(tgt_m_arvalid),
+	.tgt_m_aruser(tgt_m_aruser),
 	.tgt_m_arready(tgt_m_arready),
 	.tgt_m_araddr(tgt_m_araddr),
 
@@ -269,8 +271,9 @@ pci_axi_top pci_axi_i(
 	.mst_s_rresp(mst_s_rresp),
 	.mst_s_rlast(mst_s_rlast),
 	.mst_s_rvalid(mst_s_rvalid),
-	.mst_s_rready(mst_s_rready)
+	.mst_s_rready(mst_s_rready),
 
+	.intr_request(intr_requset)
 );
 
 pci_behavioral_master master(
@@ -288,6 +291,22 @@ pci_behavioral_master master(
 	.INTA_N(INTA_N),
 	.REQ_N(REQ_N[0]),
 	.GNT_N(GNT_N[0]),
+	.RST_N(RST_N),
+	.PCLK(PCLK)
+);
+
+pci_behavioral_target target(
+	.AD(AD),
+	.CBE(CBE),
+	.PAR(PAR),
+	.FRAME_N(FRAME_N),
+	.TRDY_N(TRDY_N),
+	.IRDY_N(IRDY_N),
+	.STOP_N(STOP_N),
+	.DEVSEL_N(DEVSEL_N),
+	.IDSEL(1'b0),
+	.PERR_N(PERR_N),
+	.SERR_N(SERR_N),
 	.RST_N(RST_N),
 	.PCLK(PCLK)
 );
@@ -331,11 +350,11 @@ pci_blue_arbiter arbiter(
 axi_memory_model axi_memory_model_i(
 	.s_axi_aresetn(tgt_m_aresetn),
 	.s_axi_aclk(tgt_m_aclk),
-	.s_axi_awid('b0),
+	.s_axi_awid(4'b0),
 	.s_axi_awaddr(tgt_m_awaddr),
-	.s_axi_awlen('b0),
-	.s_axi_awsize('b0),
-	.s_axi_awburst('b0),
+	.s_axi_awlen(8'b0),
+	.s_axi_awsize(3'b0),
+	.s_axi_awburst(2'b0),
 	.s_axi_awvalid(tgt_m_awvalid),
 	.s_axi_awready(tgt_m_awready),
 	.s_axi_wdata(tgt_m_wdata),
@@ -347,11 +366,11 @@ axi_memory_model axi_memory_model_i(
 	.s_axi_bid(),
 	.s_axi_bresp(tgt_m_bresp),
 	.s_axi_bvalid(tgt_m_bvalid),
-	.s_axi_arid('b0),
+	.s_axi_arid(4'b0),
 	.s_axi_araddr(tgt_m_araddr),
-	.s_axi_arlen('b0),
-	.s_axi_arsize('b0),
-	.s_axi_arburst('b0),
+	.s_axi_arlen(8'b0),
+	.s_axi_arsize(3'b0),
+	.s_axi_arburst(2'b0),
 	.s_axi_arvalid(tgt_m_arvalid),
 	.s_axi_arready(tgt_m_arready),
 	.s_axi_rready(tgt_m_rready),

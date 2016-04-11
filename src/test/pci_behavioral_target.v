@@ -93,6 +93,8 @@ reg [7:0] mem_b1 [0:255];
 reg [7:0] mem_b2 [0:255];
 reg [7:0] mem_b3 [0:255];
 
+reg busy_r;
+
 
 integer state, state_next;
 localparam S_IDLE=0, S_WRITE_WAIT=1, S_WRITE_ACK=2, S_WRITE_STOP_WITH_DATA=3,
@@ -153,7 +155,7 @@ always @(posedge clk, posedge rst)
 begin
 	if(rst)
 		decode_cnt <= 'b0;
-	else if(FRAME_N)
+	else if(FRAME_N && !busy_r)
 		decode_cnt <= 'b0;
 	else if(decode_cnt!=decode_latency)
 		decode_cnt <= decode_cnt+1;
@@ -167,9 +169,19 @@ begin
 		address_valid = 0;
 end
 
+always @(posedge clk, posedge rst)
+begin
+	if(rst)
+		busy_r <= 1'b0;
+	else if(!busy_r && state==S_IDLE)
+		busy_r <= !FRAME_N;
+	else if(state!=S_IDLE && state_next==S_IDLE)
+		busy_r <= 1'b0;
+end
+
 always @(*)
 begin
-	cmd_valid = !FRAME_N && decode_cnt==decode_latency;
+	cmd_valid = (!FRAME_N||busy_r) && decode_cnt==decode_latency;
 	case(cmd_a)
 		CMD_IO_READ, CMD_MEM_READ, CMD_CONF_READ, CMD_MEM_READ_MUL, CMD_MEM_READ_LN: begin
 			cmd_read_valid = 1;
@@ -202,7 +214,7 @@ begin
 	if(rst) begin
 		initial_latency_cnt <= 0;
 	end
-	else if(cmd_valid)
+	else if(DEVSEL_N)
 		initial_latency_cnt <= 0;
 	else if(initial_latency_cnt!=initial_latency)
 		initial_latency_cnt <= initial_latency_cnt+1;
@@ -213,7 +225,7 @@ begin
 	if(rst) begin
 		data_latency_cnt <= 0;
 	end
-	else if(!IRDY_N && !TRDY_N)
+	else if(DEVSEL_N || !IRDY_N && !TRDY_N)
 		data_latency_cnt <= 0;
 	else if(data_latency_cnt!=data_latency)
 		data_latency_cnt <= data_latency_cnt+1;
@@ -233,7 +245,7 @@ begin
 	end
 	else begin
 		write_ready = 1'b0;
-		read_ready = 1'b1;
+		read_ready = 1'b0;
 	end
 end
 
@@ -264,7 +276,18 @@ begin
 			if(cmd_valid && (cmd_read_valid || cmd_write_valid))
 				if(address_valid)
 					if(cmd_read_valid) begin
+						if(decode_cnt==0)
 							state_next = S_READ_TA;
+						else if(read_ready)
+							if(read_disconnect)
+								state_next = S_READ_STOP_WITH_DATA;
+							else
+								state_next = S_READ_ACK;
+						else
+							if(read_disconnect)
+								state_next = S_READ_STOP;
+							else
+								state_next = S_READ_WAIT;
 					end
 					else begin // cmd_write_valid
 						if(write_ready)
@@ -462,26 +485,30 @@ begin
 			stop_r <= 1'b0;
 		end
 		S_READ_WAIT: begin
+			ctrl_oe <= 1'b1;
+			devsel_r <= 1'b1;
 			data_oe <= 1'b1;
-			par_oe <= 1'b1;
 			trdy_r <= 1'b0;
 			stop_r <= 1'b0;
 		end
 		S_READ_ACK: begin
+			ctrl_oe <= 1'b1;
+			devsel_r <= 1'b1;
 			data_oe <= 1'b1;
-			par_oe <= 1'b1;
 			trdy_r <= 1'b1;
 			stop_r <= 1'b0;
 		end
 		S_READ_STOP_WITH_DATA: begin
+			ctrl_oe <= 1'b1;
+			devsel_r <= 1'b1;
 			data_oe <= 1'b1;
-			par_oe <= 1'b1;
 			trdy_r <= 1'b1;
 			stop_r <= 1'b1;
 		end
 		S_READ_STOP: begin
+			ctrl_oe <= 1'b1;
+			devsel_r <= 1'b1;
 			data_oe <= 1'b1;
-			par_oe <= 1'b1;
 			trdy_r <= 1'b0;
 			stop_r <= 1'b1;
 		end
@@ -510,7 +537,7 @@ end
 
 always @(posedge clk)
 begin
-	if(state_next != S_IDLE) begin
+	if(frame_r && !FRAME_N) begin
 		read_addr <= AD;
 	end
 	else if(state_next==S_READ_ACK) begin

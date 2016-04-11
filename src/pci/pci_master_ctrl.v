@@ -1,4 +1,4 @@
-module pci_master_top(
+module pci_master_ctrl(
 	input rst,
 	input clk,
 
@@ -29,7 +29,7 @@ module pci_master_top(
 
 	output [3:0] wresp_id,
 	output [7:0] wresp_len,
-	output wresp_err,
+	output [1:0] wresp_err,
 	output wresp_valid,
 	input wresp_ready,
 
@@ -41,7 +41,7 @@ module pci_master_top(
 
 	output [3:0] rresp_id,
 	output [7:0] rresp_len,
-	output rresp_err,
+	output [1:0] rresp_err,
 	output rresp_valid,
 	input rresp_ready,
 
@@ -65,6 +65,12 @@ localparam
 	CMD_MEM_READ_LN = 4'hE,
 	CMD_MEM_WRITE_INVAL = 4'hF;
 
+localparam
+	RESP_OK = 0,
+	RESP_EXOK = 1,
+	RESP_SLVERR = 2,
+	RESP_DECERR = 3;
+
 reg [31:0] write_addr;
 reg request_r;
 reg request_hold_r;
@@ -78,10 +84,10 @@ reg [9:0] init_data_index;
 reg [9:0] write_data_index;
 
 reg wcmd_ready_r;
-reg wresp_err_r;
+reg [1:0] wresp_err_r;
 reg wresp_valid_r;
 reg rcmd_ready_r;
-reg rresp_err_r;
+reg [1:0] rresp_err_r;
 reg rresp_valid_r;
 
 reg [3:0] write_id;
@@ -149,15 +155,15 @@ begin
 	case(state)
 		S_IDLE: begin
 			if(write_cycle) 
-				if(wcmd_valid)
-					state_next = S_WRITE_INIT;
-				else if(rcmd_valid)
-					state_next = S_READ_REQ;
-			else 
 				if(rcmd_valid)
 					state_next = S_READ_REQ;
 				else
 					state_next = S_WRITE_INIT;
+			else 
+				if(wcmd_valid)
+					state_next = S_WRITE_INIT;
+				else if(rcmd_valid)
+					state_next = S_READ_REQ;
 		end
 		S_WRITE_INIT: begin
 			state_next = S_WRITE_REQ;
@@ -254,12 +260,28 @@ end
 always @(posedge clk, posedge rst)
 begin
 	if(rst) begin
+			request_r <= 1'b0;
+			request_hold_r <= 1'b0;
+			m_ready_r <= 1'b1;
+			wcmd_ready_r <= 1'b0;
+			wresp_valid_r <= 1'b0;
+			rcmd_ready_r <= 1'b0;
+			rresp_valid_r <= 1'b0;
+			write_id <= 'bx;
+			write_len_m1 <= 'bx;
+			write_cycle <= 1'b0;
+			target_abort <= 1'bx;
+			bus_command <= 'bx;
+			wresp_err_r <= 'bx;
+			read_id <= 'bx;
+			read_len_m1 <= 'bx;
+			rresp_err_r <= 'bx;
+			rresp_fill <= 1'b0;
 	end
 	else case(state_next)
 		S_IDLE: begin
 			request_r <= 1'b0;
 			request_hold_r <= 1'b0;
-			m_ready_r <= 1'b1;
 			wcmd_ready_r <= 1'b0;
 			wresp_valid_r <= 1'b0;
 			rcmd_ready_r <= 1'b0;
@@ -289,11 +311,11 @@ begin
 		end
 		S_WRITE_DONE: begin
 			wresp_valid_r <= 1'b1;
-			wresp_err_r <= 1'b0;
+			wresp_err_r <= RESP_OK;
 		end
 		S_WRITE_FAIL: begin
 			wresp_valid_r <= 1'b1;
-			wresp_err_r <= 1'b1;
+			wresp_err_r <= RESP_DECERR;
 		end
 		S_READ_INIT: begin
 			read_id <= rcmd_id;
@@ -326,7 +348,7 @@ begin
 		end
 		S_READ_DONE: begin
 			rresp_valid_r <= 1'b1;
-			rresp_err_r <= 1'b0;
+			rresp_err_r <= RESP_OK;
 		end
 		S_READ_FILL: begin
 			rresp_fill <= 1'b1;
@@ -334,7 +356,7 @@ begin
 		S_READ_FAIL: begin
 			rresp_fill <= 1'b0;
 			rresp_valid_r <= 1'b1;
-			rresp_err_r <= 1'b1;
+			rresp_err_r <= RESP_SLVERR;
 		end
 	endcase
 end

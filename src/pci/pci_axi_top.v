@@ -85,7 +85,7 @@ module pci_axi_top #(
 
 	input [3:0] mst_s_awid,
 	input [63:0] mst_s_awaddr,
-	input [3:0] mst_s_awlen,
+	input [7:0] mst_s_awlen,
 	input [2:0] mst_s_awsize,
 	input [1:0] mst_s_awburst,
 	input [3:0] mst_s_awcache,
@@ -106,7 +106,7 @@ module pci_axi_top #(
 
 	input [3:0] mst_s_arid,
 	input [63:0] mst_s_araddr,
-	input [3:0] mst_s_arlen,
+	input [7:0] mst_s_arlen,
 	input [2:0] mst_s_arsize,
 	input [1:0] mst_s_arburst,
 	input [3:0] mst_s_arcache,
@@ -341,6 +341,8 @@ pci_master pci_master_i(
 	.STOPQ_N(STOP_N),
 	.RST(RST),
 	.CLK(CLK),
+
+	.cacheline_size(8'd16),
 
 	.mst_s_aclk(mst_s_aclk),
 	.mst_s_aresetn(mst_s_aresetn),

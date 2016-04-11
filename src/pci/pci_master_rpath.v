@@ -29,6 +29,7 @@ module pci_master_rpath(
 
 	input [3:0] resp_id,
 	input [7:0] resp_len,
+	input [1:0] resp_err,
 	input resp_valid,
 	output resp_ready,
 
@@ -50,6 +51,7 @@ wire r2_addr_empty;
 wire r2_addr_rd;
 
 wire [7:0] r3_len;
+wire [1:0] r3_err;
 wire r3_resp_empty;
 wire r3_resp_rd;
 
@@ -62,7 +64,7 @@ reg [7:0] r3_cnt;
 assign mst_s_arready = !r1_addr_full;
 
 assign mst_s_rlast = r3_cnt==r3_len;
-assign mst_s_rresp = 2'b0;
+assign mst_s_rresp = r3_err;
 assign mst_s_rvalid = !r3_resp_empty && !r3_data_empty;
 
 assign cmd_valid = !r2_addr_empty;
@@ -112,16 +114,16 @@ fifo_async #(.DSIZE(32),.ASIZE(10),.MODE("FWFT")) rdata_fifo_i(
 	.rd_en(r3_data_rd)
 );
 
-fifo_async #(.DSIZE(4+8),.ASIZE(4),.MODE("FWFT")) rresp_fifo_i(
+fifo_async #(.DSIZE(2+4+8),.ASIZE(4),.MODE("FWFT")) rresp_fifo_i(
 	.wr_rst(rst),
 	.wr_clk(clk),
-	.din({resp_id,resp_len}),
+	.din({resp_err,resp_id,resp_len}),
 	.full(r2_resp_full),
 	.wr_en(r2_resp_wr),
 
 	.rd_rst(!mst_s_aresetn),
 	.rd_clk(mst_s_aclk),
-	.dout({mst_s_rid, r3_len}),
+	.dout({r3_err, mst_s_rid, r3_len}),
 	.empty(r3_resp_empty),
 	.rd_en(r3_resp_rd)
 );

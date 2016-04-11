@@ -16,6 +16,8 @@ module pci_master(
 	input M_ADDR_N,
 	input STOPQ_N,
 
+	input [7:0] cacheline_size,
+
 	input mst_s_aclk,
 	input mst_s_aresetn,
 
@@ -57,6 +59,38 @@ module pci_master(
 	input mst_s_rready
 );
 
+wire [9:0] wdata_idx;
+wire [31:0] wdata_dout;
+wire [3:0] wdata_strb;
+
+wire [3:0] wcmd_id;
+wire [7:0] wcmd_len;
+wire [63:0] wcmd_addr;
+wire wcmd_valid;
+wire wcmd_ready;
+
+wire [3:0] wresp_id;
+wire [7:0] wresp_len;
+wire [1:0] wresp_err;
+wire wresp_valid;
+wire wresp_ready;
+
+wire [3:0] rcmd_id;
+wire [7:0] rcmd_len;
+wire [63:0] rcmd_addr;
+wire rcmd_valid;
+wire rcmd_ready;
+
+wire [3:0] rresp_id;
+wire [7:0] rresp_len;
+wire [1:0] rresp_err;
+wire rresp_valid;
+wire rresp_ready;
+
+wire [31:0] rdata_din;
+wire rdata_valid;
+wire rdata_ready;
+
 pci_master_wpath wpath_i(
 	.mst_s_aclk(mst_s_aclk),
 	.mst_s_aresetn(mst_s_aresetn),
@@ -97,6 +131,7 @@ pci_master_wpath wpath_i(
 
 	.resp_id(wresp_id),
 	.resp_len(wresp_len),
+	.resp_err(wresp_err),
 	.resp_valid(wresp_valid),
 	.resp_ready(wresp_ready)
 );
@@ -132,6 +167,7 @@ pci_master_rpath rpath_i(
 
 	.resp_id(rresp_id),
 	.resp_len(rresp_len),
+	.resp_err(rresp_err),
 	.resp_valid(rresp_valid),
 	.resp_ready(rresp_ready),
 
@@ -144,7 +180,7 @@ pci_master_ctrl ctrl_i(
 	.rst(RST),
 	.clk(CLK),
 
-	.ADIO_IN(M_ADIO_IN),
+	.ADIO_IN(ADIO_IN),
 	.ADIO_OUT(ADIO_OUT),
 	.REQUEST(REQUEST),
 	.REQUESTHOLD(REQUESTHOLD),
@@ -171,6 +207,7 @@ pci_master_ctrl ctrl_i(
 
 	.wresp_id(wresp_id),
 	.wresp_len(wresp_len),
+	.wresp_err(wresp_err),
 	.wresp_valid(wresp_valid),
 	.wresp_ready(wresp_ready),
 
@@ -182,6 +219,7 @@ pci_master_ctrl ctrl_i(
 
 	.rresp_id(rresp_id),
 	.rresp_len(rresp_len),
+	.rresp_err(rresp_err),
 	.rresp_valid(rresp_valid),
 	.rresp_ready(rresp_ready),
 
@@ -189,7 +227,7 @@ pci_master_ctrl ctrl_i(
 	.rdata_valid(rdata_valid),
 	.rdata_ready(rdata_ready),
 
-	.cacheline_size(16)
+	.cacheline_size(cacheline_size)
 );
 
 endmodule
