@@ -149,6 +149,10 @@ end
 initial
 begin:T0
 	reg [31:0] data;
+	reg [31:0] bdata [0:15];
+	reg [31:0] be [0:15];
+	integer i;
+	reg [4:0] rc;
 	#1000;
 	target.address_base=`TGT_BAR0_BASE;
 	target.address_mask=32'hffff_0000;
@@ -183,6 +187,47 @@ begin:T0
 
 	master.io_write(`TGT_BAR0_BASE, 32'h12345678, 4'hF);
 	master.io_read(`TGT_BAR0_BASE, data);
+
+
+	for(i=0;i<16;i=i+1) begin
+		master.write_data[i]=i;
+		master.write_be[i]=0;
+		master.read_be[i]=0;
+	end
+
+	target.decode_latency=0;
+	target.initial_latency=0;
+	target.data_latency=0;
+
+	master.low_level_write(master.CMD_MEM_WRITE, `TGT_BAR0_BASE,16,rc);
+
+	master.low_level_read(master.CMD_MEM_READ, `TGT_BAR0_BASE,16,rc);
+
+	target.decode_latency=1;
+	target.initial_latency=1;
+	target.data_latency=1;
+
+	master.low_level_write(master.CMD_MEM_WRITE, `TGT_BAR0_BASE,16,rc);
+
+	master.low_level_read(master.CMD_MEM_READ, `TGT_BAR0_BASE,16,rc);
+
+	target.decode_latency=2;
+	target.initial_latency=1;
+	target.data_latency=2;
+
+	master.low_level_write(master.CMD_MEM_WRITE, `TGT_BAR0_BASE,16,rc);
+
+	master.low_level_read(master.CMD_MEM_READ, `TGT_BAR0_BASE,16,rc);
+
+	target.disconnect=8;
+
+	target.decode_latency=1;
+	target.initial_latency=0;
+	target.data_latency=0;
+
+	master.low_level_write(master.CMD_MEM_WRITE, `TGT_BAR0_BASE,16,rc);
+
+	master.low_level_read(master.CMD_MEM_READ, `TGT_BAR0_BASE,16,rc);
 
 	#100000;
 	$finish;

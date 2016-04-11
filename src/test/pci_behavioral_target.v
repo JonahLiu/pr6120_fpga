@@ -203,7 +203,7 @@ begin
 	if(rst) begin
 		data_cnt <= 0;
 	end
-	else if(cmd_valid)
+	else if(frame_r && !FRAME_N)
 		data_cnt <= 0;
 	else if(!IRDY_N && !TRDY_N)
 		data_cnt <= data_cnt+1;
@@ -527,7 +527,7 @@ end
 
 always @(posedge clk)
 begin
-	if(state_next != S_IDLE) begin
+	if(frame_r && !FRAME_N) begin
 		write_addr <= AD;
 	end
 	else if(!IRDY_N && !TRDY_N) begin
