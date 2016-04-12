@@ -338,7 +338,7 @@ pci_master pci_master_i(
 	.TIME_OUT(TIME_OUT),
 	.M_DATA(M_DATA),
 	.M_ADDR_N(M_ADDR_N),
-	.STOPQ_N(STOP_N),
+	.STOPQ_N(STOPQ_N),
 	.RST(RST),
 	.CLK(CLK),
 

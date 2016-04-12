@@ -126,16 +126,16 @@ begin
 	par_o <= `BD ^{ad_o, cbe_o};
 	ad_o <= `BD data;
 	cbe_o <= `BD ~be;
-	@(posedge clk);
-	par_o <= `BD ^{ad_o, cbe_o};
-	while(devsel_n_i) @(posedge clk);
-	@(posedge clk);
-	par_o <= `BD ^{ad_o, cbe_o};
-	while(trdy_n_i && stop_n_i && perr_n_i && serr_n_i) @(posedge clk);
+	while(devsel_n_i || 
+		(trdy_n_i && stop_n_i && perr_n_i && serr_n_i)) begin
+		@(posedge clk);
+		par_o <= `BD ^{ad_o, cbe_o};
+	end
 	irdy_n_o <= `BD 1'b1;
 	ad_o <= `BD 'bz;
 	cbe_o <= `BD 'bz;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	par_o <= `BD 'bz;
 	release_bus;
@@ -161,13 +161,15 @@ begin
 	cbe_o <= `BD 'b0;
 	@(posedge clk);
 	par_o <= `BD 'bz;
-	while(devsel_n_i) @(posedge clk);
-	@(posedge clk);
-	while(trdy_n_i && stop_n_i && perr_n_i && serr_n_i) @(posedge clk);
+	while(devsel_n_i || 
+		trdy_n_i && stop_n_i && perr_n_i && serr_n_i) begin
+		@(posedge clk);
+	end
 	data = ad_i;
 	irdy_n_o <= `BD 1'b1;
 	cbe_o <= `BD 'bz;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	release_bus;
 end
@@ -223,6 +225,7 @@ begin
 	ad_o <= `BD 'bz;
 	cbe_o <= `BD 'bz;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	par_o <= `BD 'bz;
 	release_bus;
@@ -275,6 +278,7 @@ begin
 	frame_n_o <= `BD 1'b1;
 	irdy_n_o <= `BD 1'b1;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	release_bus;
 end
@@ -307,6 +311,7 @@ begin
 	ad_o <= `BD 'bz;
 	cbe_o <= `BD 'bz;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	par_o <= `BD 'bz;
 	release_bus;
@@ -340,6 +345,7 @@ begin
 	irdy_n_o <= `BD 1'b1;
 	cbe_o <= `BD 'bz;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	release_bus;
 end
@@ -373,6 +379,7 @@ begin
 	ad_o <= `BD 'bz;
 	cbe_o <= `BD 'bz;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	par_o <= `BD 'bz;
 	release_bus;
@@ -406,6 +413,7 @@ begin
 	irdy_n_o <= `BD 1'b1;
 	cbe_o <= `BD 'bz;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	release_bus;
 end

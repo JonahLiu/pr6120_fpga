@@ -14,6 +14,7 @@ vlog $vlog_opts ../../src/test/test_pci_axi_top.v
 vlog $vlog_opts ../../src/test/pci_behavioral_master.v
 vlog $vlog_opts ../../src/test/pci_behavioral_target.v
 vlog $vlog_opts ../../src/test/axi_memory_model.v
+vlog $vlog_opts ../../src/test/axi_master_model.v
 
 vlog $vlog_opts ../../src/pci/pci_axi_top.v
 vlog $vlog_opts ../../src/pci/pci_target.v

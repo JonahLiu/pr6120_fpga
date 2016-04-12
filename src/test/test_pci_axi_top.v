@@ -2,12 +2,16 @@
 `define TGT_CONF_ADDR  (32'h0100_0000)
 `define CONF_ID_OFFSET  (8'h0)
 `define CONF_CTRL_OFFSET  (8'h4)
+`define CONF_CLINE_OFFSET  (8'hc)
+`define CONF_MISC_OFFSET  (8'h3c)
 `define CONF_BAR0_OFFSET  (8'h10)
 `define CONF_BAR1_OFFSET  (8'h14)
 `define CONF_BAR2_OFFSET  (8'h18)
 `define TGT_BAR0_BASE (32'h8002_0000)
 `define TGT_BAR1_BASE (32'h8004_0000)
 `define TGT_BAR2_BASE (32'h0000_0010)
+`define HOST_BASE (32'hE000_0000)
+
 module test_pci_axi_top;
 
 reg clk33;
@@ -106,6 +110,7 @@ wire [1:0] mst_s_rresp;
 wire mst_s_rlast;
 wire mst_s_rvalid;
 wire mst_s_rready;
+wire intr_request;
 
 assign cfg_s_aclk = clk125;
 assign cfg_s_aresetn = !rst;
@@ -113,6 +118,11 @@ assign tgt_m_aclk = clk125;
 assign tgt_m_aresetn = !rst;
 assign mst_s_aclk = clk125;
 assign mst_s_aresetn = !rst;
+
+assign intr_request = 1'b0;
+
+assign mst_s_arcache = 'b0;
+assign mst_s_awcache = 'b0;
 
 pullup (FRAME_N);
 pullup (IRDY_N);
@@ -273,7 +283,7 @@ pci_axi_top pci_axi_i(
 	.mst_s_rvalid(mst_s_rvalid),
 	.mst_s_rready(mst_s_rready),
 
-	.intr_request(intr_requset)
+	.intr_request(intr_request)
 );
 
 pci_behavioral_master master(
@@ -295,7 +305,7 @@ pci_behavioral_master master(
 	.PCLK(PCLK)
 );
 
-pci_behavioral_target target(
+pci_behavioral_target host(
 	.AD(AD),
 	.CBE(CBE),
 	.PAR(PAR),
@@ -335,7 +345,8 @@ always @(posedge PCLK)
     arb_irdy_prev <= ~IRDY_N;
 
 pci_blue_arbiter arbiter(
-    .pci_int_req_direct(pci_int_req_n),
+    //.pci_int_req_direct(pci_int_req_n),
+    .pci_int_req_direct(1'b0),
     .pci_ext_req_prev(arb_ext_req_prev),
     .pci_int_gnt_direct_out(arb_int_gnt),
     .pci_ext_gnt_direct_out(arb_ext_gnt),
@@ -381,50 +392,161 @@ axi_memory_model axi_memory_model_i(
 	.s_axi_rvalid(tgt_m_rvalid)
 );
 
+axi_master_model aximaster(
+	.m_axi_aresetn(mst_s_aresetn),
+	.m_axi_aclk(mst_s_aclk),
+	.m_axi_awid(mst_s_awid),
+	.m_axi_awaddr(mst_s_awaddr),
+	.m_axi_awlen(mst_s_awlen),
+	.m_axi_awsize(mst_s_awsize),
+	.m_axi_awburst(mst_s_awburst),
+	.m_axi_awvalid(mst_s_awvalid),
+	.m_axi_awready(mst_s_awready),
+	.m_axi_wid(mst_s_wid),
+	.m_axi_wdata(mst_s_wdata),
+	.m_axi_wstrb(mst_s_wstrb),
+	.m_axi_wlast(mst_s_wlast),
+	.m_axi_wvalid(mst_s_wvalid),
+	.m_axi_wready(mst_s_wready),
+	.m_axi_bready(mst_s_bready),
+	.m_axi_bid(mst_s_bid),
+	.m_axi_bresp(mst_s_bresp),
+	.m_axi_bvalid(mst_s_bvalid),
+	.m_axi_arid(mst_s_arid),
+	.m_axi_araddr(mst_s_araddr),
+	.m_axi_arlen(mst_s_arlen),
+	.m_axi_arsize(mst_s_arsize),
+	.m_axi_arburst(mst_s_arburst),
+	.m_axi_arvalid(mst_s_arvalid),
+	.m_axi_arready(mst_s_arready),
+	.m_axi_rready(mst_s_rready),
+	.m_axi_rid(mst_s_rid),
+	.m_axi_rdata(mst_s_rdata),
+	.m_axi_rresp(mst_s_rresp),
+	.m_axi_rlast(mst_s_rlast),
+	.m_axi_rvalid(mst_s_rvalid)
+);
+
 
 initial
 begin
 	$dumpfile("test_pci_axi_top.vcd");
 	$dumpvars(1);
-	$dumpvars(1,pci_axi_i);
-	$dumpvars(1,pci_axi_i.pci_target_i);
-	$dumpvars(1,master);
+	$dumpvars(0,pci_axi_i);
+	$dumpvars(0,pci_axi_i.pci_target_i);
+	$dumpvars(0,pci_axi_i.pci_master_i);
+	$dumpvars(0,master);
+	$dumpvars(0,host);
+	$dumpvars(0,aximaster);
 	#1000000;
 	$finish;
 end
 
+task config_target;
+	reg [31:0] data;
+	begin
+		master.config_read(`TGT_CONF_ADDR+`CONF_ID_OFFSET, data);
+		master.config_read(`TGT_CONF_ADDR+`CONF_CTRL_OFFSET, data);
+
+		master.config_write(`TGT_CONF_ADDR+`CONF_BAR0_OFFSET,~0,4'hF);
+		master.config_read(`TGT_CONF_ADDR+`CONF_BAR0_OFFSET, data);
+		master.config_write(`TGT_CONF_ADDR+`CONF_BAR0_OFFSET,`TGT_BAR0_BASE,4'hF);
+
+		//master.config_write(`TGT_CONF_ADDR+`CONF_CLINE_OFFSET,16,4'hF);
+		//master.config_read(`TGT_CONF_ADDR+`CONF_CLINE_OFFSET, data);
+
+		master.config_read(`TGT_CONF_ADDR+`CONF_MISC_OFFSET, data);
+
+		master.config_write(`TGT_CONF_ADDR+`CONF_BAR1_OFFSET,~0,4'hF);
+		master.config_read(`TGT_CONF_ADDR+`CONF_BAR1_OFFSET, data);
+		master.config_write(`TGT_CONF_ADDR+`CONF_BAR1_OFFSET,`TGT_BAR1_BASE,4'hF);
+
+		master.config_write(`TGT_CONF_ADDR+`CONF_BAR2_OFFSET,~0,4'hF);
+		master.config_read(`TGT_CONF_ADDR+`CONF_BAR2_OFFSET, data);
+		master.config_write(`TGT_CONF_ADDR+`CONF_BAR2_OFFSET,`TGT_BAR2_BASE,4'hF);
+
+		master.config_write(`TGT_CONF_ADDR+`CONF_CTRL_OFFSET, 32'h35F, 4'h3);
+
+		master.memory_write(`TGT_BAR0_BASE, 32'hDEADBEEF, 4'hF);
+
+		master.memory_read(`TGT_BAR0_BASE, data);
+
+		master.memory_write(`TGT_BAR1_BASE, 32'h0ACEFACE, 4'hF);
+
+		master.memory_read(`TGT_BAR1_BASE, data);
+
+		master.io_write(`TGT_BAR2_BASE, 32'h12345678, 4'hF);
+
+		master.io_read(`TGT_BAR2_BASE, data);
+	end
+endtask
+
+task test_target;
+	reg [31:0] data;
+	begin
+		master.memory_write(`TGT_BAR0_BASE, 32'hDEADBEEF, 4'hF);
+		master.memory_read(`TGT_BAR0_BASE, data);
+
+		master.memory_write(`TGT_BAR1_BASE, 32'h0ACEFACE, 4'hF);
+		master.memory_read(`TGT_BAR1_BASE, data);
+
+		master.io_write(`TGT_BAR2_BASE, 32'h12345678, 4'hF);
+		master.io_read(`TGT_BAR2_BASE, data);
+	end
+endtask
+
+task test_master;
+	integer i;
+	begin
+		for(i=0;i<256;i=i+1) begin
+			aximaster.set_write_data(i,i);
+			aximaster.set_write_strb(i,4'hF);
+		end
+
+		for(i=0;i<2;i=i+1) begin
+
+			host.data_latency = i;
+
+			aximaster.set_id(0);
+			aximaster.write(`HOST_BASE, 1);
+
+			aximaster.set_id(1);
+			aximaster.write(`HOST_BASE, 2);
+
+			aximaster.set_id(2);
+			aximaster.write(`HOST_BASE, 16);
+
+			aximaster.set_id(3);
+			aximaster.write(`HOST_BASE, 128);
+
+			aximaster.set_id(4);
+			aximaster.read(`HOST_BASE, 1);
+
+			aximaster.set_id(5);
+			aximaster.read(`HOST_BASE, 2);
+
+			aximaster.set_id(6);
+			aximaster.read(`HOST_BASE, 16);
+
+			aximaster.set_id(7);
+			aximaster.read(`HOST_BASE, 128);
+
+			#10000;
+		end
+	end
+endtask
+
 initial
 begin:T0
-	reg [31:0] data;
 	#1000;
-	master.config_read(`TGT_CONF_ADDR+`CONF_ID_OFFSET, data);
-	master.config_read(`TGT_CONF_ADDR+`CONF_CTRL_OFFSET, data);
+	host.address_base = `HOST_BASE;
+	host.address_mask = 32'hF000_0000;
 
-	master.config_write(`TGT_CONF_ADDR+`CONF_BAR0_OFFSET,~0,4'hF);
-	master.config_read(`TGT_CONF_ADDR+`CONF_BAR0_OFFSET, data);
-	master.config_write(`TGT_CONF_ADDR+`CONF_BAR0_OFFSET,`TGT_BAR0_BASE,4'hF);
+	config_target();
 
-	master.config_write(`TGT_CONF_ADDR+`CONF_BAR1_OFFSET,~0,4'hF);
-	master.config_read(`TGT_CONF_ADDR+`CONF_BAR1_OFFSET, data);
-	master.config_write(`TGT_CONF_ADDR+`CONF_BAR1_OFFSET,`TGT_BAR1_BASE,4'hF);
+	test_target();
 
-	master.config_write(`TGT_CONF_ADDR+`CONF_BAR2_OFFSET,~0,4'hF);
-	master.config_read(`TGT_CONF_ADDR+`CONF_BAR2_OFFSET, data);
-	master.config_write(`TGT_CONF_ADDR+`CONF_BAR2_OFFSET,`TGT_BAR2_BASE,4'hF);
-
-	master.config_write(`TGT_CONF_ADDR+`CONF_CTRL_OFFSET, 32'h35F, 4'h3);
-
-	master.memory_write(`TGT_BAR0_BASE, 32'hDEADBEEF, 4'hF);
-
-	master.memory_read(`TGT_BAR0_BASE, data);
-
-	master.memory_write(`TGT_BAR1_BASE, 32'h0ACEFACE, 4'hF);
-
-	master.memory_read(`TGT_BAR1_BASE, data);
-
-	master.io_write(`TGT_BAR2_BASE, 32'h12345678, 4'hF);
-
-	master.io_read(`TGT_BAR2_BASE, data);
+	test_master();
 
 	#100000;
 	$finish;

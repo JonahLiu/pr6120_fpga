@@ -100,6 +100,7 @@ reg [7:0] read_ack_cnt;
 reg [31:0] read_addr;
 reg [8:0] read_len;
 
+
 reg rresp_fill;
 
 reg target_abort;
@@ -107,12 +108,12 @@ reg target_abort;
 wire [3:0] write_be_n;
 wire [8:0] cacheline_mask;
 
-assign ADIO_IN = M_ADDR_N?wdata_dout:write_addr;
+assign ADIO_IN = M_ADDR_N?wdata_dout:(write_cycle?write_addr:read_addr);
 assign REQUEST = request_r;
 assign REQUESTHOLD = request_hold_r;
-assign M_CBE = M_ADDR_N?write_be_n:bus_command;
+assign M_CBE = M_ADDR_N?(write_cycle?write_be_n:4'b0000):bus_command;
 assign M_WRDN = write_cycle;
-assign COMPLETE = (write_stb_cnt==write_len_m1) || !STOPQ_N;
+//assign COMPLETE = (write_stb_cnt==write_len_m1) || !STOPQ_N;
 assign M_READY = m_ready_r;
 
 assign wdata_idx = write_data_index;
@@ -135,6 +136,11 @@ assign write_be_n = ~wdata_strb;
 
 assign cacheline_mask = {1'b0,cacheline_size}-1;
 
+assign wresp_id = write_id;
+assign wresp_len = write_len_m1;
+assign rresp_id = read_id;
+assign rresp_len = read_len_m1;
+
 integer state, state_next;
 
 localparam S_IDLE=0, S_WRITE_INIT=1, S_WRITE_REQ=2, S_WRITE_ADDR=3,
@@ -156,14 +162,18 @@ begin
 		S_IDLE: begin
 			if(write_cycle) 
 				if(rcmd_valid)
-					state_next = S_READ_REQ;
-				else
+					state_next = S_READ_INIT;
+				else if(wcmd_valid)
 					state_next = S_WRITE_INIT;
+				else
+					state_next = S_IDLE;
 			else 
 				if(wcmd_valid)
 					state_next = S_WRITE_INIT;
 				else if(rcmd_valid)
-					state_next = S_READ_REQ;
+					state_next = S_READ_INIT;
+				else
+					state_next = S_IDLE;
 		end
 		S_WRITE_INIT: begin
 			state_next = S_WRITE_REQ;
@@ -183,7 +193,10 @@ begin
 			else if(target_abort)
 				state_next = S_WRITE_CONT;
 			else if(!M_DATA)
-				state_next = S_WRITE_FAIL;
+				if(write_ack_cnt)
+					state_next = S_WRITE_CONT;
+				else
+					state_next = S_WRITE_FAIL;
 			else
 				state_next = S_WRITE_DATA;
 		end
@@ -223,7 +236,10 @@ begin
 			else if(target_abort)
 				state_next = S_READ_CONT;
 			else if(!M_DATA)
-				state_next = S_READ_FILL;
+				if(read_ack_cnt)
+					state_next = S_READ_CONT;
+				else
+					state_next = S_READ_FILL;
 			else
 				state_next = S_READ_DATA;
 		end
@@ -376,7 +392,7 @@ begin
 	if(state_next == S_WRITE_INIT) begin
 		write_stb_cnt <= 'b0;
 	end
-	else if(M_SRC_EN) begin
+	else if(M_SRC_EN/* && !COMPLETE*/) begin
 		write_stb_cnt <= write_stb_cnt + 1;
 	end
 end
@@ -415,6 +431,44 @@ begin
 		read_addr <= read_addr + 3'b100;
 		read_len <= read_len-1;
 	end
+end
+
+reg [7:0] complete_cnt;
+wire FIN1, FIN2, FIN3;
+wire ASSERT_COMPLETE;
+reg HOLD_COMPLETE;
+reg M_DATAQ;
+
+always @(posedge clk)
+begin
+	M_DATAQ <= M_DATA;
+end
+
+always @(posedge clk)
+begin
+	if(state==S_READ_INIT)
+		complete_cnt <= read_len_m1;
+	else if(state==S_WRITE_INIT)
+		complete_cnt <= write_len_m1;
+	else if(M_DATA_VLD)
+		complete_cnt <= complete_cnt-1;
+end
+
+
+assign FIN1 = (complete_cnt==0) & REQUEST;
+assign FIN2 = (complete_cnt==1) & M_DATAQ;
+assign FIN3 = (complete_cnt==2) & M_DATA_VLD;
+assign ASSERT_COMPLETE = FIN1 | FIN2 | FIN3;
+assign COMPLETE = ASSERT_COMPLETE | HOLD_COMPLETE;
+
+always @(posedge clk, posedge rst)
+begin
+	if(rst)
+		HOLD_COMPLETE = 1'b0;
+	else if(!M_DATA && M_DATAQ)
+		HOLD_COMPLETE = 1'b0;
+	else if(ASSERT_COMPLETE)
+		HOLD_COMPLETE = 1'b1;
 end
 
 

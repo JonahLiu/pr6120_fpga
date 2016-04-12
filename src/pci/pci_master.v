@@ -157,7 +157,7 @@ pci_master_rpath rpath_i(
 	.mst_s_rready(mst_s_rready),
 
 	.clk(CLK),
-	.rst(rst),
+	.rst(RST),
 
 	.cmd_id(rcmd_id),
 	.cmd_len(rcmd_len),
@@ -193,7 +193,7 @@ pci_master_ctrl ctrl_i(
 	.TIME_OUT(TIME_OUT),
 	.M_DATA(M_DATA),
 	.M_ADDR_N(M_ADDR_N),
-	.STOPQ_N(STOP_N),
+	.STOPQ_N(STOPQ_N),
 
 	.wdata_idx(wdata_idx),
 	.wdata_dout(wdata_dout),
