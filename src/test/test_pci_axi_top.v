@@ -528,6 +528,8 @@ task test_master;
 			aximaster.set_id(6);
 			aximaster.read(`HOST_BASE, 16);
 
+			host.disconnect=16;
+
 			aximaster.set_id(7);
 			aximaster.read(`HOST_BASE, 128);
 

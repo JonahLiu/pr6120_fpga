@@ -29,7 +29,7 @@ vlog $vlog_opts ../../src/pci/pci32_0.v
 #vcom $vcom_opts ../../src/pci/pci32_v5_0_rfs.vhd
 #vlog $vlog_opts ../../src/pci/pci32_v5_0_rfs.v
 
-vlog d:/Xilinx/Vivado/2014.4/data/verilog/src/glbl.v
+vlog ../../src/test/glbl.v
 
 vopt +acc -L unisims_ver -L unimacro_ver -L secureip -L pci32_v5_0 test_pci_axi_top glbl -o test_pci_axi_top_opt
 

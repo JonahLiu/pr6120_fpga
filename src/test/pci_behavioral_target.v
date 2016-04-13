@@ -547,7 +547,7 @@ end
 
 always @(posedge clk)
 begin
-	if(state==S_WRITE_ACK) begin
+	if(state==S_WRITE_ACK || state==S_WRITE_STOP_WITH_DATA) begin
 		if(!CBE[0]) mem_b0[write_addr[9:2]] = AD[7:0];
 		if(!CBE[1]) mem_b1[write_addr[9:2]] = AD[15:8];
 		if(!CBE[2]) mem_b2[write_addr[9:2]] = AD[23:16];
@@ -557,7 +557,7 @@ end
 
 always @(posedge clk)
 begin
-	if(state_next == S_READ_ACK) begin
+	if(state_next == S_READ_ACK || state_next==S_READ_STOP_WITH_DATA) begin
 		data_r[7:0] <= mem_b0[read_addr[9:2]];
 		data_r[15:8] <= mem_b1[read_addr[9:2]];
 		data_r[23:16] <= mem_b2[read_addr[9:2]];
