@@ -350,6 +350,7 @@ rx_path rx_path_i(
 	.mac_s_tlast(mac_rx_m_tlast),
 	.mac_s_tready(mac_rx_m_tready)
 );
+*/
 
 tx_path tx_path_i(
 	.aclk(aclk),
@@ -411,6 +412,7 @@ tx_path tx_path_i(
 	.mac_m_tlast(mac_tx_s_tlast),
 	.mac_m_tready(mac_tx_s_tready)
 );
+/*
 
 ext_crossbar ext_crossbar(
 	.aclk(aclk),
