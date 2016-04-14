@@ -8,6 +8,7 @@ module tx_path(
 	input [63:0] TDBA, // Transmit Descriptor Base Address
 	input [12:0] TDLEN, // Transmit Descriptor Buffer length=TDLEN*16*8
 	input [15:0] TDH, // Transmit Descriptor Head
+	input [15:0] TDT, // Transmit Descriptor Tail
 	input [15:0] TIDV, // Interrupt Delay
 	input DPP, // Disable Packet Prefetching
 	input [5:0] PTHRESH, // Prefetch Threshold
@@ -77,8 +78,6 @@ module tx_path(
 	output mac_m_tready	
 );
 
-wire bram_s_aclk;
-wire bram_s_aresetn;
 wire [3:0] bram_s_awid;
 wire [15:0] bram_s_awaddr;
 wire [7:0] bram_s_awlen;
