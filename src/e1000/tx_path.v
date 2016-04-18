@@ -111,8 +111,7 @@ wire bram_s_rlast;
 wire bram_s_rvalid;
 wire bram_s_rready;
 
-// Transmitter state machine
-tx_ctrl tx_ctrl_i(
+tx_desc_ctrl tx_desc_ctrl_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
@@ -122,6 +121,10 @@ tx_ctrl tx_ctrl_i(
 	.TDBA(TDBA),
 	.TDLEN(TDLEN),
 	.TDH(TDH),
+	.TDH_set(TDH_set),
+	.TDH_fb_o(TDH_fb_o),
+	.TDT(TDT),
+	.TDT_set(TDT),
 	.TIDV(TIDV),
 	.DPP(DPP),
 	.PTHRESH(PTHRESH),
@@ -132,54 +135,89 @@ tx_ctrl tx_ctrl_i(
 	.IDV(IDV),
 	.TSMT(TSMT),
 	.TSPBP(TSPBP),
+	.TXDW_set(TXDW_set),
+	.TXQE_set(TXQE_set),
+	.TXD_LOW_SET(TXD_LOW_set),
+
+	// idma Command Port
+	.idma_m_tdata(idma_s_tdata),
+	.idma_m_tvalid(idma_s_tvalid),
+	.idma_m_tlast(idma_s_tlast),
+	.idma_m_tready(idma_s_tready),
+
+	// idma Response Port
+	.idma_s_tdata(idma_m_tdata),
+	.idma_s_tvalid(idma_m_tvalid),
+	.idma_s_tlast(idma_m_tlast),
+	.idma_s_tready(idma_m_tready),
+
+	// TX Engine 
+	.txe_m_tdata(txe_s_tdata),
+	.txe_m_tvalid(txe_s_tvalid),
+	.txe_m_tlast(txe_s_tlast),
+	.txe_m_tready(txe_s_tready),
+
+	.txe_s_tdata(txe_m_tdata),
+	.txe_s_tvalid(txe_m_tvalid),
+	.txe_s_tlast(txe_m_tlast),
+	.txe_s_tready(txe_m_tready)
+);
+
+// Transmitter state machine
+tx_engine tx_engine_i(
+	.aclk(aclk),
+	.aresetn(aresetn),
+
+	// Parameters
+	.EN(EN),
 
 	// Command Port
-	.s_tdata(cmd_s_tdata),
-	.s_tvalid(cmd_s_tvalid),
-	.s_tlast(cmd_s_tlast),
-	.s_tready(cmd_s_tready),
+	.s_tdata(txe_s_tdata),
+	.s_tvalid(txe_s_tvalid),
+	.s_tlast(txe_s_tlast),
+	.s_tready(txe_s_tready),
 
 	// Status Port
-	.m_tdata(stat_m_tdata),
-	.m_tvalid(stat_m_tvalid),
-	.m_tlast(stat_m_tlast),
-	.m_tready(stat_m_tready),
+	.m_tdata(txe_m_tdata),
+	.m_tvalid(txe_m_tvalid),
+	.m_tlast(txe_m_tlast),
+	.m_tready(txe_m_tready),
 
 	// Internal RAM Access Port
-	.ram_m_awid(tctl_ram_m_awid),
-	.ram_m_awaddr(tctl_ram_m_awaddr),
-	.ram_m_awlen(tctl_ram_m_awlen),
-	.ram_m_awsize(tctl_ram_m_awsize),
-	.ram_m_awburst(tctl_ram_m_awburst),
-	.ram_m_awvalid(tctl_ram_m_awvalid),
-	.ram_m_awready(tctl_ram_m_awready),
+	.ram_m_awid(txe_ram_m_awid),
+	.ram_m_awaddr(txe_ram_m_awaddr),
+	.ram_m_awlen(txe_ram_m_awlen),
+	.ram_m_awsize(txe_ram_m_awsize),
+	.ram_m_awburst(txe_ram_m_awburst),
+	.ram_m_awvalid(txe_ram_m_awvalid),
+	.ram_m_awready(txe_ram_m_awready),
 
-	.ram_m_wid(tctl_ram_m_wid),
-	.ram_m_wdata(tctl_ram_m_wdata),
-	.ram_m_wstrb(tctl_ram_m_wstrb),
-	.ram_m_wlast(tctl_ram_m_wlast),
-	.ram_m_wvalid(tctl_ram_m_wvalid),
-	.ram_m_wready(tctl_ram_m_wready),
+	.ram_m_wid(txe_ram_m_wid),
+	.ram_m_wdata(txe_ram_m_wdata),
+	.ram_m_wstrb(txe_ram_m_wstrb),
+	.ram_m_wlast(txe_ram_m_wlast),
+	.ram_m_wvalid(txe_ram_m_wvalid),
+	.ram_m_wready(txe_ram_m_wready),
 
-	.ram_m_bid(tctl_ram_m_bid),
-	.ram_m_bresp(tctl_ram_m_bresp),
-	.ram_m_bvalid(tctl_ram_m_bvalid),
-	.ram_m_bready(tctl_ram_m_bready),
+	.ram_m_bid(txe_ram_m_bid),
+	.ram_m_bresp(txe_ram_m_bresp),
+	.ram_m_bvalid(txe_ram_m_bvalid),
+	.ram_m_bready(txe_ram_m_bready),
 
-	.ram_m_arid(tctl_ram_m_arid),
-	.ram_m_araddr(tctl_ram_m_araddr),
-	.ram_m_arlen(tctl_ram_m_arlen),
-	.ram_m_arsize(tctl_ram_m_arsize),
-	.ram_m_arburst(tctl_ram_m_arburst),
-	.ram_m_arvalid(tctl_ram_m_arvalid),
-	.ram_m_arready(tctl_ram_m_arready),
+	.ram_m_arid(txe_ram_m_arid),
+	.ram_m_araddr(txe_ram_m_araddr),
+	.ram_m_arlen(txe_ram_m_arlen),
+	.ram_m_arsize(txe_ram_m_arsize),
+	.ram_m_arburst(txe_ram_m_arburst),
+	.ram_m_arvalid(txe_ram_m_arvalid),
+	.ram_m_arready(txe_ram_m_arready),
 
-	.ram_m_rid(tctl_ram_m_rid),
-	.ram_m_rdata(tctl_ram_m_rdata),
-	.ram_m_rresp(tctl_ram_m_rresp),
-	.ram_m_rlast(tctl_ram_m_rlast),
-	.ram_m_rvalid(tctl_ram_m_rvalid),
-	.ram_m_rready(tctl_ram_m_rready),
+	.ram_m_rid(txe_ram_m_rid),
+	.ram_m_rdata(txe_ram_m_rdata),
+	.ram_m_rresp(txe_ram_m_rresp),
+	.ram_m_rlast(txe_ram_m_rlast),
+	.ram_m_rvalid(txe_ram_m_rvalid),
+	.ram_m_rready(txe_ram_m_rready),
 
 	// idma Command Port
 	.idma_m_tdata(idma_s_tdata),
