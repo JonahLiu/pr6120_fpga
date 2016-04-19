@@ -117,6 +117,125 @@ wire desc_s_rlast;
 wire desc_s_rvalid;
 wire desc_s_rready;
 
+wire [31:0] i0_s_tdata;
+wire i0_s_tvalid;
+wire i0_s_tlast;
+wire i0_s_tready;
+
+wire [31:0] i0_m_tdata;
+wire i0_m_tvalid;
+wire i0_m_tlast;
+wire i0_m_tready;
+
+wire [3:0] i0_ext_m_awid;
+wire [63:0] i0_ext_m_awaddr;
+wire [7:0] i0_ext_m_awlen;
+wire [2:0] i0_ext_m_awsize;
+wire [1:0] i0_ext_m_awburst;
+wire [3:0] i0_ext_m_awcache;
+wire i0_ext_m_awvalid;
+wire i0_ext_m_awready;
+wire [3:0] i0_ext_m_wid;
+wire [31:0] i0_ext_m_wdata;
+wire [3:0] i0_ext_m_wstrb;
+wire i0_ext_m_wlast;
+wire i0_ext_m_wvalid;
+wire i0_ext_m_wready;
+wire [3:0] i0_ext_m_bid;
+wire [1:0] i0_ext_m_bresp;
+wire i0_ext_m_bvalid;
+wire i0_ext_m_bready;
+wire [3:0] i0_ext_m_arid;
+wire [63:0] i0_ext_m_araddr;
+wire [7:0] i0_ext_m_arlen;
+wire [2:0] i0_ext_m_arsize;
+wire [1:0] i0_ext_m_arburst;
+wire [3:0] i0_ext_m_arcache;
+wire i0_ext_m_arvalid;
+wire i0_ext_m_arready;
+wire [3:0] i0_ext_m_rid;
+wire [31:0] i0_ext_m_rdata;
+wire [1:0] i0_ext_m_rresp;
+wire i0_ext_m_rlast;
+wire i0_ext_m_rvalid;
+wire i0_ext_m_rready;
+
+wire [3:0] i0_int_m_awid;
+wire [11:0] i0_int_m_awaddr;
+wire [7:0] i0_int_m_awlen;
+wire [2:0] i0_int_m_awsize;
+wire [1:0] i0_int_m_awburst;
+wire [3:0] i0_int_m_awcache;
+wire i0_int_m_awvalid;
+wire i0_int_m_awready;
+wire [3:0] i0_int_m_wid;
+wire [31:0] i0_int_m_wdata;
+wire [3:0] i0_int_m_wstrb;
+wire i0_int_m_wlast;
+wire i0_int_m_wvalid;
+wire i0_int_m_wready;
+wire [3:0] i0_int_m_bid;
+wire [1:0] i0_int_m_bresp;
+wire i0_int_m_bvalid;
+wire i0_int_m_bready;
+wire [3:0] i0_int_m_arid;
+wire [11:0] i0_int_m_araddr;
+wire [7:0] i0_int_m_arlen;
+wire [2:0] i0_int_m_arsize;
+wire [1:0] i0_int_m_arburst;
+wire [3:0] i0_int_m_arcache;
+wire i0_int_m_arvalid;
+wire i0_int_m_arready;
+wire [3:0] i0_int_m_rid;
+wire [31:0] i0_int_m_rdata;
+wire [1:0] i0_int_m_rresp;
+wire i0_int_m_rlast;
+wire i0_int_m_rvalid;
+wire i0_int_m_rready;
+
+wire [31:0] teng_s_tdata;
+wire teng_s_tvalid;
+wire teng_s_tlast;
+wire teng_s_tready;
+
+wire [31:0] teng_m_tdata;
+wire teng_m_tvalid;
+wire teng_m_tlast;
+wire teng_m_tready;
+
+wire [3:0] teng_m_awid;
+wire [11:0] teng_m_awaddr;
+wire [7:0] teng_m_awlen;
+wire [2:0] teng_m_awsize;
+wire [1:0] teng_m_awburst;
+wire [3:0] teng_m_awcache;
+wire teng_m_awvalid;
+wire teng_m_awready;
+wire [3:0] teng_m_wid;
+wire [31:0] teng_m_wdata;
+wire [3:0] teng_m_wstrb;
+wire teng_m_wlast;
+wire teng_m_wvalid;
+wire teng_m_wready;
+wire [3:0] teng_m_bid;
+wire [1:0] teng_m_bresp;
+wire teng_m_bvalid;
+wire teng_m_bready;
+wire [3:0] teng_m_arid;
+wire [11:0] teng_m_araddr;
+wire [7:0] teng_m_arlen;
+wire [2:0] teng_m_arsize;
+wire [1:0] teng_m_arburst;
+wire [3:0] teng_m_arcache;
+wire teng_m_arvalid;
+wire teng_m_arready;
+wire [3:0] teng_m_rid;
+wire [31:0] teng_m_rdata;
+wire [1:0] teng_m_rresp;
+wire teng_m_rlast;
+wire teng_m_rvalid;
+wire teng_m_rready;
+
 tx_desc_ctrl tx_desc_ctrl_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
@@ -129,7 +248,7 @@ tx_desc_ctrl tx_desc_ctrl_i(
 	.TDH_set(TDH_set),
 	.TDH_fb_o(TDH_fb_o),
 	.TDT(TDT),
-	.TDT_set(TDT),
+	.TDT_set(TDT_set),
 	.TIDV(TIDV),
 	.DPP(DPP),
 	.PTHRESH(PTHRESH),
@@ -143,27 +262,27 @@ tx_desc_ctrl tx_desc_ctrl_i(
 	.TXD_LOW_set(TXD_LOW_set),
 
 	// idma Command Port
-	.idma_m_tdata(idma_s_tdata),
-	.idma_m_tvalid(idma_s_tvalid),
-	.idma_m_tlast(idma_s_tlast),
-	.idma_m_tready(idma_s_tready),
+	.idma_m_tdata(i0_s_tdata),
+	.idma_m_tvalid(i0_s_tvalid),
+	.idma_m_tlast(i0_s_tlast),
+	.idma_m_tready(i0_s_tready),
 
 	// idma Response Port
-	.idma_s_tdata(idma_m_tdata),
-	.idma_s_tvalid(idma_m_tvalid),
-	.idma_s_tlast(idma_m_tlast),
-	.idma_s_tready(idma_m_tready),
+	.idma_s_tdata(i0_m_tdata),
+	.idma_s_tvalid(i0_m_tvalid),
+	.idma_s_tlast(i0_m_tlast),
+	.idma_s_tready(i0_m_tready),
 
 	// TX Engine 
-	.txe_m_tdata(txe_s_tdata),
-	.txe_m_tvalid(txe_s_tvalid),
-	.txe_m_tlast(txe_s_tlast),
-	.txe_m_tready(txe_s_tready),
+	.teng_m_tdata(teng_s_tdata),
+	.teng_m_tvalid(teng_s_tvalid),
+	.teng_m_tlast(teng_s_tlast),
+	.teng_m_tready(teng_s_tready),
 
-	.txe_s_tdata(txe_m_tdata),
-	.txe_s_tvalid(txe_m_tvalid),
-	.txe_s_tlast(txe_m_tlast),
-	.txe_s_tready(txe_m_tready)
+	.teng_s_tdata(teng_m_tdata),
+	.teng_s_tvalid(teng_m_tvalid),
+	.teng_s_tlast(teng_m_tlast),
+	.teng_s_tready(teng_m_tready)
 );
 
 // DMA controller between external bus and local ram 
@@ -172,88 +291,88 @@ axi_idma tx_desc_idma_i(
 	.aresetn(aresetn),
 
 	// DMA Command Port
-	.cmd_s_tdata(idma_s_tdata),
-	.cmd_s_tvalid(idma_s_tvalid),
-	.cmd_s_tlast(idma_s_tlast),
-	.cmd_s_tready(idma_s_tready),
+	.cmd_s_tdata(i0_s_tdata),
+	.cmd_s_tvalid(i0_s_tvalid),
+	.cmd_s_tlast(i0_s_tlast),
+	.cmd_s_tready(i0_s_tready),
 
 	// DMA Status Port
-	.stat_m_tdata(idma_m_tdata),
-	.stat_m_tvalid(idma_m_tvalid),
-	.stat_m_tlast(idma_m_tlast),
-	.stat_m_tready(idma_m_tready),
+	.stat_m_tdata(i0_m_tdata),
+	.stat_m_tvalid(i0_m_tvalid),
+	.stat_m_tlast(i0_m_tlast),
+	.stat_m_tready(i0_m_tready),
 
 	// External Bus Access Port
-	.ext_m_awid(axi_m_awid),
-	.ext_m_awaddr(axi_m_awaddr),
-	.ext_m_awlen(axi_m_awlen),
-	.ext_m_awsize(axi_m_awsize),
-	.ext_m_awburst(axi_m_awburst),
-	.ext_m_awvalid(axi_m_awvalid),
-	.ext_m_awready(axi_m_awready),
+	.ext_m_awid(i0_ext_m_awid),
+	.ext_m_awaddr(i0_ext_m_awaddr),
+	.ext_m_awlen(i0_ext_m_awlen),
+	.ext_m_awsize(i0_ext_m_awsize),
+	.ext_m_awburst(i0_ext_m_awburst),
+	.ext_m_awvalid(i0_ext_m_awvalid),
+	.ext_m_awready(i0_ext_m_awready),
 
-	.ext_m_wid(axi_m_wid),
-	.ext_m_wdata(axi_m_wdata),
-	.ext_m_wstrb(axi_m_wstrb),
-	.ext_m_wlast(axi_m_wlast),
-	.ext_m_wvalid(axi_m_wvalid),
-	.ext_m_wready(axi_m_wready),
+	.ext_m_wid(i0_ext_m_wid),
+	.ext_m_wdata(i0_ext_m_wdata),
+	.ext_m_wstrb(i0_ext_m_wstrb),
+	.ext_m_wlast(i0_ext_m_wlast),
+	.ext_m_wvalid(i0_ext_m_wvalid),
+	.ext_m_wready(i0_ext_m_wready),
 
-	.ext_m_bid(axi_m_bid),
-	.ext_m_bresp(axi_m_bresp),
-	.ext_m_bvalid(axi_m_bvalid),
-	.ext_m_bready(axi_m_bready),
+	.ext_m_bid(i0_ext_m_bid),
+	.ext_m_bresp(i0_ext_m_bresp),
+	.ext_m_bvalid(i0_ext_m_bvalid),
+	.ext_m_bready(i0_ext_m_bready),
 
-	.ext_m_arid(axi_m_arid),
-	.ext_m_araddr(axi_m_araddr),
-	.ext_m_arlen(axi_m_arlen),
-	.ext_m_arsize(axi_m_arsize),
-	.ext_m_arburst(axi_m_arburst),
-	.ext_m_arvalid(axi_m_arvalid),
-	.ext_m_arready(axi_m_arready),
+	.ext_m_arid(i0_ext_m_arid),
+	.ext_m_araddr(i0_ext_m_araddr),
+	.ext_m_arlen(i0_ext_m_arlen),
+	.ext_m_arsize(i0_ext_m_arsize),
+	.ext_m_arburst(i0_ext_m_arburst),
+	.ext_m_arvalid(i0_ext_m_arvalid),
+	.ext_m_arready(i0_ext_m_arready),
 
-	.ext_m_rid(axi_m_rid),
-	.ext_m_rdata(axi_m_rdata),
-	.ext_m_rresp(axi_m_rresp),
-	.ext_m_rlast(axi_m_rlast),
-	.ext_m_rvalid(axi_m_rvalid),
-	.ext_m_rready(axi_m_rready),
+	.ext_m_rid(i0_ext_m_rid),
+	.ext_m_rdata(i0_ext_m_rdata),
+	.ext_m_rresp(i0_ext_m_rresp),
+	.ext_m_rlast(i0_ext_m_rlast),
+	.ext_m_rvalid(i0_ext_m_rvalid),
+	.ext_m_rready(i0_ext_m_rready),
 
 	// Internal RAM Access Port
-	.int_m_awid(idma_ram_m_awid),
-	.int_m_awaddr(idma_ram_m_awaddr),
-	.int_m_awlen(idma_ram_m_awlen),
-	.int_m_awsize(idma_ram_m_awsize),
-	.int_m_awburst(idma_ram_m_awburst),
-	.int_m_awvalid(idma_ram_m_awvalid),
-	.int_m_awready(idma_ram_m_awready),
+	.int_m_awid(i0_int_m_awid),
+	.int_m_awaddr(i0_int_m_awaddr),
+	.int_m_awlen(i0_int_m_awlen),
+	.int_m_awsize(i0_int_m_awsize),
+	.int_m_awburst(i0_int_m_awburst),
+	.int_m_awvalid(i0_int_m_awvalid),
+	.int_m_awready(i0_int_m_awready),
 
-	.int_m_wid(idma_ram_m_wid),
-	.int_m_wdata(idma_ram_m_wdata),
-	.int_m_wstrb(idma_ram_m_wstrb),
-	.int_m_wlast(idma_ram_m_wlast),
-	.int_m_wvalid(idma_ram_m_wvalid),
-	.int_m_wready(idma_ram_m_wready),
+	.int_m_wid(i0_int_m_wid),
+	.int_m_wdata(i0_int_m_wdata),
+	.int_m_wstrb(i0_int_m_wstrb),
+	.int_m_wlast(i0_int_m_wlast),
+	.int_m_wvalid(i0_int_m_wvalid),
+	.int_m_wready(i0_int_m_wready),
 
-	.int_m_bid(idma_ram_m_bid),
-	.int_m_bresp(idma_ram_m_bresp),
-	.int_m_bvalid(idma_ram_m_bvalid),
-	.int_m_bready(idma_ram_m_bready),
+	.int_m_bid(i0_int_m_bid),
+	.int_m_bresp(i0_int_m_bresp),
+	.int_m_bvalid(i0_int_m_bvalid),
+	.int_m_bready(i0_int_m_bready),
 
-	.int_m_arid(idma_ram_m_arid),
-	.int_m_araddr(idma_ram_m_araddr),
-	.int_m_arlen(idma_ram_m_arlen),
-	.int_m_arsize(idma_ram_m_arsize),
-	.int_m_arburst(idma_ram_m_arburst),
-	.int_m_arvalid(idma_ram_m_arvalid),
-	.int_m_arready(idma_ram_m_arready),
+	.int_m_arid(i0_int_m_arid),
+	.int_m_araddr(i0_int_m_araddr),
+	.int_m_arlen(i0_int_m_arlen),
+	.int_m_arsize(i0_int_m_arsize),
+	.int_m_arburst(i0_int_m_arburst),
+	.int_m_arvalid(i0_int_m_arvalid),
+	.int_m_arready(i0_int_m_arready),
 
-	.int_m_rid(idma_ram_m_rid),
-	.int_m_rdata(idma_ram_m_rdata),
-	.int_m_rresp(idma_ram_m_rresp),
-	.int_m_rlast(idma_ram_m_rlast),
-	.int_m_rvalid(idma_ram_m_rvalid),
-	.int_m_rready(idma_ram_m_rready)
+	.int_m_rid(i0_int_m_rid),
+	.int_m_rdata(i0_int_m_rdata),
+	.int_m_rresp(i0_int_m_rresp),
+	.int_m_rlast(i0_int_m_rlast),
+	.int_m_rvalid(i0_int_m_rvalid),
+	.int_m_rready(i0_int_m_rready)
 );
 
 // Transmitter state machine
@@ -262,52 +381,52 @@ tx_engine tx_engine_i(
 	.aresetn(aresetn),
 
 	// Command Port
-	.cmd_s_tdata(txe_s_tdata),
-	.cmd_s_tvalid(txe_s_tvalid),
-	.cmd_s_tlast(txe_s_tlast),
-	.cmd_s_tready(txe_s_tready),
+	.cmd_s_tdata(teng_s_tdata),
+	.cmd_s_tvalid(teng_s_tvalid),
+	.cmd_s_tlast(teng_s_tlast),
+	.cmd_s_tready(teng_s_tready),
 
 	// Status Port
-	.stat_m_tdata(txe_m_tdata),
-	.stat_m_tvalid(txe_m_tvalid),
-	.stat_m_tlast(txe_m_tlast),
-	.stat_m_tready(txe_m_tready),
+	.stat_m_tdata(teng_m_tdata),
+	.stat_m_tvalid(teng_m_tvalid),
+	.stat_m_tlast(teng_m_tlast),
+	.stat_m_tready(teng_m_tready),
 
 	// Internal RAM Access Port
-	.ram_m_awid(txe_ram_m_awid),
-	.ram_m_awaddr(txe_ram_m_awaddr),
-	.ram_m_awlen(txe_ram_m_awlen),
-	.ram_m_awsize(txe_ram_m_awsize),
-	.ram_m_awburst(txe_ram_m_awburst),
-	.ram_m_awvalid(txe_ram_m_awvalid),
-	.ram_m_awready(txe_ram_m_awready),
+	.ram_m_awid(teng_m_awid),
+	.ram_m_awaddr(teng_m_awaddr),
+	.ram_m_awlen(teng_m_awlen),
+	.ram_m_awsize(teng_m_awsize),
+	.ram_m_awburst(teng_m_awburst),
+	.ram_m_awvalid(teng_m_awvalid),
+	.ram_m_awready(teng_m_awready),
 
-	.ram_m_wid(txe_ram_m_wid),
-	.ram_m_wdata(txe_ram_m_wdata),
-	.ram_m_wstrb(txe_ram_m_wstrb),
-	.ram_m_wlast(txe_ram_m_wlast),
-	.ram_m_wvalid(txe_ram_m_wvalid),
-	.ram_m_wready(txe_ram_m_wready),
+	.ram_m_wid(teng_m_wid),
+	.ram_m_wdata(teng_m_wdata),
+	.ram_m_wstrb(teng_m_wstrb),
+	.ram_m_wlast(teng_m_wlast),
+	.ram_m_wvalid(teng_m_wvalid),
+	.ram_m_wready(teng_m_wready),
 
-	.ram_m_bid(txe_ram_m_bid),
-	.ram_m_bresp(txe_ram_m_bresp),
-	.ram_m_bvalid(txe_ram_m_bvalid),
-	.ram_m_bready(txe_ram_m_bready),
+	.ram_m_bid(teng_m_bid),
+	.ram_m_bresp(teng_m_bresp),
+	.ram_m_bvalid(teng_m_bvalid),
+	.ram_m_bready(teng_m_bready),
 
-	.ram_m_arid(txe_ram_m_arid),
-	.ram_m_araddr(txe_ram_m_araddr),
-	.ram_m_arlen(txe_ram_m_arlen),
-	.ram_m_arsize(txe_ram_m_arsize),
-	.ram_m_arburst(txe_ram_m_arburst),
-	.ram_m_arvalid(txe_ram_m_arvalid),
-	.ram_m_arready(txe_ram_m_arready),
+	.ram_m_arid(teng_m_arid),
+	.ram_m_araddr(teng_m_araddr),
+	.ram_m_arlen(teng_m_arlen),
+	.ram_m_arsize(teng_m_arsize),
+	.ram_m_arburst(teng_m_arburst),
+	.ram_m_arvalid(teng_m_arvalid),
+	.ram_m_arready(teng_m_arready),
 
-	.ram_m_rid(txe_ram_m_rid),
-	.ram_m_rdata(txe_ram_m_rdata),
-	.ram_m_rresp(txe_ram_m_rresp),
-	.ram_m_rlast(txe_ram_m_rlast),
-	.ram_m_rvalid(txe_ram_m_rvalid),
-	.ram_m_rready(txe_ram_m_rready)/*,
+	.ram_m_rid(teng_m_rid),
+	.ram_m_rdata(teng_m_rdata),
+	.ram_m_rresp(teng_m_rresp),
+	.ram_m_rlast(teng_m_rlast),
+	.ram_m_rvalid(teng_m_rvalid),
+	.ram_m_rready(teng_m_rready)/*,
 
 	// idma Command Port
 	.idma_m_tdata(idma_s_tdata),
@@ -420,6 +539,87 @@ axi_ram #(
 	.s_rlast(desc_s_rlast),
 	.s_rvalid(desc_s_rvalid),
 	.s_rready(desc_s_rready)
+);
+
+axi_mux #(
+	.SLAVE_NUM(2),
+	.ID_WIDTH(4),
+	.ADDR_WIDTH(12),
+	.DATA_WIDTH(32),
+	.LEN_WIDTH(8)
+) desc_mux_i (
+	.aclk(aclk),
+	.aresetn(aresetn),
+
+	.s_awid({teng_m_awid,i0_int_m_awid}),
+	.s_awaddr({teng_m_awaddr,i0_int_m_awaddr}),
+	.s_awlen({teng_m_awlen,i0_int_m_awlen}),
+	.s_awsize({teng_m_awsize,i0_int_m_awsize}),
+	.s_awburst({teng_m_awburst,i0_int_m_awburst}),
+	.s_awvalid({teng_m_awvalid,i0_int_m_awvalid}),
+	.s_awready({teng_m_awready,i0_int_m_awready}),
+
+	.s_wid({teng_m_wid,i0_int_m_wid}),
+	.s_wdata({teng_m_wdata,i0_int_m_wdata}),
+	.s_wstrb({teng_m_wstrb,i0_int_m_wstrb}),
+	.s_wlast({teng_m_wlast,i0_int_m_wlast}),
+	.s_wvalid({teng_m_wvalid,i0_int_m_wvalid}),
+	.s_wready({teng_m_wready,i0_int_m_wready}),
+
+	.s_bid({teng_m_bid,i0_int_m_bid}),
+	.s_bresp({teng_m_bresp,i0_int_m_bresp}),
+	.s_bvalid({teng_m_bvalid,i0_int_m_bvalid}),
+	.s_bready({teng_m_bready,i0_int_m_bready}),
+
+	.s_arid({teng_m_arid,i0_int_m_arid}),
+	.s_araddr({teng_m_araddr,i0_int_m_araddr}),
+	.s_arlen({teng_m_arlen,i0_int_m_arlen}),
+	.s_arsize({teng_m_arsize,i0_int_m_arsize}),
+	.s_arburst({teng_m_arburst,i0_int_m_arburst}),
+	.s_arvalid({teng_m_arvalid,i0_int_m_arvalid}),
+	.s_arready({teng_m_arready,i0_int_m_arready}),
+
+	.s_rid({teng_m_rid,i0_int_m_rid}),
+	.s_rdata({teng_m_rdata,i0_int_m_rdata}),
+	.s_rresp({teng_m_rresp,i0_int_m_rresp}),
+	.s_rlast({teng_m_rlast,i0_int_m_rlast}),
+	.s_rvalid({teng_m_rvalid,i0_int_m_rvalid}),
+	.s_rready({teng_m_rready,i0_int_m_rready}),
+
+	.m_awid(desc_s_awid),
+	.m_awaddr(desc_s_awaddr),
+	.m_awlen(desc_s_awlen),
+	.m_awsize(desc_s_awsize),
+	.m_awburst(desc_s_awburst),
+	.m_awvalid(desc_s_awvalid),
+	.m_awready(desc_s_awready),
+
+	.m_wid(desc_s_wid),
+	.m_wdata(desc_s_wdata),
+	.m_wstrb(desc_s_wstrb),
+	.m_wlast(desc_s_wlast),
+	.m_wvalid(desc_s_wvalid),
+	.m_wready(desc_s_wready),
+
+	.m_bid(desc_s_bid),
+	.m_bresp(desc_s_bresp),
+	.m_bvalid(desc_s_bvalid),
+	.m_bready(desc_s_bready),
+
+	.m_arid(desc_s_arid),
+	.m_araddr(desc_s_araddr),
+	.m_arlen(desc_s_arlen),
+	.m_arsize(desc_s_arsize),
+	.m_arburst(desc_s_arburst),
+	.m_arvalid(desc_s_arvalid),
+	.m_arready(desc_s_arready),
+
+	.m_rid(desc_s_rid),
+	.m_rdata(desc_s_rdata),
+	.m_rresp(desc_s_rresp),
+	.m_rlast(desc_s_rlast),
+	.m_rvalid(desc_s_rvalid),
+	.m_rready(desc_s_rready)
 );
 
 /*
@@ -706,7 +906,6 @@ tx_send tx_send_i(
 	.mac_m_tlast(mac_m_tlast),
 	.mac_m_tready(mac_m_tready)
 );
-*/
 
 // Internal axi crossbar
 tx_crossbar tx_crossbar_i(
@@ -993,5 +1192,6 @@ tx_crossbar tx_crossbar_i(
 	.M00_AXI_RVALID(bram_s_rvalid),
 	.M00_AXI_RREADY(bram_s_rready)
 );
+*/
 
 endmodule

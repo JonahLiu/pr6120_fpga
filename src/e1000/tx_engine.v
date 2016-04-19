@@ -17,9 +17,9 @@ module tx_engine(
 	input stat_m_tready,
 
 	output reg [3:0] ram_m_awid,
-	output reg [15:0] ram_m_awaddr,
+	output reg [11:0] ram_m_awaddr,
 
-	output reg [3:0] ram_m_awlen,
+	output reg [7:0] ram_m_awlen,
 	output reg [2:0] ram_m_awsize,
 	output reg [1:0] ram_m_awburst,
 	output reg ram_m_awvalid,
@@ -38,8 +38,8 @@ module tx_engine(
 	output reg ram_m_bready,
 
 	output reg [3:0] ram_m_arid,
-	output reg [15:0] ram_m_araddr,
-	output reg [3:0] ram_m_arlen,
+	output reg [11:0] ram_m_araddr,
+	output reg [7:0] ram_m_arlen,
 	output reg [2:0] ram_m_arsize,
 	output reg [1:0] ram_m_arburst,
 	output reg ram_m_arvalid,
@@ -119,7 +119,7 @@ assign desc_dext = desc_cmd[5];
 assign desc_vle = desc_cmd[6];
 assign desc_ide = desc_cmd[7];
 
-assign desc_sta = desc_dw2[35:32];
+assign desc_sta = desc_dw3[3:0];
 assign desc_css = desc_dw3[15:8];
 
 assign desc_special = desc_dw3[31:16];

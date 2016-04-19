@@ -41,17 +41,17 @@ module tx_desc_ctrl(
 
 	// tx engine command port
 	// [31:16]=RSV, [15:0]=Local Address
-	output reg [31:0] txe_m_tdata,
-	output reg txe_m_tvalid,
-	output reg txe_m_tlast,
-	input txe_m_tready,
+	output reg [31:0] teng_m_tdata,
+	output reg teng_m_tvalid,
+	output reg teng_m_tlast,
+	input teng_m_tready,
 
 	// tx engine response port
 	// [17]=IDE, [16]=RS, [15:0]=Local Address
-	input [31:0] txe_s_tdata,
-	input txe_s_tvalid,
-	input txe_s_tlast,
-	output reg txe_s_tready
+	input [31:0] teng_s_tdata,
+	input teng_s_tvalid,
+	input teng_s_tlast,
+	output reg teng_s_tready
 );
 
 parameter CLOCK_PERIOD_NS = 8;
@@ -73,7 +73,7 @@ reg [63:0] host_rd_address;
 // Local addresses
 wire [15:0] local_wb_address;
 wire [15:0] local_rd_address;
-wire [15:0] local_txe_address;
+wire [15:0] local_teng_address;
 
 reg [7:0] fetch_num;
 wire [11:0] fetch_bytes;
@@ -149,14 +149,14 @@ assign fetch_bytes = {fetch_num,4'h0};
 
 assign local_wb_address = {4'b1000, out_head, 4'b0};
 assign local_rd_address = {4'b1000, in_tail, 4'b0};
-assign local_txe_address = {4'b1000, in_head, 4'b0};
+assign local_teng_address = {4'b1000, in_head, 4'b0};
 
 assign host_length = {TDLEN, 3'b0};
 
 always @(posedge aclk)
 begin
-	if(txe_s_tvalid && txe_s_tlast && txe_s_tready)
-		flag_mem[out_tail] <= txe_s_tdata[17:16];
+	if(teng_s_tvalid && teng_s_tlast && teng_s_tready)
+		flag_mem[out_tail] <= teng_s_tdata[17:16];
 end
 
 always @(posedge aclk, negedge aresetn)
@@ -654,7 +654,7 @@ begin
 				s2_next = S2_READY;
 		end
 		S2_CMD: begin
-			if(txe_s_tready)
+			if(teng_s_tready)
 				s2_next = S2_DEQUEUE;
 			else
 				s2_next = S2_CMD;
@@ -663,7 +663,7 @@ begin
 			s2_next = S2_CMD;
 		end
 		S2_ACK: begin
-			if(txe_s_tvalid & txe_s_tlast)
+			if(teng_s_tvalid & teng_s_tlast)
 				s2_next = S2_ENQUEUE;
 			else
 				s2_next = S2_ACK;
@@ -682,9 +682,9 @@ begin
 	if(!aresetn) begin
 		in_dequeue <= 1'b0;
 		out_enqueue <= 1'b0;
-		txe_m_tdata <= 'bx;
-		txe_m_tvalid <= 1'b0;
-		txe_m_tlast <= 'b1;
+		teng_m_tdata <= 'bx;
+		teng_m_tvalid <= 1'b0;
+		teng_m_tlast <= 'b1;
 	end
 	else case(s2_next)
 		S2_IDLE: begin
@@ -693,19 +693,19 @@ begin
 			out_enqueue <= 1'b0;
 		end
 		S2_CMD: begin
-			txe_m_tdata <= {16'b0,local_txe_address};
-			txe_m_tvalid <= 1'b1;
-			txe_m_tlast <= 1'b1;
+			teng_m_tdata <= {16'b0,local_teng_address};
+			teng_m_tvalid <= 1'b1;
+			teng_m_tlast <= 1'b1;
 		end
 		S2_DEQUEUE: begin
-			txe_m_tvalid <= 1'b0;
+			teng_m_tvalid <= 1'b0;
 			in_dequeue <= 1'b1;
 		end
 		S2_ACK: begin
-			txe_s_tready <= 1'b1;
+			teng_s_tready <= 1'b1;
 		end
 		S2_ENQUEUE: begin
-			txe_s_tready <= 1'b0;
+			teng_s_tready <= 1'b0;
 			out_enqueue <= 1'b1;
 		end
 	endcase
