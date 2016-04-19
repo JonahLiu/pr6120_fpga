@@ -8,7 +8,10 @@ module tx_path(
 	input [63:0] TDBA, // Transmit Descriptor Base Address
 	input [12:0] TDLEN, // Transmit Descriptor Buffer length=TDLEN*16*8
 	input [15:0] TDH, // Transmit Descriptor Head
+	input TDH_set, // TDH Update
+	output [15:0] TDH_fb_o, // TDH feedback
 	input [15:0] TDT, // Transmit Descriptor Tail
+	input TDT_set, // TDT Update
 	input [15:0] TIDV, // Interrupt Delay
 	input DPP, // Disable Packet Prefetching
 	input [5:0] PTHRESH, // Prefetch Threshold
@@ -16,9 +19,12 @@ module tx_path(
 	input [5:0] WTHRESH, // Write Back Threshold
 	input GRAN, // Granularity
 	input [5:0] LWTHRESH, // Tx Desc Low Threshold
-	input [15:0] IDV, // Absolute Interrupt Delay
+	input [15:0] TADV, // Absolute Interrupt Delay
 	input [15:0] TSMT, // TCP Segmentation Minimum Transfer
 	input [15:0] TSPBP, // TCP Segmentation Packet Buffer Padding
+	output TXDW_set, // Write-back interrupt set
+	output TXQE_set, // TXD queue empty interrupt set
+	output TXD_LOW_set, // TXD queue low interrupt set
 
 	// Command Port
 	// Desc tail send to this port
@@ -78,38 +84,38 @@ module tx_path(
 	output mac_m_tready	
 );
 
-wire [3:0] bram_s_awid;
-wire [15:0] bram_s_awaddr;
-wire [7:0] bram_s_awlen;
-wire [2:0] bram_s_awsize;
-wire [1:0] bram_s_awburst;
-wire [3:0] bram_s_awcache;
-wire bram_s_awvalid;
-wire bram_s_awready;
-wire [3:0] bram_s_wid;
-wire [31:0] bram_s_wdata;
-wire [3:0] bram_s_wstrb;
-wire bram_s_wlast;
-wire bram_s_wvalid;
-wire bram_s_wready;
-wire [3:0] bram_s_bid;
-wire [1:0] bram_s_bresp;
-wire bram_s_bvalid;
-wire bram_s_bready;
-wire [3:0] bram_s_arid;
-wire [15:0] bram_s_araddr;
-wire [7:0] bram_s_arlen;
-wire [2:0] bram_s_arsize;
-wire [1:0] bram_s_arburst;
-wire [3:0] bram_s_arcache;
-wire bram_s_arvalid;
-wire bram_s_arready;
-wire [3:0] bram_s_rid;
-wire [31:0] bram_s_rdata;
-wire [1:0] bram_s_rresp;
-wire bram_s_rlast;
-wire bram_s_rvalid;
-wire bram_s_rready;
+wire [3:0] desc_s_awid;
+wire [11:0] desc_s_awaddr;
+wire [7:0] desc_s_awlen;
+wire [2:0] desc_s_awsize;
+wire [1:0] desc_s_awburst;
+wire [3:0] desc_s_awcache;
+wire desc_s_awvalid;
+wire desc_s_awready;
+wire [3:0] desc_s_wid;
+wire [31:0] desc_s_wdata;
+wire [3:0] desc_s_wstrb;
+wire desc_s_wlast;
+wire desc_s_wvalid;
+wire desc_s_wready;
+wire [3:0] desc_s_bid;
+wire [1:0] desc_s_bresp;
+wire desc_s_bvalid;
+wire desc_s_bready;
+wire [3:0] desc_s_arid;
+wire [11:0] desc_s_araddr;
+wire [7:0] desc_s_arlen;
+wire [2:0] desc_s_arsize;
+wire [1:0] desc_s_arburst;
+wire [3:0] desc_s_arcache;
+wire desc_s_arvalid;
+wire desc_s_arready;
+wire [3:0] desc_s_rid;
+wire [31:0] desc_s_rdata;
+wire [1:0] desc_s_rresp;
+wire desc_s_rlast;
+wire desc_s_rvalid;
+wire desc_s_rready;
 
 tx_desc_ctrl tx_desc_ctrl_i(
 	.aclk(aclk),
@@ -117,7 +123,6 @@ tx_desc_ctrl tx_desc_ctrl_i(
 
 	// Parameters
 	.EN(EN),
-	.PSP(PSP),
 	.TDBA(TDBA),
 	.TDLEN(TDLEN),
 	.TDH(TDH),
@@ -132,12 +137,10 @@ tx_desc_ctrl tx_desc_ctrl_i(
 	.WTHRESH(WTHRESH),
 	.GRAN(GRAN),
 	.LWTHRESH(LWTHRESH),
-	.IDV(IDV),
-	.TSMT(TSMT),
-	.TSPBP(TSPBP),
+	.TADV(TADV),
 	.TXDW_set(TXDW_set),
 	.TXQE_set(TXQE_set),
-	.TXD_LOW_SET(TXD_LOW_set),
+	.TXD_LOW_set(TXD_LOW_set),
 
 	// idma Command Port
 	.idma_m_tdata(idma_s_tdata),
@@ -163,25 +166,112 @@ tx_desc_ctrl tx_desc_ctrl_i(
 	.txe_s_tready(txe_m_tready)
 );
 
+// DMA controller between external bus and local ram 
+axi_idma tx_desc_idma_i(
+	.aclk(aclk),
+	.aresetn(aresetn),
+
+	// DMA Command Port
+	.cmd_s_tdata(idma_s_tdata),
+	.cmd_s_tvalid(idma_s_tvalid),
+	.cmd_s_tlast(idma_s_tlast),
+	.cmd_s_tready(idma_s_tready),
+
+	// DMA Status Port
+	.stat_m_tdata(idma_m_tdata),
+	.stat_m_tvalid(idma_m_tvalid),
+	.stat_m_tlast(idma_m_tlast),
+	.stat_m_tready(idma_m_tready),
+
+	// External Bus Access Port
+	.ext_m_awid(axi_m_awid),
+	.ext_m_awaddr(axi_m_awaddr),
+	.ext_m_awlen(axi_m_awlen),
+	.ext_m_awsize(axi_m_awsize),
+	.ext_m_awburst(axi_m_awburst),
+	.ext_m_awvalid(axi_m_awvalid),
+	.ext_m_awready(axi_m_awready),
+
+	.ext_m_wid(axi_m_wid),
+	.ext_m_wdata(axi_m_wdata),
+	.ext_m_wstrb(axi_m_wstrb),
+	.ext_m_wlast(axi_m_wlast),
+	.ext_m_wvalid(axi_m_wvalid),
+	.ext_m_wready(axi_m_wready),
+
+	.ext_m_bid(axi_m_bid),
+	.ext_m_bresp(axi_m_bresp),
+	.ext_m_bvalid(axi_m_bvalid),
+	.ext_m_bready(axi_m_bready),
+
+	.ext_m_arid(axi_m_arid),
+	.ext_m_araddr(axi_m_araddr),
+	.ext_m_arlen(axi_m_arlen),
+	.ext_m_arsize(axi_m_arsize),
+	.ext_m_arburst(axi_m_arburst),
+	.ext_m_arvalid(axi_m_arvalid),
+	.ext_m_arready(axi_m_arready),
+
+	.ext_m_rid(axi_m_rid),
+	.ext_m_rdata(axi_m_rdata),
+	.ext_m_rresp(axi_m_rresp),
+	.ext_m_rlast(axi_m_rlast),
+	.ext_m_rvalid(axi_m_rvalid),
+	.ext_m_rready(axi_m_rready),
+
+	// Internal RAM Access Port
+	.int_m_awid(idma_ram_m_awid),
+	.int_m_awaddr(idma_ram_m_awaddr),
+	.int_m_awlen(idma_ram_m_awlen),
+	.int_m_awsize(idma_ram_m_awsize),
+	.int_m_awburst(idma_ram_m_awburst),
+	.int_m_awvalid(idma_ram_m_awvalid),
+	.int_m_awready(idma_ram_m_awready),
+
+	.int_m_wid(idma_ram_m_wid),
+	.int_m_wdata(idma_ram_m_wdata),
+	.int_m_wstrb(idma_ram_m_wstrb),
+	.int_m_wlast(idma_ram_m_wlast),
+	.int_m_wvalid(idma_ram_m_wvalid),
+	.int_m_wready(idma_ram_m_wready),
+
+	.int_m_bid(idma_ram_m_bid),
+	.int_m_bresp(idma_ram_m_bresp),
+	.int_m_bvalid(idma_ram_m_bvalid),
+	.int_m_bready(idma_ram_m_bready),
+
+	.int_m_arid(idma_ram_m_arid),
+	.int_m_araddr(idma_ram_m_araddr),
+	.int_m_arlen(idma_ram_m_arlen),
+	.int_m_arsize(idma_ram_m_arsize),
+	.int_m_arburst(idma_ram_m_arburst),
+	.int_m_arvalid(idma_ram_m_arvalid),
+	.int_m_arready(idma_ram_m_arready),
+
+	.int_m_rid(idma_ram_m_rid),
+	.int_m_rdata(idma_ram_m_rdata),
+	.int_m_rresp(idma_ram_m_rresp),
+	.int_m_rlast(idma_ram_m_rlast),
+	.int_m_rvalid(idma_ram_m_rvalid),
+	.int_m_rready(idma_ram_m_rready)
+);
+
 // Transmitter state machine
 tx_engine tx_engine_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
-	// Parameters
-	.EN(EN),
-
 	// Command Port
-	.s_tdata(txe_s_tdata),
-	.s_tvalid(txe_s_tvalid),
-	.s_tlast(txe_s_tlast),
-	.s_tready(txe_s_tready),
+	.cmd_s_tdata(txe_s_tdata),
+	.cmd_s_tvalid(txe_s_tvalid),
+	.cmd_s_tlast(txe_s_tlast),
+	.cmd_s_tready(txe_s_tready),
 
 	// Status Port
-	.m_tdata(txe_m_tdata),
-	.m_tvalid(txe_m_tvalid),
-	.m_tlast(txe_m_tlast),
-	.m_tready(txe_m_tready),
+	.stat_m_tdata(txe_m_tdata),
+	.stat_m_tvalid(txe_m_tvalid),
+	.stat_m_tlast(txe_m_tlast),
+	.stat_m_tready(txe_m_tready),
 
 	// Internal RAM Access Port
 	.ram_m_awid(txe_ram_m_awid),
@@ -217,7 +307,7 @@ tx_engine tx_engine_i(
 	.ram_m_rresp(txe_ram_m_rresp),
 	.ram_m_rlast(txe_ram_m_rlast),
 	.ram_m_rvalid(txe_ram_m_rvalid),
-	.ram_m_rready(txe_ram_m_rready),
+	.ram_m_rready(txe_ram_m_rready)/*,
 
 	// idma Command Port
 	.idma_m_tdata(idma_s_tdata),
@@ -284,98 +374,55 @@ tx_engine tx_engine_i(
 	.snd_s_tvalid(snd_m_tvalid),
 	.snd_s_tlast(snd_m_tlast),
 	.snd_s_tready(snd_m_tready)
+	*/
 );
 
-// DMA controller between external bus and local ram 
-axi_idma tx_idma_i(
+// BRAM for descriptor and packet storage
+axi_ram #(
+	.MEMORY_DEPTH(1024),
+	.DATA_WIDTH(32),
+	.ID_WIDTH(4)
+) tx_desc_ram_i (
 	.aclk(aclk),
 	.aresetn(aresetn),
 
-	// DMA Command Port
-	.s_tdata(idma_s_tdata),
-	.s_tvalid(idma_s_tvalid),
-	.s_tlast(idma_s_tlast),
-	.s_tready(idma_s_tready),
+	.s_awid(desc_s_awid),
+	.s_awaddr(desc_s_awaddr),
+	.s_awlen(desc_s_awlen),
+	.s_awsize(desc_s_awsize),
+	.s_awburst(desc_s_awburst),
+	.s_awvalid(desc_s_awvalid),
+	.s_awready(desc_s_awready),
 
-	// DMA Status Port
-	.m_tdata(idma_m_tdata),
-	.m_tvalid(idma_m_tvalid),
-	.m_tlast(idma_m_tlast),
-	.m_tready(idma_m_tready),
+	.s_wid(desc_s_wid),
+	.s_wdata(desc_s_wdata),
+	.s_wstrb(desc_s_wstrb),
+	.s_wlast(desc_s_wlast),
+	.s_wvalid(desc_s_wvalid),
+	.s_wready(desc_s_wready),
 
-	// External Bus Access Port
-	.bus_m_awid(axi_m_awid),
-	.bus_m_awaddr(axi_m_awaddr),
-	.bus_m_awlen(axi_m_awlen),
-	.bus_m_awsize(axi_m_awsize),
-	.bus_m_awburst(axi_m_awburst),
-	.bus_m_awvalid(axi_m_awvalid),
-	.bus_m_awready(axi_m_awready),
+	.s_bid(desc_s_bid),
+	.s_bresp(desc_s_bresp),
+	.s_bvalid(desc_s_bvalid),
+	.s_bready(desc_s_bready),
 
-	.bus_m_wid(axi_m_wid),
-	.bus_m_wdata(axi_m_wdata),
-	.bus_m_wstrb(axi_m_wstrb),
-	.bus_m_wlast(axi_m_wlast),
-	.bus_m_wvalid(axi_m_wvalid),
-	.bus_m_wready(axi_m_wready),
+	.s_arid(desc_s_arid),
+	.s_araddr(desc_s_araddr),
+	.s_arlen(desc_s_arlen),
+	.s_arsize(desc_s_arsize),
+	.s_arburst(desc_s_arburst),
+	.s_arvalid(desc_s_arvalid),
+	.s_arready(desc_s_arready),
 
-	.bus_m_bid(axi_m_bid),
-	.bus_m_bresp(axi_m_bresp),
-	.bus_m_bvalid(axi_m_bvalid),
-	.bus_m_bready(axi_m_bready),
-
-	.bus_m_arid(axi_m_arid),
-	.bus_m_araddr(axi_m_araddr),
-	.bus_m_arlen(axi_m_arlen),
-	.bus_m_arsize(axi_m_arsize),
-	.bus_m_arburst(axi_m_arburst),
-	.bus_m_arvalid(axi_m_arvalid),
-	.bus_m_arready(axi_m_arready),
-
-	.bus_m_rid(axi_m_rid),
-	.bus_m_rdata(axi_m_rdata),
-	.bus_m_rresp(axi_m_rresp),
-	.bus_m_rlast(axi_m_rlast),
-	.bus_m_rvalid(axi_m_rvalid),
-	.bus_m_rready(axi_m_rready),
-
-	// Internal RAM Access Port
-	.ram_m_awid(idma_ram_m_awid),
-	.ram_m_awaddr(idma_ram_m_awaddr),
-	.ram_m_awlen(idma_ram_m_awlen),
-	.ram_m_awsize(idma_ram_m_awsize),
-	.ram_m_awburst(idma_ram_m_awburst),
-	.ram_m_awvalid(idma_ram_m_awvalid),
-	.ram_m_awready(idma_ram_m_awready),
-
-	.ram_m_wid(idma_ram_m_wid),
-	.ram_m_wdata(idma_ram_m_wdata),
-	.ram_m_wstrb(idma_ram_m_wstrb),
-	.ram_m_wlast(idma_ram_m_wlast),
-	.ram_m_wvalid(idma_ram_m_wvalid),
-	.ram_m_wready(idma_ram_m_wready),
-
-	.ram_m_bid(idma_ram_m_bid),
-	.ram_m_bresp(idma_ram_m_bresp),
-	.ram_m_bvalid(idma_ram_m_bvalid),
-	.ram_m_bready(idma_ram_m_bready),
-
-	.ram_m_arid(idma_ram_m_arid),
-	.ram_m_araddr(idma_ram_m_araddr),
-	.ram_m_arlen(idma_ram_m_arlen),
-	.ram_m_arsize(idma_ram_m_arsize),
-	.ram_m_arburst(idma_ram_m_arburst),
-	.ram_m_arvalid(idma_ram_m_arvalid),
-	.ram_m_arready(idma_ram_m_arready),
-
-	.ram_m_rid(idma_ram_m_rid),
-	.ram_m_rdata(idma_ram_m_rdata),
-	.ram_m_rresp(idma_ram_m_rresp),
-	.ram_m_rlast(idma_ram_m_rlast),
-	.ram_m_rvalid(idma_ram_m_rvalid),
-	.ram_m_rready(idma_ram_m_rready)
+	.s_rid(desc_s_rid),
+	.s_rdata(desc_s_rdata),
+	.s_rresp(desc_s_rresp),
+	.s_rlast(desc_s_rlast),
+	.s_rvalid(desc_s_rvalid),
+	.s_rready(desc_s_rready)
 );
 
+/*
 // Tx TCP Segmentation
 tx_segmentation tx_segmentation_i(
 	.aclk(aclk),
@@ -659,47 +706,7 @@ tx_send tx_send_i(
 	.mac_m_tlast(mac_m_tlast),
 	.mac_m_tready(mac_m_tready)
 );
-
-// BRAM for descriptor and packet storage
-tx_bram tx_bram_i(
-	.aclk(aclk),
-	.aresetn(aresetn),
-
-	.s_awid(bram_s_awid),
-	.s_awaddr(bram_s_awaddr),
-	.s_awlen(bram_s_awlen),
-	.s_awsize(bram_s_awsize),
-	.s_awburst(bram_s_awburst),
-	.s_awvalid(bram_s_awvalid),
-	.s_awready(bram_s_awready),
-
-	.s_wid(bram_s_wid),
-	.s_wdata(bram_s_wdata),
-	.s_wstrb(bram_s_wstrb),
-	.s_wlast(bram_s_wlast),
-	.s_wvalid(bram_s_wvalid),
-	.s_wready(bram_s_wready),
-
-	.s_bid(bram_s_bid),
-	.s_bresp(bram_s_bresp),
-	.s_bvalid(bram_s_bvalid),
-	.s_bready(bram_s_bready),
-
-	.s_arid(bram_s_arid),
-	.s_araddr(bram_s_araddr),
-	.s_arlen(bram_s_arlen),
-	.s_arsize(bram_s_arsize),
-	.s_arburst(bram_s_arburst),
-	.s_arvalid(bram_s_arvalid),
-	.s_arready(bram_s_arready),
-
-	.s_rid(bram_s_rid),
-	.s_rdata(bram_s_rdata),
-	.s_rresp(bram_s_rresp),
-	.s_rlast(bram_s_rlast),
-	.s_rvalid(bram_s_rvalid),
-	.s_rready(bram_s_rready)
-);
+*/
 
 // Internal axi crossbar
 tx_crossbar tx_crossbar_i(
