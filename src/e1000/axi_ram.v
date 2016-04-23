@@ -271,26 +271,46 @@ begin
 	end
 end
 
-//% Memory Read and Write
+//% Internal Memory
+reg [DATA_WIDTH-1:0] mem[0:MEMORY_DEPTH-1];
+
+//% Memory Write
 generate
 genvar i;
-for(i=0;i<STRB_WIDTH;i=i+1) begin:BANK
-
-	reg [7:0] mem[0:MEMORY_DEPTH-1];
-
+for(i=0;i<STRB_WIDTH;i=i+1) begin:WRITE
 	always @(posedge aclk) 
 	begin
 		if(write_strobe && s_wstrb[i])
-			mem[write_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]] <= s_wdata[i*8+7:i*8];
+			mem[write_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]][i*8+7:i*8] 
+				<= s_wdata[i*8+7:i*8];
 	end
-
-	always @(posedge aclk)
-	begin
-		if(read_strobe)
-			s_rdata[i*8+7:i*8] <= mem[read_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
-	end
-
 end
 endgenerate
+
+//% Memory Read
+always @(posedge aclk)
+begin
+	if(read_strobe)
+		s_rdata <= mem[read_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
+end
+
+/* synthesis translate_off */
+
+function init(input [DATA_WIDTH-1:0] data);
+	integer i;
+	for(i=0;i<MEMORY_DEPTH;i=i+1) 
+		mem[i] = data;
+endfunction
+
+function write(input [MEM_ADDR_MSB:0] addr, input [DATA_WIDTH-1:0] data);
+	write = mem[addr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
+	mem[addr[MEM_ADDR_MSB:MEM_ADDR_LSB]] = data;
+endfunction
+
+function [DATA_WIDTH-1:0] read(input [MEM_ADDR_MSB:0] addr);
+	read = mem[addr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
+endfunction
+
+/* synthesis translate_on*/
 
 endmodule
