@@ -29,7 +29,6 @@ module tx_path(
 	// External Bus Access
 	output [3:0] axi_m_awid,
 	output [63:0] axi_m_awaddr,
-
 	output [7:0] axi_m_awlen,
 	output [2:0] axi_m_awsize,
 	output [1:0] axi_m_awburst,
@@ -43,10 +42,10 @@ module tx_path(
 	output axi_m_wvalid,
 	input axi_m_wready,
 
-	output [3:0] axi_m_bid,
-	output [1:0] axi_m_bresp,
-	output axi_m_bvalid,
-	input axi_m_bready,
+	input [3:0] axi_m_bid,
+	input [1:0] axi_m_bresp,
+	input axi_m_bvalid,
+	output axi_m_bready,
 
 	output [3:0] axi_m_arid,
 	output [63:0] axi_m_araddr,
@@ -56,18 +55,18 @@ module tx_path(
 	output axi_m_arvalid,
 	input axi_m_arready,
 
-	output [3:0] axi_m_rid,
-	output [31:0] axi_m_rdata,
-	output [1:0] axi_m_rresp,
-	output axi_m_rlast,
-	output axi_m_rvalid,
-	input axi_m_rready,
+	input [3:0] axi_m_rid,
+	input [31:0] axi_m_rdata,
+	input [1:0] axi_m_rresp,
+	input axi_m_rlast,
+	input axi_m_rvalid,
+	output axi_m_rready,
 
 	// MAC Tx Port
-	input [7:0] mac_m_tdata,
-	input mac_m_tvalid,
-	input mac_m_tlast,
-	output mac_m_tready	
+	output [7:0] mac_m_tdata,
+	output mac_m_tvalid,
+	output mac_m_tlast,
+	input mac_m_tready	
 );
 
 parameter CLK_PERIOD_NS = 8;

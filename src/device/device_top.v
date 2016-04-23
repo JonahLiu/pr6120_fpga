@@ -8,11 +8,11 @@ module device_top(
 	inout         IRDY_N,
 	inout         STOP_N,
 	inout         DEVSEL_N,
-	//  input         IDSEL,
+	input         IDSEL,
 	inout         PERR_N,
 	inout         SERR_N,
 	output        INTA_N,
-	//  output        PMEA_N,
+	output        PMEA_N,
 	output        REQ_N,
 	input         GNT_N,
 	input         RST_N,
@@ -425,17 +425,40 @@ assign tgt_m_rdata = nic_s_rdata;
 assign tgt_m_rresp = nic_s_rresp;
 assign nic_s_rready = tgt_m_rready;
 
-assign mst_s_awvalid = 1'b0;
-assign mst_s_wvalid = 1'b0;
-assign mst_s_bready = 1'b0;
-assign mst_s_arvalid = 1'b0;
-assign mst_s_rready = 1'b0;
+assign mst_s_awid = nic_m_awid;
+assign mst_s_awlen = nic_m_awlen;
+assign mst_s_awsize = nic_m_awsize;
+assign mst_s_awburst = nic_m_awburst;
+assign mst_s_awcache = nic_m_awcache;
+assign mst_s_awvalid = nic_m_awvalid;
+assign nic_m_awready = mst_s_awready;
 
-assign nic_m_awready = 1'b0;
-assign nic_m_wready = 1'b0;
-assign nic_m_bready = 1'b0;
-assign nic_m_arready = 1'b0;
-assign nic_m_rready = 1'b0;
+assign mst_s_wid = nic_m_wid;
+assign mst_s_wdata = nic_m_wdata;
+assign mst_s_wstrb = nic_m_wstrb;
+assign mst_s_wlast = nic_m_wlast;
+assign mst_s_wvalid = nic_m_wvalid;
+assign nic_m_wready = mst_s_wready;
+
+assign nic_m_bid = mst_s_bid;
+assign nic_m_bresp = mst_s_bresp;
+assign nic_m_bvalid = mst_s_bvalid;
+assign mst_s_bready = nic_m_bready;
+
+assign mst_s_arid = nic_m_arid;
+assign mst_s_araddr = nic_m_araddr;
+assign mst_s_arlen = nic_m_arlen;
+assign mst_s_arsize = nic_m_arsize;
+assign mst_s_arburst = nic_m_arburst;
+assign mst_s_arcache = nic_m_arcache;
+assign mst_s_arvalid = nic_m_arvalid;
+
+assign nic_m_rid = mst_s_rid;
+assign nic_m_rdata = mst_s_rdata;
+assign nic_m_rresp = mst_s_rresp;
+assign nic_m_rlast = mst_s_rlast;
+assign nic_m_rvalid = mst_s_rvalid;
+assign mst_s_rready = nic_m_rready;
 
 assign mac_rxdat = p0_rxdat;
 assign mac_rxdv = p0_rxdv;
@@ -496,8 +519,7 @@ pci_axi_top #(.HARDWIRE_IDSEL(HARDWIRE_IDSEL))pci_axi_i(
 	.IRDY_N(IRDY_N),
 	.STOP_N(STOP_N),
 	.DEVSEL_N(DEVSEL_N),
-	//.IDSEL(IDSEL),
-	.IDSEL(1'b0),
+	.IDSEL(IDSEL),
 	.PERR_N(PERR_N),
 	.SERR_N(SERR_N),
 	.INTA_N(INTA_N),

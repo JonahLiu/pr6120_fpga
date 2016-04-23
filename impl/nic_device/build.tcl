@@ -41,11 +41,13 @@ file mkdir pci32_0
 file copy -force ../../ip/pci32_0.xci pci32_0
 read_ip pci32_0/pci32_0.xci
 #set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files pci32_0/pci32_0.xci]
+upgrade_ip [get_ips pci32_0]
 generate_target -force {all} [get_ips pci32_0]
 
 file mkdir nic_clk_gen
 file copy -force ../../ip/nic_clk_gen.xci nic_clk_gen
 read_ip nic_clk_gen/nic_clk_gen.xci
+upgrade_ip [get_ips nic_clk_gen]
 set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files nic_clk_gen/nic_clk_gen.xci]
 generate_target -force {all} [get_ips nic_clk_gen]
 
@@ -53,6 +55,7 @@ file mkdir ila_0
 file copy -force ../../ip/ila_0.xci ila_0
 file copy -force ../../ip/ila_0.xml ila_0
 read_ip ila_0/ila_0.xci
+upgrade_ip [get_ips ila_0]
 set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files ila_0/ila_0.xci]
 generate_target -force {all} [get_ips ila_0]
 
