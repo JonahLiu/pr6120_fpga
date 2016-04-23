@@ -50,7 +50,7 @@ module pci_axi_top #(
 	output	[31:0] cfg_s_rdata,
 	output	[1:0] cfg_s_rresp,
 	output	cfg_s_rvalid,
-	output	cfg_s_rready,
+	input cfg_s_rready,
 
 	// Register Space Access Port
 	input tgt_m_aclk,
@@ -85,8 +85,7 @@ module pci_axi_top #(
 
 	input [3:0] mst_s_awid,
 	input [63:0] mst_s_awaddr,
-
-	input [3:0] mst_s_awlen,
+	input [7:0] mst_s_awlen,
 	input [2:0] mst_s_awsize,
 	input [1:0] mst_s_awburst,
 	input [3:0] mst_s_awcache,
@@ -100,26 +99,26 @@ module pci_axi_top #(
 	input mst_s_wvalid,
 	output mst_s_wready,
 
-	input [3:0] mst_s_bid,
-	input [1:0] mst_s_bresp,
-	input mst_s_bvalid,
-	output mst_s_bready,
+	output [3:0] mst_s_bid,
+	output [1:0] mst_s_bresp,
+	output mst_s_bvalid,
+	input mst_s_bready,
 
 	input [3:0] mst_s_arid,
 	input [63:0] mst_s_araddr,
-	input [3:0] mst_s_arlen,
+	input [7:0] mst_s_arlen,
 	input [2:0] mst_s_arsize,
 	input [1:0] mst_s_arburst,
 	input [3:0] mst_s_arcache,
 	input mst_s_arvalid,
 	output mst_s_arready,
 
-	input [3:0] mst_s_rid,
-	input [31:0] mst_s_rdata,
-	input [1:0] mst_s_rresp,
-	input mst_s_rlast,
-	input mst_s_rvalid,
-	output mst_s_rready,
+	output [3:0] mst_s_rid,
+	output [31:0] mst_s_rdata,
+	output [1:0] mst_s_rresp,
+	output mst_s_rlast,
+	output mst_s_rvalid,
+	input mst_s_rready,
 
 	// Interrupt Request
 	input intr_request
@@ -180,18 +179,16 @@ wire          RTR;
 wire  [511:0] CFG_BUS;
 wire          RST;
 wire          CLK;
+wire   [31:0] M_ADIO_IN;
+wire   [31:0] S_ADIO_IN;
 
 reg intr_n_sync;
+
+assign ADIO_IN = S_DATA?S_ADIO_IN:M_ADIO_IN;
 
 // Reserved for master
 assign C_TERM = 1'b1;
 assign C_READY = 1'b1;
-assign REQUEST = 1'b0;
-assign REQUESTHOLD = 1'b0;
-assign COMPLETE = 1'b0;
-assign M_WRDN = 1'b0;
-assign M_READY = 1'b0;
-assign M_CBE = 'b0;
 assign CFG_SELF = 1'b0;
 assign INT_N = intr_n_sync;
 assign PME_N = 1'b1;
@@ -285,7 +282,7 @@ pci_target #(
 )
 pci_target_i(
 	.ADDR(ADDR),
-	.ADIO_IN(ADIO_IN),
+	.ADIO_IN(S_ADIO_IN),
 	.ADIO_OUT(ADIO_OUT),
 	.ADDR_VLD(ADDR_VLD),
 	.BASE_HIT(BASE_HIT),
@@ -325,6 +322,67 @@ pci_target_i(
 	.tgt_m_rready(tgt_m_rready),
 	.tgt_m_rdata(tgt_m_rdata),
 	.tgt_m_rresp(tgt_m_rresp)
+);
+
+pci_master pci_master_i(
+	.ADIO_IN(M_ADIO_IN),
+	.ADIO_OUT(ADIO_OUT),
+	.REQUEST(REQUEST),
+	.REQUESTHOLD(REQUESTHOLD),
+	.M_CBE(M_CBE),
+	.M_WRDN(M_WRDN),
+	.COMPLETE(COMPLETE),
+	.M_READY(M_READY),
+	.M_DATA_VLD(M_DATA_VLD),
+	.M_SRC_EN(M_SRC_EN),
+	.TIME_OUT(TIME_OUT),
+	.M_DATA(M_DATA),
+	.M_ADDR_N(M_ADDR_N),
+	.STOPQ_N(STOPQ_N),
+	.RST(RST),
+	.CLK(CLK),
+
+	.cacheline_size(8'd16),
+
+	.mst_s_aclk(mst_s_aclk),
+	.mst_s_aresetn(mst_s_aresetn),
+
+	.mst_s_awid(mst_s_awid),
+	.mst_s_awaddr(mst_s_awaddr),
+	.mst_s_awlen(mst_s_awlen),
+	.mst_s_awsize(mst_s_awsize),
+	.mst_s_awburst(mst_s_awburst),
+	.mst_s_awcache(mst_s_awcache),
+	.mst_s_awvalid(mst_s_awvalid),
+	.mst_s_awready(mst_s_awready),
+
+	.mst_s_wid(mst_s_wid),
+	.mst_s_wdata(mst_s_wdata),
+	.mst_s_wstrb(mst_s_wstrb),
+	.mst_s_wlast(mst_s_wlast),
+	.mst_s_wvalid(mst_s_wvalid),
+	.mst_s_wready(mst_s_wready),
+
+	.mst_s_bid(mst_s_bid),
+	.mst_s_bresp(mst_s_bresp),
+	.mst_s_bvalid(mst_s_bvalid),
+	.mst_s_bready(mst_s_bready),
+
+	.mst_s_arid(mst_s_arid),
+	.mst_s_araddr(mst_s_araddr),
+	.mst_s_arlen(mst_s_arlen),
+	.mst_s_arsize(mst_s_arsize),
+	.mst_s_arburst(mst_s_arburst),
+	.mst_s_arcache(mst_s_arcache),
+	.mst_s_arvalid(mst_s_arvalid),
+	.mst_s_arready(mst_s_arready),
+
+	.mst_s_rid(mst_s_rid),
+	.mst_s_rdata(mst_s_rdata),
+	.mst_s_rresp(mst_s_rresp),
+	.mst_s_rlast(mst_s_rlast),
+	.mst_s_rvalid(mst_s_rvalid),
+	.mst_s_rready(mst_s_rready)
 );
 
 always @(posedge CLK)

@@ -126,16 +126,16 @@ begin
 	par_o <= `BD ^{ad_o, cbe_o};
 	ad_o <= `BD data;
 	cbe_o <= `BD ~be;
-	@(posedge clk);
-	par_o <= `BD ^{ad_o, cbe_o};
-	while(devsel_n_i) @(posedge clk);
-	@(posedge clk);
-	par_o <= `BD ^{ad_o, cbe_o};
-	while(trdy_n_i && stop_n_i && perr_n_i && serr_n_i) @(posedge clk);
+	while(devsel_n_i || 
+		(trdy_n_i && stop_n_i && perr_n_i && serr_n_i)) begin
+		@(posedge clk);
+		par_o <= `BD ^{ad_o, cbe_o};
+	end
 	irdy_n_o <= `BD 1'b1;
 	ad_o <= `BD 'bz;
 	cbe_o <= `BD 'bz;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	par_o <= `BD 'bz;
 	release_bus;
@@ -161,18 +161,128 @@ begin
 	cbe_o <= `BD 'b0;
 	@(posedge clk);
 	par_o <= `BD 'bz;
-	while(devsel_n_i) @(posedge clk);
-	@(posedge clk);
-	while(trdy_n_i && stop_n_i && perr_n_i && serr_n_i) @(posedge clk);
+	while(devsel_n_i || 
+		trdy_n_i && stop_n_i && perr_n_i && serr_n_i) begin
+		@(posedge clk);
+	end
 	data = ad_i;
 	irdy_n_o <= `BD 1'b1;
 	cbe_o <= `BD 'bz;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	release_bus;
 end
 endtask
 
+reg [31:0] write_data[0:15];
+reg [3:0] write_be[0:15];
+
+task low_level_write(
+	input [31:0] command,
+	input [31:0] address,
+	input [4:0] length,
+	output [4:0] rc
+);
+integer i;
+begin
+	request_bus;
+	@(posedge clk);
+	ad_o <= `BD address;
+	cbe_o <= `BD command;
+	frame_n_o <= `BD 1'b0;
+	@(posedge clk);
+	par_o <= `BD ^{ad_o, cbe_o};
+	if(length==1) begin
+		frame_n_o <= `BD 1'b1;
+	end
+	irdy_n_o <= `BD 1'b0;
+	ad_o <= `BD write_data[0];
+	cbe_o <= `BD write_be[0];
+	@(posedge clk);
+	for(i=0;devsel_n_i && i<16;i=i+1) @(posedge clk);
+	if(i<16) begin
+		i=0;
+		while(i<length && stop_n_i) begin
+			if(!trdy_n_i) begin
+				i=i+1;
+				par_o <= `BD ^{ad_o, cbe_o};
+				ad_o <= `BD write_data[i];
+				cbe_o <= `BD write_be[i];
+				if(i==length-1) frame_n_o <= `BD 1'b1;
+			end
+			if(i<length) @(posedge clk);
+		end
+	end
+	if(!stop_n_i && !frame_n_o) begin
+		frame_n_o <= 1'b1;
+		par_o <= `BD ^{ad_o, cbe_o};
+		@(posedge clk);
+	end
+	par_o <= `BD ^{ad_o, cbe_o};
+	frame_n_o <= `BD 1'b1;
+	irdy_n_o <= `BD 1'b1;
+	ad_o <= `BD 'bz;
+	cbe_o <= `BD 'bz;
+	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
+	irdy_n_o <= `BD 1'bz;
+	par_o <= `BD 'bz;
+	release_bus;
+end
+endtask
+
+reg [31:0] read_data[0:15];
+reg [3:0] read_be[0:15];
+
+task low_level_read(
+	input [31:0] command,
+	input [31:0] address,
+	input [4:0] length,
+	output [4:0] rc
+);
+integer i;
+begin
+	request_bus;
+	@(posedge clk);
+	ad_o <= `BD address;
+	cbe_o <= `BD command;
+	frame_n_o <= `BD 1'b0;
+	@(posedge clk);
+	par_o <= `BD ^{ad_o, cbe_o};
+	if(length==1) begin
+		frame_n_o <= `BD 1'b1;
+	end
+	irdy_n_o <= `BD 1'b0;
+	ad_o <= `BD 'bz;
+	cbe_o <= `BD 'bz;
+	@(posedge clk);
+	par_o <= `BD 1'bz;
+	@(posedge clk);
+	for(i=0;devsel_n_i && i<16;i=i+1) @(posedge clk);
+	if(i<16) begin
+		i=0;
+		while(i<length && stop_n_i) begin
+			if(!trdy_n_i) begin
+				i=i+1;
+				read_data[i] = ad_i;
+				if(i==length-1) frame_n_o <= `BD 1'b1;
+			end
+			if(i<length) @(posedge clk);
+		end
+	end
+	if(!stop_n_i && !frame_n_o) begin
+		frame_n_o <= 1'b1;
+		@(posedge clk);
+	end
+	frame_n_o <= `BD 1'b1;
+	irdy_n_o <= `BD 1'b1;
+	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
+	irdy_n_o <= `BD 1'bz;
+	release_bus;
+end
+endtask
 
 task memory_write(
 	input [31:0] address,
@@ -192,16 +302,16 @@ begin
 	par_o <= `BD ^{ad_o, cbe_o};
 	ad_o <= `BD data;
 	cbe_o <= `BD ~be;
-	@(posedge clk);
-	par_o <= `BD ^{ad_o, cbe_o};
-	while(devsel_n_i) @(posedge clk);
-	@(posedge clk);
-	par_o <= `BD ^{ad_o, cbe_o};
-	while(trdy_n_i && stop_n_i && perr_n_i && serr_n_i) @(posedge clk);
+	while(devsel_n_i || 
+		(trdy_n_i && stop_n_i && perr_n_i && serr_n_i)) begin
+		@(posedge clk);
+		par_o <= `BD ^{ad_o, cbe_o};
+	end
 	irdy_n_o <= `BD 1'b1;
 	ad_o <= `BD 'bz;
 	cbe_o <= `BD 'bz;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	par_o <= `BD 'bz;
 	release_bus;
@@ -227,13 +337,15 @@ begin
 	cbe_o <= `BD 'b0;
 	@(posedge clk);
 	par_o <= `BD 'bz;
-	while(devsel_n_i) @(posedge clk);
-	@(posedge clk);
-	while(trdy_n_i && stop_n_i && perr_n_i && serr_n_i) @(posedge clk);
+	while(devsel_n_i || 
+		trdy_n_i && stop_n_i && perr_n_i && serr_n_i) begin
+		@(posedge clk);
+	end
 	data = ad_i;
 	irdy_n_o <= `BD 1'b1;
 	cbe_o <= `BD 'bz;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	release_bus;
 end
@@ -258,16 +370,16 @@ begin
 	par_o <= `BD ^{ad_o, cbe_o};
 	ad_o <= `BD data;
 	cbe_o <= `BD ~be;
-	@(posedge clk);
-	par_o <= `BD ^{ad_o, cbe_o};
-	while(devsel_n_i) @(posedge clk);
-	@(posedge clk);
-	par_o <= `BD ^{ad_o, cbe_o};
-	while(trdy_n_i && stop_n_i && perr_n_i && serr_n_i) @(posedge clk);
+	while(devsel_n_i || 
+		(trdy_n_i && stop_n_i && perr_n_i && serr_n_i)) begin
+		@(posedge clk);
+		par_o <= `BD ^{ad_o, cbe_o};
+	end
 	irdy_n_o <= `BD 1'b1;
 	ad_o <= `BD 'bz;
 	cbe_o <= `BD 'bz;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	par_o <= `BD 'bz;
 	release_bus;
@@ -293,13 +405,15 @@ begin
 	cbe_o <= `BD 'b0;
 	@(posedge clk);
 	par_o <= `BD 'bz;
-	while(devsel_n_i) @(posedge clk);
-	@(posedge clk);
-	while(trdy_n_i && stop_n_i && perr_n_i && serr_n_i) @(posedge clk);
+	while(devsel_n_i || 
+		trdy_n_i && stop_n_i && perr_n_i && serr_n_i) begin
+		@(posedge clk);
+	end
 	data = ad_i;
 	irdy_n_o <= `BD 1'b1;
 	cbe_o <= `BD 'bz;
 	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
 	irdy_n_o <= `BD 1'bz;
 	release_bus;
 end
