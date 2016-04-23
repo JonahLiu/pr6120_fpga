@@ -9,7 +9,7 @@ module tx_path(
 	input [12:0] TDLEN, // Transmit Descriptor Buffer length=TDLEN*16*8
 	input [15:0] TDH, // Transmit Descriptor Head
 	input TDH_set, // TDH Update
-	output [15:0] TDH_fb_o, // TDH feedback
+	output [15:0] TDH_fb, // TDH feedback
 	input [15:0] TDT, // Transmit Descriptor Tail
 	input TDT_set, // TDT Update
 	input [15:0] TIDV, // Interrupt Delay
@@ -22,60 +22,46 @@ module tx_path(
 	input [15:0] TADV, // Absolute Interrupt Delay
 	input [15:0] TSMT, // TCP Segmentation Minimum Transfer
 	input [15:0] TSPBP, // TCP Segmentation Packet Buffer Padding
-	output TXDW_set, // Write-back interrupt set
-	output TXQE_set, // TXD queue empty interrupt set
-	output TXD_LOW_set, // TXD queue low interrupt set
-
-	// Command Port
-	// Desc tail send to this port
-	input [31:0] cmd_s_tdata,
-	input cmd_s_tvalid,
-	input cmd_s_tlast,
-	input cmd_s_tready,
-
-	// Status Update Port
-	// Interrupts, Statistics send from this port
-	output [31:0] stat_m_tdata,
-	output stat_m_tvalid,
-	output stat_m_tlast,
-	input stat_m_tready,
+	output TXDW_req, // Write-back interrupt set
+	output TXQE_req, // TXD queue empty interrupt set
+	output TXD_LOW_req, // TXD queue low interrupt set
 
 	// External Bus Access
-	input [3:0] axi_m_awid,
-	input [63:0] axi_m_awaddr,
+	output [3:0] axi_m_awid,
+	output [63:0] axi_m_awaddr,
 
-	input [3:0] axi_m_awlen,
-	input [2:0] axi_m_awsize,
-	input [1:0] axi_m_awburst,
-	input axi_m_awvalid,
-	output axi_m_awready,
+	output [7:0] axi_m_awlen,
+	output [2:0] axi_m_awsize,
+	output [1:0] axi_m_awburst,
+	output axi_m_awvalid,
+	input axi_m_awready,
 
-	input [3:0] axi_m_wid,
-	input [31:0] axi_m_wdata,
-	input [3:0] axi_m_wstrb,
-	input axi_m_wlast,
-	input axi_m_wvalid,
-	output axi_m_wready,
+	output [3:0] axi_m_wid,
+	output [31:0] axi_m_wdata,
+	output [3:0] axi_m_wstrb,
+	output axi_m_wlast,
+	output axi_m_wvalid,
+	input axi_m_wready,
 
-	input [3:0] axi_m_bid,
-	input [1:0] axi_m_bresp,
-	input axi_m_bvalid,
-	output axi_m_bready,
+	output [3:0] axi_m_bid,
+	output [1:0] axi_m_bresp,
+	output axi_m_bvalid,
+	input axi_m_bready,
 
-	input [3:0] axi_m_arid,
-	input [63:0] axi_m_araddr,
-	input [3:0] axi_m_arlen,
-	input [2:0] axi_m_arsize,
-	input [1:0] axi_m_arburst,
-	input axi_m_arvalid,
-	output axi_m_arready,
+	output [3:0] axi_m_arid,
+	output [63:0] axi_m_araddr,
+	output [7:0] axi_m_arlen,
+	output [2:0] axi_m_arsize,
+	output [1:0] axi_m_arburst,
+	output axi_m_arvalid,
+	input axi_m_arready,
 
-	input [3:0] axi_m_rid,
-	input [31:0] axi_m_rdata,
-	input [1:0] axi_m_rresp,
-	input axi_m_rlast,
-	input axi_m_rvalid,
-	output axi_m_rready,
+	output [3:0] axi_m_rid,
+	output [31:0] axi_m_rdata,
+	output [1:0] axi_m_rresp,
+	output axi_m_rlast,
+	output axi_m_rvalid,
+	input axi_m_rready,
 
 	// MAC Tx Port
 	input [7:0] mac_m_tdata,
@@ -83,6 +69,8 @@ module tx_path(
 	input mac_m_tlast,
 	output mac_m_tready	
 );
+
+parameter CLK_PERIOD_NS = 8;
 
 wire [3:0] desc_s_awid;
 wire [11:0] desc_s_awaddr;
@@ -236,7 +224,44 @@ wire teng_m_rlast;
 wire teng_m_rvalid;
 wire teng_m_rready;
 
-tx_desc_ctrl tx_desc_ctrl_i(
+assign axi_m_awid = i0_ext_m_awid;
+assign axi_m_awaddr = i0_ext_m_awaddr;
+assign axi_m_awlen = i0_ext_m_awlen;
+assign axi_m_awsize = i0_ext_m_awsize;
+assign axi_m_awburst = i0_ext_m_awburst;
+assign axi_m_awcache = i0_ext_m_awcache;
+assign axi_m_awvalid = i0_ext_m_awvalid;
+assign i0_ext_m_awready = axi_m_awready;
+
+assign axi_m_wid = i0_ext_m_wid;
+assign axi_m_wdata = i0_ext_m_wdata;
+assign axi_m_wstrb = i0_ext_m_wstrb;
+assign axi_m_wlast = i0_ext_m_wlast;
+assign axi_m_wvalid = i0_ext_m_wvalid;
+assign i0_ext_m_wready = axi_m_wready;
+
+assign i0_ext_m_bid = axi_m_bid;
+assign i0_ext_m_bresp = axi_m_bresp;
+assign i0_ext_m_bvalid = axi_m_bvalid;
+assign axi_m_bready = i0_ext_m_bready;
+
+assign axi_m_arid = i0_ext_m_arid;
+assign axi_m_araddr = i0_ext_m_araddr;
+assign axi_m_arlen = i0_ext_m_arlen;
+assign axi_m_arsize = i0_ext_m_arsize;
+assign axi_m_arburst = i0_ext_m_arburst;
+assign axi_m_arcache = i0_ext_m_arcache;
+assign axi_m_arvalid = i0_ext_m_arvalid;
+assign i0_ext_m_arready = axi_m_arready;
+
+assign i0_ext_m_rid = axi_m_rid;
+assign i0_ext_m_rdata = axi_m_rdata;
+assign i0_ext_m_rresp = axi_m_rresp;
+assign i0_ext_m_rlast = axi_m_rlast;
+assign i0_ext_m_rvalid = axi_m_rvalid;
+assign axi_m_rready = i0_ext_m_rready;
+
+tx_desc_ctrl #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) tx_desc_ctrl_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
@@ -246,7 +271,7 @@ tx_desc_ctrl tx_desc_ctrl_i(
 	.TDLEN(TDLEN),
 	.TDH(TDH),
 	.TDH_set(TDH_set),
-	.TDH_fb_o(TDH_fb_o),
+	.TDH_fb(TDH_fb),
 	.TDT(TDT),
 	.TDT_set(TDT_set),
 	.TIDV(TIDV),
@@ -257,9 +282,9 @@ tx_desc_ctrl tx_desc_ctrl_i(
 	.GRAN(GRAN),
 	.LWTHRESH(LWTHRESH),
 	.TADV(TADV),
-	.TXDW_set(TXDW_set),
-	.TXQE_set(TXQE_set),
-	.TXD_LOW_set(TXD_LOW_set),
+	.TXDW_req(TXDW_req),
+	.TXQE_req(TXQE_req),
+	.TXD_LOW_req(TXD_LOW_req),
 
 	// idma Command Port
 	.idma_m_tdata(i0_s_tdata),

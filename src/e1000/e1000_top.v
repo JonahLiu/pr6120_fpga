@@ -132,7 +132,40 @@ wire IMS_set;
 wire [31:0] IMC;
 wire IMC_set;
 
+wire TCTL_EN;
+wire TCTL_PSP;
+wire [63:0] TDBA;
+wire [12:0] TDLEN;
+wire [15:0] TDH;
+wire TDH_set;
+wire [15:0] TDH_fb;
+wire [15:0] TDT;
+wire TDT_set;
+wire [15:0] TIDV;
+wire DPP;
+wire [5:0] TXDCTL_PTHRESH;
+wire [5:0] TXDCTL_HTHRESH;
+wire [5:0] TXDCTL_WTHRESH;
+wire TXDCTL_GRAN;
+wire [5:0] TXDCTL_LWTHRESH;
+wire [15:0] TADV;
+wire [15:0] TSMT;
+wire [15:0] TSPBP;
+wire TXDW_req;
+wire TXQE_req;
+wire TXD_LOW_req;
+
+wire PHYINT_req;
+
+reg [1:0] phy_int_sync;
+
 assign phy_reset_out = CTRL[31] || !aresetn;
+assign PHYINT_req = phy_int_sync[1];
+
+always @(posedge aclk)
+begin
+	phy_int_sync <= {phy_int_sync, phy_int};
+end
 
 e1000_regs cmd_i(
 	.aclk(aclk),
@@ -191,7 +224,31 @@ e1000_regs cmd_i(
 	.IMS_set(IMS_set),
 	
 	.IMC(IMC),
-	.IMC_set(IMC_set)
+	.IMC_set(IMC_set),
+
+	.TCTL_EN(TCTL_EN),
+	.TCTL_PSP(TCTL_PSP),
+
+	.TDBA(TDBA),
+	.TDLEN(TDLEN),
+
+	.TDH(TDH),
+	.TDH_set(TDH_set),
+	.TDH_fb(TDH_fb),
+
+	.TDT(TDT),
+	.TDT_set(TDT_set),
+
+	.TIDV(TIDV),
+	.DPP(DPP),
+	.TXDCTL_PTHRESH(TXDCTL_PTHRESH),
+	.TXDCTL_HTHRESH(TXDCTL_HTHRESH),
+	.TXDCTL_WTHRESH(TXDCTL_WTHRESH),
+	.TXDCTL_GRAN(TXDCTL_GRAN),
+	.TXDCTL_LWTHRESH(TXDCTL_LWTHRESH),
+	.TADV(TADV),
+	.TSMT(TSMT),
+	.TSPBP(TSPBP),
 );
 
 shift_eeprom shift_eeprom_i(
@@ -248,10 +305,18 @@ intr_ctrl #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) intr_ctrl_i(
 
 	.intr_request(intr_request),
 
-	.RXT0_req(1'b0),
-	.TXDW_req(1'b0),
+	.TXDW_req(TXDW_req),
+	.TXQE_req(TXQE_req),
+	.LSC_req(1'b0),
+	.RXSEQ_req(1'b0),
 	.RXDMT0_req(1'b0),
-	.LSC_req(1'b0)
+	.RXO_req(1'b0),
+	.RXT0_req(1'b0),
+	.MDAC_req(1'b0),
+	.RXCFG_req(1'b0),
+	.PHYINT_req(PHYINT_req),
+	.TXD_LOW_req(TXD_LOW_req),
+	.SRPD_req(1'b0)
 );
 
 
@@ -352,23 +417,33 @@ rx_path rx_path_i(
 );
 */
 
-tx_path tx_path_i(
+tx_path #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) tx_path_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
 	// Parameters
-
-	// Command Port
-	.cmd_s_tdata(tx_cmd_s_tdata),
-	.cmd_s_tvalid(tx_cmd_s_tvalid),
-	.cmd_s_tlast(tx_cmd_s_tlast),
-	.cmd_s_tready(tx_cmd_s_tready),
-
-	// Status Port
-	.stat_m_tdata(tx_stat_m_tdata),
-	.stat_m_tvalid(tx_stat_m_tvalid),
-	.stat_m_tlast(tx_stat_m_tlast),
-	.stat_m_tready(tx_stat_m_tready),
+	.EN(TCTL_EN),
+	.PSP(TCTL_PSP),
+	.TDBA(TDBA),
+	.TDLEN(TDLEN),
+	.TDH(TDH),
+	.TDH_set(TDH_set),
+	.TDH_fb(TDH_fb),
+	.TDT(TDT),
+	.TDT_set(TDT_set),
+	.TIDV(TIDV),
+	.DPP(DPP),
+	.PTHRESH(TXDCTL_PTHRESH),
+	.HTHRESH(TXDCTL_HTHRESH),
+	.WTHRESH(TXDCTL_WTHRESH),
+	.GRAN(TXDCTL_GRAN),
+	.LWTHRESH(TXDCTL_LWTHRESH),
+	.TADV(TADV),
+	.TSMT(TSMT),
+	.TSPBP(TSPBP),
+	.TXDW_req(TXDW_req),
+	.TXQE_req(TXQE_req),
+	.TXD_LOW_req(TXD_LOW_req),
 
 	// External Bus Access Port
 	.axi_m_awid(tx_m_awid),
@@ -549,61 +624,6 @@ mac_axi mac_i(
 	.mac_gtxsclk(mac_gtxsclk),
 	.mac_crs(mac_crs),
 	.mac_col(mac_col)
-);
-
-mdio_ctrl mdio_ctrl_i(
-	.clk_i(axi_s_aclk),
-	.rst_i(!axi_s_aresetn),
-
-	.s_awvalid(mdio_s_awvalid),
-	.s_awready(mdio_s_awready),
-	.s_awaddr(mdio_s_awaddr),
-
-	.s_wvalid(mdio_s_wvalid),
-	.s_wready(mdio_s_wready),
-	.s_wdata(mdio_s_wdata),
-
-	.s_bvalid(mdio_s_bvalid),
-	.s_bready(mdio_s_bready),
-	.s_bresp(mdio_s_bresp),
-
-	.s_arvalid(mdio_s_arvalid),
-	.s_arready(mdio_s_arready),
-	.s_araddr(mdio_s_araddr),
-
-	.s_rvalid(axi_s_rvalid),
-	.s_rready(axi_s_rready),
-	.s_rdata(axi_s_rdata),
-	.s_rresp(axi_s_rresp),
-
-	.mdc_o(phy_mdc),
-	.mdio_i(phy_mdio_i),
-	.mdio_o(phy_mdio_o),
-	.mdio_oe(phy_mdio_oe)
-);
-
-eeprom_ctrl eeprom_ctrl_i(
-	.clk_i(axi_s_aclk),
-	.rst_i(!axis_aresetn),
-
-	.rd_araddr(rom_rd_araddr),
-	.rd_arvalid(rom_rd_arvalid),
-	.rd_aready(rom_rd_aready),
-
-	.rd_rdata(rom_rd_rdata),
-	.rd_rvalid(rom_rd_rvalid),
-	.rd_rready(rom_rd_rready),
-
-	.bb_en(rom_bb_en),
-	.bb_sk(rom_bb_sk),
-	.bb_cs(rom_bb_cs),
-	.bb_di(rom_bb_di),
-	.bb_do(rom_bb_do),
-	
-	.eesk(eesk),
-	.eecs(eecs),
-	.eedo(eedo),
-	.eedi(eedi)
 );
 */
 

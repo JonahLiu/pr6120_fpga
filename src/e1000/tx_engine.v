@@ -150,11 +150,9 @@ assign desc_txsm = desc_ports[1];
 
 always @(*) 
 begin
-	ram_m_awaddr = local_addr;
+	ram_m_awaddr = {local_addr[15:4],4'hC};
 	ram_m_wdata = {desc_dw3[31:4],1'b0/*RSV*/,1'b0/*LC*/,1'b0/*EC*/,1'b1/*DD*/};
-	ram_m_bready = 1'b1;
 	ram_m_araddr = local_addr;
-	ram_m_rready = 1'b1;
 	stat_m_tdata[31:18] = 14'b0;
 	stat_m_tdata[17] = desc_ide;
 	stat_m_tdata[16] = desc_rs;
@@ -264,7 +262,10 @@ begin
 		ram_m_wid <= 'b0;
 		ram_m_wvalid <= 1'b0;
 		ram_m_wstrb <= 4'b0001;
+		ram_m_wlast <= 1'b1;
 		stat_m_tlast <= 1'b1;
+		ram_m_bready <= 1'b1;
+		ram_m_rready <= 1'b1;
 	end
 	else case(state_next)
 		S_IDLE: begin

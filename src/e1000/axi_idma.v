@@ -340,7 +340,10 @@ begin
 		end
 		S_OUT_REPORT: begin
 			ext_m_bready <= 1'b0;
-			stat_m_tdata <= {cmd_direction,1'b0,ext_m_bresp,cmd_bytes,cmd_int_addr};
+			stat_m_tdata[15:0] <= {4'b0, cmd_int_addr}; 
+			stat_m_tdata[27:16] <= {1'b0, cmd_bytes};
+			stat_m_tdata[30:28] <= {1'b0, ext_m_bresp};
+			stat_m_tdata[31] <= cmd_direction;
 			stat_m_tvalid <= 1'b1;
 		end
 		S_IN_FETCH_ASTB: begin
@@ -359,7 +362,10 @@ begin
 		end
 		S_IN_REPORT: begin
 			int_m_bready <= 1'b0;
-			stat_m_tdata <= {cmd_direction,1'b0,int_m_bresp,cmd_bytes,cmd_int_addr};
+			stat_m_tdata[15:0] <= {4'b0, cmd_int_addr}; 
+			stat_m_tdata[27:16] <= {1'b0, cmd_bytes};
+			stat_m_tdata[30:28] <= {1'b0, ext_m_bresp};
+			stat_m_tdata[31] <= cmd_direction;
 			stat_m_tvalid <= 1'b1;
 		end
 		S_REPORT: begin

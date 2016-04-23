@@ -8,7 +8,7 @@ module tx_desc_ctrl(
 	input [12:0] TDLEN, // Transmit Descriptor Buffer length=TDLEN*16*8
 	input [15:0] TDH, // Transmit Descriptor Head
 	input TDH_set,
-	output [15:0] TDH_fb_o,
+	output [15:0] TDH_fb,
 	input [15:0] TDT, // Transmit Descriptor Tail
 	input TDT_set,
 	input [15:0] TIDV, // Interrupt Delay
@@ -19,9 +19,9 @@ module tx_desc_ctrl(
 	input GRAN, // Granularity. FIXME: not implemented
 	input [5:0] LWTHRESH, // Tx Desc Low Threshold
 	input [15:0] TADV, // Absolute Interrupt Delay
-	output reg TXDW_set,
-	output reg TXQE_set,
-	output reg TXD_LOW_set,
+	output reg TXDW_req,
+	output reg TXQE_req,
+	output reg TXD_LOW_req,
 
 	// idma command port
 	// C1: [31]=R(0)/W(1),[30:28]=RSV, [27:16]=Bytes, [15:0]=Local Address
@@ -54,9 +54,8 @@ module tx_desc_ctrl(
 	output reg teng_s_tready
 );
 
-parameter CLOCK_PERIOD_NS = 8;
-localparam CYCLES1_1024US = 1024/CLOCK_PERIOD_NS;
-localparam WAIT_LATENCY = 2;
+parameter CLK_PERIOD_NS = 8;
+localparam CYCLES_1024NS = 1024/CLK_PERIOD_NS;
 
 // Flag memory for RS and IDE
 reg [1:0] flag_mem[0:255];
@@ -85,10 +84,14 @@ wire [11:0] fetch_bytes;
 // Host Queue
 // Stores TX Descriptors in host memory
 reg [15:0] host_head;
+reg [15:0] host_curr;
 reg [15:0] host_tail;
-reg [15:0] host_num;
+reg [15:0] host_pending;
+reg [15:0] host_fresh;
 reg [15:0] host_deq_incr;
 reg host_dequeue;
+reg [15:0] host_fwd_incr;
+reg host_forward;
 wire [15:0] host_length;
 
 // Input Queue
@@ -117,9 +120,14 @@ reg [8:0] local_available;
 reg [4:0] host_calc_stage;
 reg [15:0] host_head_n0;
 reg [15:0] host_head_n1;
-reg [15:0] host_num_n0;
-reg [15:0] host_num_n1;
-reg [15:0] host_num_n2;
+reg [15:0] host_curr_n0;
+reg [15:0] host_curr_n1;
+reg [15:0] host_pending_n0;
+reg [15:0] host_pending_n1;
+reg [15:0] host_pending_n2;
+reg [15:0] host_fresh_n0;
+reg [15:0] host_fresh_n1;
+reg [15:0] host_fresh_n2;
 
 // timers
 reg [7:0] tick_timer;
@@ -147,9 +155,9 @@ assign flag_delay_interrupt = flag_current[1];
 assign fetch_bytes = {fetch_num,4'h0};
 
 
-assign local_wb_address = {4'b1000, out_head, 4'b0};
-assign local_rd_address = {4'b1000, in_tail, 4'b0};
-assign local_teng_address = {4'b1000, in_head, 4'b0};
+assign local_wb_address = {4'b0, out_head, 4'b0};
+assign local_rd_address = {4'b0, in_tail, 4'b0};
+assign local_teng_address = {4'b0, in_head, 4'b0};
 
 assign host_length = {TDLEN, 3'b0};
 
@@ -165,19 +173,24 @@ begin
 		host_calc_stage <= 'b0;
 	end
 	else begin
-		host_calc_stage <= {host_calc_stage,(TDH_set|TDT_set|host_dequeue)};
+		host_calc_stage <= {host_calc_stage,(TDH_set|TDT_set|host_dequeue|host_forward)};
 	end
 end
 
 always @(posedge aclk)
 begin
-	if(host_dequeue) begin
+	if(TDH_set) begin
+		host_head_n0 <= TDH;
+	end
+	else if(host_dequeue) begin
 		host_head_n0 <= host_head + host_deq_incr;
 	end
 
 	if(host_calc_stage[0]) begin
 		if(host_head_n0 >= host_length)
 			host_head_n1 <= host_head_n0 - host_length;
+		else
+			host_head_n1 <= host_head_n0;
 	end
 end
 
@@ -186,14 +199,38 @@ begin
 	if(!aresetn) begin
 		host_head <= 'b0;
 	end
-	else if(TDH_set) begin
-		host_head <= TDH;
-	end
 	else if(host_calc_stage[1]) begin
 		host_head <= host_head_n1;
 	end
 end
-assign TDH_fb_o = host_head;
+assign TDH_fb = host_head;
+
+always @(posedge aclk)
+begin
+	if(TDH_set) begin
+		host_curr_n0 <= TDH;
+	end
+	else if(host_forward) begin
+		host_curr_n0 <= host_curr + host_fwd_incr;
+	end
+
+	if(host_calc_stage[0]) begin
+		if(host_curr_n0 >= host_length)
+			host_curr_n1 <= host_curr_n0 - host_length;
+		else
+			host_curr_n1 <= host_curr_n0;
+	end
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		host_curr <= 'b0;
+	end
+	else if(host_calc_stage[1]) begin
+		host_curr <= host_curr_n1;
+	end
+end
 
 always @(posedge aclk, negedge aresetn)
 begin
@@ -208,26 +245,56 @@ end
 always @(posedge aclk)
 begin
 	if(host_calc_stage[1]) begin
-		host_num_n0 <= host_tail + host_length;
+		host_pending_n0 <= host_tail + host_length;
 	end
 
 	if(host_calc_stage[2]) begin
-		host_num_n1 <= host_num_n0 - host_head;
+		host_pending_n1 <= host_pending_n0 - host_head;
 	end
 
 	if(host_calc_stage[3]) begin
-		if(host_num_n1 >= host_length)
-			host_num_n2 <= host_num_n1 - host_length;
+		if(host_pending_n1 >= host_length)
+			host_pending_n2 <= host_pending_n1 - host_length;
+		else
+			host_pending_n2 <= host_pending_n1;
 	end
 end
 
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
-		host_num <= 'b0;
+		host_pending <= 'b0;
 	end
 	else if(host_calc_stage[4]) begin
-		host_num <= host_num_n2;
+		host_pending <= host_pending_n2;
+	end
+end
+
+always @(posedge aclk)
+begin
+	if(host_calc_stage[1]) begin
+		host_fresh_n0 <= host_tail + host_length;
+	end
+
+	if(host_calc_stage[2]) begin
+		host_fresh_n1 <= host_fresh_n0 - host_curr;
+	end
+
+	if(host_calc_stage[3]) begin
+		if(host_fresh_n1 >= host_length)
+			host_fresh_n2 <= host_fresh_n1 - host_length;
+		else
+			host_fresh_n2 <= host_fresh_n1;
+	end
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		host_fresh <= 'b0;
+	end
+	else if(host_calc_stage[4]) begin
+		host_fresh <= host_fresh_n2;
 	end
 end
 
@@ -267,7 +334,7 @@ begin
 	end
 end
 
-always @(*)
+always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
 		out_tail <= 'b0;
@@ -311,9 +378,11 @@ begin
 	end
 	else if(in_enqueue) begin
 		local_pending <= local_pending+in_enq_incr;
+		local_available <= local_available-in_enq_incr;
 	end
 	else if(out_dequeue) begin
-		local_available <= local_available-out_deq_incr;
+		local_pending <= local_pending-in_enq_incr;
+		local_available <= local_available+out_deq_incr;
 	end
 end
 
@@ -323,7 +392,7 @@ begin
 		tick_timer <= 'b0;
 		timer_tick <= 1'b0;
 	end
-	else if(tick_timer==CYCLES1_1024US) begin
+	else if(tick_timer==CYCLES_1024NS) begin
 		tick_timer <= 'b0;
 		timer_tick <= 1'b1;
 	end
@@ -343,7 +412,7 @@ begin
 		// reload timer each write-back
 		delay_timer <= TIDV;
 	end
-	else if(TXDW_set) begin
+	else if(TXDW_req) begin
 		// If interrupt trigered, clear timer to avoid redundant interrupt
 		delay_timer <= 0;
 	end
@@ -363,7 +432,7 @@ begin
 		// reload timer on first write-back
 		absolute_timer <= TADV;
 	end
-	else if(TXDW_set) begin
+	else if(TXDW_req) begin
 		// If interrupt trigered, clear timer to avoid redundant interrupt
 		absolute_timer <= 0;
 	end
@@ -376,22 +445,22 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
-		TXDW_set <= 1'b0;
+		TXDW_req <= 1'b0;
 	end
 	else if(out_dequeue && flag_report_status && !flag_delay_interrupt) begin
 		// immedieate interrupt
-		TXDW_set <= 1'b1;
+		TXDW_req <= 1'b1;
 	end
 	else if(absolute_timer==1 && timer_tick) begin
 		// Absolute timer expired
-		TXDW_set <= 1'b1;
+		TXDW_req <= 1'b1;
 	end
 	else if(delay_timer==1 && timer_tick) begin
 		// Delay timer expired
-		TXDW_set <= 1'b1;
+		TXDW_req <= 1'b1;
 	end
 	else begin
-		TXDW_set <= 1'b0;
+		TXDW_req <= 1'b0;
 	end
 end
 
@@ -399,30 +468,50 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
-		TXQE_set <= 1'b0;
-		TXD_LOW_set <= 1'b0;
+		TXQE_req <= 1'b0;
+		TXD_LOW_req <= 1'b0;
 	end
 	else if(host_calc_stage[4]) begin
-		if(host_num_n2==0)
-			TXQE_set <= 1'b1;
-		if(host_num_n2<LWTHRESH) 
-			TXD_LOW_set <= 1'b1;
+		if(host_pending_n2 == 0)
+			TXQE_req <= 1'b1;
+		if(host_pending_n2 < LWTHRESH) 
+			TXD_LOW_req <= 1'b1;
 	end
 	else begin
-		TXQE_set <= 1'b0;
-		TXD_LOW_set <= 1'b0;
+		TXQE_req <= 1'b0;
+		TXD_LOW_req <= 1'b0;
 	end
 end
+
+/*
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		TXQE_req <= 1'b0;
+		TXD_LOW_req <= 1'b0;
+	end
+	else if(!(|host_calc_stage)) begin
+		if(host_pending == 0)
+			TXQE_req <= 1'b1;
+		if(host_pending < LWTHRESH) 
+			TXD_LOW_req <= 1'b1;
+	end
+	else begin
+		TXQE_req <= 1'b0;
+		TXD_LOW_req <= 1'b0;
+	end
+end
+*/
 
 always @(posedge aclk)
 begin
 	host_wb_address <= TDBA + {host_head,4'b0};
-	host_rd_address <= TDBA + {host_tail,4'b0};
+	host_rd_address <= TDBA + {host_curr,4'b0};
 end
 
 // iDMA Command Dispatch
-// Host-to-Local: if (in_num < PTHRESH && host_num > HTHRESH) ||
-//     (local_pending == 0 && host_num > 0)
+// Host-to-Local: if (in_num < PTHRESH && host_fresh> HTHRESH) ||
+//     (DPP && local_pending == 0 && host_fresh> 0)
 // Local-to-Host: if wb_num > WTHRESH || (flush_timer > TIDV && wb_num >0)
 
 always @(posedge aclk, negedge aresetn)
@@ -452,8 +541,9 @@ begin
 				else 
 					// Dequeue no report
 					s1_next = S1_DEQUEUE;
-			else if((local_pending < PTHRESH && host_num > HTHRESH) ||
-				(DPP && local_pending == 0 && host_num > 0))
+			else if(((PTHRESH==0 || local_pending < PTHRESH) && 
+					host_fresh > HTHRESH) ||
+				(DPP && local_pending == 0 && host_fresh > 0))
 				s1_next = S1_SET_SIZE;
 			else
 				s1_next = S1_READY;
@@ -538,6 +628,9 @@ begin
 		host_dequeue <= 1'b0;
 		host_deq_incr <= 1'b1;
 
+		host_forward <= 1'b0;
+		host_fwd_incr <= 'bx;
+
 		out_dequeue <= 1'b0;
 		out_deq_incr <= 1'b1;
 
@@ -584,11 +677,11 @@ begin
 		S1_SET_SIZE: begin
 			if(DPP) // Prefetch disabled
 				fetch_num <= 1; // size of one descriptor
-			else if(local_available > host_num)
-				if(host_num > 64)
+			else if(local_available > host_fresh)
+				if(host_fresh > 64)
 					fetch_num <= 64;
 				else
-					fetch_num <= host_num;
+					fetch_num <= host_fresh;
 			else
 				if(local_available > 64)
 					fetch_num <= 64;
@@ -615,10 +708,13 @@ begin
 			idma_s_tready <= 1'b0;
 			in_enqueue <= 1'b1;
 			in_enq_incr <= fetch_num;
-			delay_cnt <= 1;
+			host_forward <= 1'b1;
+			host_fwd_incr <= fetch_num;
+			delay_cnt <= 5;
 		end
 		S1_DELAY: begin
 			in_enqueue <= 1'b0;
+			host_forward <= 1'b0;
 			out_dequeue <= 1'b0;
 			host_dequeue <= 1'b0;
 			delay_cnt <= delay_cnt-1;
@@ -654,13 +750,13 @@ begin
 				s2_next = S2_READY;
 		end
 		S2_CMD: begin
-			if(teng_s_tready)
+			if(teng_m_tready)
 				s2_next = S2_DEQUEUE;
 			else
 				s2_next = S2_CMD;
 		end
 		S2_DEQUEUE: begin
-			s2_next = S2_CMD;
+			s2_next = S2_ACK;
 		end
 		S2_ACK: begin
 			if(teng_s_tvalid & teng_s_tlast)
@@ -685,6 +781,7 @@ begin
 		teng_m_tdata <= 'bx;
 		teng_m_tvalid <= 1'b0;
 		teng_m_tlast <= 'b1;
+		teng_s_tready <= 1'b0;
 	end
 	else case(s2_next)
 		S2_IDLE: begin
@@ -702,6 +799,7 @@ begin
 			in_dequeue <= 1'b1;
 		end
 		S2_ACK: begin
+			in_dequeue <= 1'b0;
 			teng_s_tready <= 1'b1;
 		end
 		S2_ENQUEUE: begin

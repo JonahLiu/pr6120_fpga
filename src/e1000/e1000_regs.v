@@ -56,8 +56,33 @@ module e1000_regs(
 	output IMS_set,
 
 	output [31:0] IMC,
-	output IMC_set
+	output IMC_set,
 
+	output TCTL_EN,
+	output TCTL_PSP,
+
+	output [63:0] TDBA,
+	output [12:0] TDLEN,
+
+	output [15:0] TDH,
+	output TDH_set,
+	input [15:0] TDH_fb,
+
+	output [15:0] TDT,
+	output TDT_set,
+
+	output [15:0] TIDV,
+
+	output DPP,
+
+	output [5:0] TXDCTL_PTHRESH,
+	output [5:0] TXDCTL_HTHRESH,
+	output [5:0] TXDCTL_WTHRESH,
+	output TXDCTL_GRAN,
+	output [5:0] TXDCTL_LWTHRESH,
+	output [15:0] TADV,
+	output [15:0] TSMT,
+	output [15:0] TSPBP
 );
 
 reg awready_r;
@@ -602,6 +627,8 @@ e1000_register #(.init(32'h0)) TCTL_reg_i(
 	.srst_i(1'b0), .wen_i(TCTL_wstb), .q_o(TCTL_o)
 );
 assign TCTL_i = TCTL_o;
+assign TCTL_EN = TCTL_o[1];
+assign TCTL_PSP = TCTL_o[3];
 
 reg TIPG_wstb;
 reg TIPG_rstb;
@@ -648,6 +675,8 @@ e1000_register #(.init(32'h0)) TDBAH_reg_i(
 );
 assign TDBAH_i = TDBAH_o;
 
+assign TDBA = {TDBAH_o,TDBAL_o};
+
 reg TDLEN_wstb;
 reg TDLEN_rstb;
 wire [31:0] TDLEN_o;
@@ -658,6 +687,7 @@ e1000_register #(.init(32'h0)) TDLEN_reg_i(
 	.srst_i(1'b0), .wen_i(TDLEN_wstb), .q_o(TDLEN_o)
 );
 assign TDLEN_i = {12'b0,TDLEN_o[19:7],7'b0};
+assign TDLEN = TDLEN_o[19:7];
 
 reg TDH_wstb;
 reg TDH_rstb;
@@ -668,7 +698,11 @@ e1000_register #(.init(32'h0)) TDH_reg_i(
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(TDH_wstb), .q_o(TDH_o)
 );
-assign TDH_i = {16'b0,TDH_o[15:0]};
+assign TDH_i = {16'b0,TDH_fb};
+assign TDH = TDH_o[15:0];
+reg TDH_wstb_0;
+always @(posedge aclk) TDH_wstb_0 <= TDH_wstb;
+assign TDH_set = TDH_wstb_0;
 
 reg TDT_wstb;
 reg TDT_rstb;
@@ -680,6 +714,10 @@ e1000_register #(.init(32'h0)) TDT_reg_i(
 	.srst_i(1'b0), .wen_i(TDT_wstb), .q_o(TDT_o)
 );
 assign TDT_i = {16'b0,TDT_o[15:0]};
+assign TDT = TDT_o[15:0];
+reg TDT_wstb_0;
+always @(posedge aclk) TDT_wstb_0 <= TDT_wstb;
+assign TDT_set = TDT_wstb_0;
 
 reg TIDV_wstb;
 reg TIDV_rstb;
@@ -691,6 +729,7 @@ e1000_register #(.init(32'h0)) TIDV_reg_i(
 	.srst_i(1'b0), .wen_i(TIDV_wstb), .q_o(TIDV_o)
 );
 assign TIDV_i = {16'b0,TIDV_o[15:0]};
+assign TIDV = TIDV_o[15:0];
 
 reg TXDMAC_wstb;
 reg TXDMAC_rstb;
@@ -702,6 +741,7 @@ e1000_register #(.init(32'h0000_0001)) TXDMAC_reg_i(
 	.srst_i(1'b0), .wen_i(TXDMAC_wstb), .q_o(TXDMAC_o)
 );
 assign TXDMAC_i = {31'b0,TXDMAC_o[0]};
+assign DPP = TXDMAC_o[0];
 
 reg TXDCTL_wstb;
 reg TXDCTL_rstb;
@@ -714,6 +754,12 @@ e1000_register #(.init(32'h0)) TXDCTL_reg_i(
 );
 assign TXDCTL_i = TXDCTL_o;
 
+assign TXDCTL_PTHRESH = TXDCTL_o[5:0];
+assign TXDCTL_HTHRESH = TXDCTL_o[15:8];
+assign TXDCTL_WTHRESH = TXDCTL_o[21:16];
+assign TXDCTL_GRAN = TXDCTL_o[24];
+assign TXDCTL_LWTHRESH = TXDCTL_o[31:25];
+
 reg TADV_wstb;
 reg TADV_rstb;
 wire [31:0] TADV_o;
@@ -724,6 +770,7 @@ e1000_register #(.init(32'h0)) TADV_reg_i(
 	.srst_i(1'b0), .wen_i(TADV_wstb), .q_o(TADV_o)
 );
 assign TADV_i = {16'b0,TADV_o[15:0]};
+assign TADV = TADV_o[15:0];
 
 reg TSPMT_wstb;
 reg TSPMT_rstb;
@@ -735,6 +782,8 @@ e1000_register #(.init(32'h0100_0400)) TSPMT_reg_i(
 	.srst_i(1'b0), .wen_i(TSPMT_wstb), .q_o(TSPMT_o)
 );
 assign TSPMT_i = TSPMT_o;
+assign TSMT = TSPMT_o[15:0];
+assign TSPBP = TSPMT_o[31:16];
 
 reg RXDCTL_wstb;
 reg RXDCTL_rstb;

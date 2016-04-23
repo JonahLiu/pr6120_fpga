@@ -19,6 +19,9 @@ set_part $part
 #read_verilog [ glob ./Sources/hdl/*.v ]
 #read_xdc ./Sources/bft_full.xdc
 read_verilog ../../src/device/device_top.v
+read_verilog ../../src/pci/pci_axi_top.v
+read_verilog ../../src/pci/pci_lc.v
+read_verilog ../../src/pci/pci_target.v
 read_verilog ../../src/e1000/config_rom.v
 read_verilog ../../src/e1000/e1000_register.v
 read_verilog ../../src/e1000/e1000_regs.v
@@ -27,10 +30,12 @@ read_verilog ../../src/e1000/eeprom_emu.v
 read_verilog ../../src/e1000/shift_mdio.v
 read_verilog ../../src/e1000/shift_eeprom.v
 read_verilog ../../src/e1000/intr_ctrl.v
-read_verilog ../../src/pci/pci_axi_top.v
-read_verilog ../../src/pci/pci_lc.v
-read_verilog ../../src/pci/pci_target.v
-#read_verilog ../../src/pci/pci32_0.v
+read_verilog ../../src/e1000/tx_path.v
+read_verilog ../../src/e1000/tx_desc_ctrl.v
+read_verilog ../../src/e1000/tx_engine.v
+read_verilog ../../src/e1000/axi_idma.v
+read_verilog ../../src/e1000/axi_mux.v
+read_verilog ../../src/e1000/axi_ram.v
 
 file mkdir pci32_0
 file copy -force ../../ip/pci32_0.xci pci32_0
@@ -50,12 +55,6 @@ file copy -force ../../ip/ila_0.xml ila_0
 read_ip ila_0/ila_0.xci
 set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files ila_0/ila_0.xci]
 generate_target -force {all} [get_ips ila_0]
-
-#file mkdir ila_axi_0
-#create_ip -name ila -vendor xilinx.com -library ip -version 5.0 -module_name ila_axi_0 
-#set_property -dict [list CONFIG.C_SLOT_0_AXI_ID_WIDTH {0} CONFIG.C_SLOT_0_AXI_PROTOCOL {AXI4LITE} CONFIG.C_MONITOR_TYPE {AXI} CONFIG.C_NUM_OF_PROBES {19} CONFIG.C_ENABLE_ILA_AXI_MON {true}] [get_ips ila_axi_0]
-#generate_target -force {all} [get_ips ila_axi_0]
-#synth_ip [get_ips ila_axi_0]
 
 read_xdc ../../constraints/io_default.xdc
 read_xdc ../../constraints/pci.xdc

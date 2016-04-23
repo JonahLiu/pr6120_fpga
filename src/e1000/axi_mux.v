@@ -193,7 +193,7 @@ begin
 		j=current+i;
 		if(j>=SLAVE_NUM)
 			j=j-SLAVE_NUM;
-		if(s_awvalid[j])
+		if(valid[j])
 			select=j;
 	end
 end
@@ -264,9 +264,9 @@ begin:WRITE_SEL
 	m_bready = s_bready[wi];
 
 	for(i=0;i<SLAVE_NUM;i=i+1) begin 
-		s_awready[i] = (wi==i) & m_awready;
-		s_wready[i] = (wi==i) & m_wready;
-		s_bvalid[i] = (wi==i) & m_bvalid;
+		s_awready[i] = write_busy & (wi==i) & m_awready;
+		s_wready[i] = write_busy & (wi==i) & m_wready;
+		s_bvalid[i] = write_busy & (wi==i) & m_bvalid;
 	end
 
 	s_bid = {SLAVE_NUM{m_bid}};
@@ -282,7 +282,7 @@ begin
 	else if(!read_busy && s_arvalid) begin
 		read_busy <= 1'b1;
 	end
-	else if(read_busy && m_rvalid && m_rready) begin
+	else if(read_busy && m_rvalid && m_rready && m_rlast) begin
 		read_busy <= 1'b0;
 	end
 end
@@ -319,8 +319,8 @@ begin:READ_SEL
 	m_rready = s_rready[ri];
 
 	for(i=0;i<SLAVE_NUM;i=i+1) begin
-		s_arready[i] = (ri==i) & m_arready;
-		s_rvalid[i] = (ri==i) & m_rvalid;
+		s_arready[i] = read_busy & (ri==i) & m_arready;
+		s_rvalid[i] = read_busy & (ri==i) & m_rvalid;
 	end
 
 	s_rid = {SLAVE_NUM{m_rid}};

@@ -296,19 +296,24 @@ end
 
 /* synthesis translate_off */
 
-function init(input [DATA_WIDTH-1:0] data);
+task init(input [DATA_WIDTH-1:0] data);
 	integer i;
+begin
 	for(i=0;i<MEMORY_DEPTH;i=i+1) 
-		mem[i] = data;
-endfunction
+		mem[i] <= data;
+end
+endtask
 
-function write(input [MEM_ADDR_MSB:0] addr, input [DATA_WIDTH-1:0] data);
-	write = mem[addr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
-	mem[addr[MEM_ADDR_MSB:MEM_ADDR_LSB]] = data;
-endfunction
+task write(input [MEM_ADDR_MSB:0] addr, input [DATA_WIDTH-1:0] data);
+begin
+	mem[addr[MEM_ADDR_MSB:MEM_ADDR_LSB]] <= data;
+end
+endtask
 
 function [DATA_WIDTH-1:0] read(input [MEM_ADDR_MSB:0] addr);
+begin
 	read = mem[addr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
+end
 endfunction
 
 /* synthesis translate_on*/

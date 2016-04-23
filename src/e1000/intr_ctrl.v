@@ -21,10 +21,18 @@ module intr_ctrl(
 
 	output intr_request,
 
-	input RXT0_req,
 	input TXDW_req,
+	input TXQE_req,
+	input LSC_req,
+	input RXSEQ_req,
 	input RXDMT0_req,
-	input LSC_req
+	input RXO_req,
+	input RXT0_req,
+	input MDAC_req,
+	input RXCFG_req,
+	input PHYINT_req,
+	input TXD_LOW_req,
+	input SRPD_req
 );
 parameter CLK_PERIOD_NS = 8;
 
@@ -52,13 +60,21 @@ assign ICR_fb_o = intr_state;
 assign intr_request = intr_request_r;
 
 assign src_req[0] = TXDW_req;
-assign src_req[1] = 1'b0;
+assign src_req[1] = TXQE_req;
 assign src_req[2] = LSC_req;
-assign src_req[3] = 1'b0;
+assign src_req[3] = RXSEQ_req;
 assign src_req[4] = RXDMT0_req;
-assign src_req[6:5] = 2'b0;
+assign src_req[5] = 1'b0;
+assign src_req[6] = RXO_req;
 assign src_req[7] = RXT0_req;
-assign src_req[31:8] = 24'b0;
+assign src_req[9] = MDAC_req;
+assign src_req[10] = RXCFG_req;
+assign src_req[11] = 1'b0;
+assign src_req[12] = PHYINT_req;
+assign src_req[13:14] = 2'b0;
+assign src_req[15] = TXD_LOW_req;
+assign src_req[16] = SRPD_req;
+assign src_req[31:17] = 24'b0;
 
 assign intr_request_a = (intr_state&intr_mask)!=32'b0;
 
