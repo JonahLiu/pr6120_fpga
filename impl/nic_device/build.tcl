@@ -22,6 +22,11 @@ read_verilog ../../src/device/device_top.v
 read_verilog ../../src/pci/pci_axi_top.v
 read_verilog ../../src/pci/pci_lc.v
 read_verilog ../../src/pci/pci_target.v
+read_verilog ../../src/pci/pci_master.v
+read_verilog ../../src/pci/pci_master_ctrl.v
+read_verilog ../../src/pci/pci_master_rpath.v
+read_verilog ../../src/pci/pci_master_wpath.v
+read_verilog ../../src/pci/fifo_async.v
 read_verilog ../../src/e1000/config_rom.v
 read_verilog ../../src/e1000/e1000_register.v
 read_verilog ../../src/e1000/e1000_regs.v
