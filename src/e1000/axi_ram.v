@@ -1,4 +1,5 @@
 //% Parametric AXI4 RAM module
+`timescale 1ns/1ps
 module axi_ram (
 	// AXI Clock & Reset
 	aresetn,

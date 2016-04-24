@@ -75,6 +75,8 @@ wire [15:0] local_rd_address;
 wire [15:0] local_teng_address;
 
 reg [7:0] fetch_num;
+reg [8:0] fetch_num_s1;
+reg [7:0] fetch_num_s2;
 wire [11:0] fetch_bytes;
 
 // Descriptor queues, first-in-first-out
@@ -93,6 +95,7 @@ reg host_dequeue;
 reg [15:0] host_fwd_incr;
 reg host_forward;
 wire [15:0] host_length;
+reg [15:0] host_limit;
 
 // Input Queue
 // Stores TX Descriptors in local memory but not submitted to TX engine
@@ -118,23 +121,24 @@ reg [8:0] local_available;
 
 // Temporary variables for calculating host pointers
 reg [4:0] host_calc_stage;
-reg [15:0] host_head_n0;
+reg [16:0] host_head_n0;
 reg [15:0] host_head_n1;
-reg [15:0] host_curr_n0;
+reg [16:0] host_curr_n0;
 reg [15:0] host_curr_n1;
-reg [15:0] host_pending_n0;
-reg [15:0] host_pending_n1;
+reg [16:0] host_pending_n0;
+reg [16:0] host_pending_n1;
 reg [15:0] host_pending_n2;
-reg [15:0] host_fresh_n0;
-reg [15:0] host_fresh_n1;
+reg [16:0] host_fresh_n0;
+reg [16:0] host_fresh_n1;
 reg [15:0] host_fresh_n2;
 
 // timers
-reg [7:0] tick_timer;
-reg timer_tick;
-
+reg [7:0] delay_prescale;
+reg delay_tick;
 reg [15:0] delay_timer;
 
+reg [7:0] absolute_prescale;
+reg absolute_tick;
 reg [15:0] absolute_timer;
 
 integer s1, s1_next;
@@ -301,6 +305,16 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
+		host_limit <= 'b0;
+	end
+	else if(host_calc_stage[2]) begin
+		host_limit <= host_length - host_curr;
+	end
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
 		in_tail <= 'b0;
 	end
 	else if(in_enqueue) begin
@@ -389,16 +403,20 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
-		tick_timer <= 'b0;
-		timer_tick <= 1'b0;
+		delay_prescale <= 'b0;
+		delay_tick <= 1'b0;
 	end
-	else if(tick_timer==CYCLES_1024NS) begin
-		tick_timer <= 'b0;
-		timer_tick <= 1'b1;
+	else if(out_dequeue && flag_report_status && flag_delay_interrupt) begin
+		delay_prescale <= 'b0;
+		delay_tick <= 1'b0;
+	end
+	else if(delay_prescale==CYCLES_1024NS) begin
+		delay_prescale <= 'b0;
+		delay_tick <= 1'b1;
 	end
 	else begin
-		tick_timer <= tick_timer+1;
-		timer_tick <= 1'b0;
+		delay_prescale <= delay_prescale+1;
+		delay_tick <= 1'b0;
 	end
 end
 
@@ -416,8 +434,29 @@ begin
 		// If interrupt trigered, clear timer to avoid redundant interrupt
 		delay_timer <= 0;
 	end
-	else if(delay_timer && timer_tick) begin
+	else if(delay_timer && delay_tick) begin
 		delay_timer <= delay_timer-1;
+	end
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		absolute_prescale <= 'b0;
+		absolute_tick <= 1'b0;
+	end
+	else if(absolute_timer==0 && out_dequeue && flag_report_status && 
+		flag_delay_interrupt) begin
+		absolute_prescale <= 'b0;
+		absolute_tick <= 1'b0;
+	end
+	else if(absolute_prescale==CYCLES_1024NS) begin
+		absolute_prescale <= 'b0;
+		absolute_tick <= 1'b1;
+	end
+	else begin
+		absolute_prescale <= absolute_prescale+1;
+		absolute_tick <= 1'b0;
 	end
 end
 
@@ -436,7 +475,7 @@ begin
 		// If interrupt trigered, clear timer to avoid redundant interrupt
 		absolute_timer <= 0;
 	end
-	else if(absolute_timer && timer_tick) begin
+	else if(absolute_timer && absolute_tick) begin
 		absolute_timer <= absolute_timer-1;
 	end
 end
@@ -451,11 +490,11 @@ begin
 		// immedieate interrupt
 		TXDW_req <= 1'b1;
 	end
-	else if(absolute_timer==1 && timer_tick) begin
+	else if(absolute_timer==1 && absolute_tick) begin
 		// Absolute timer expired
 		TXDW_req <= 1'b1;
 	end
-	else if(delay_timer==1 && timer_tick) begin
+	else if(delay_timer==1 && delay_tick) begin
 		// Delay timer expired
 		TXDW_req <= 1'b1;
 	end
@@ -507,6 +546,24 @@ always @(posedge aclk)
 begin
 	host_wb_address <= TDBA + {host_head,4'b0};
 	host_rd_address <= TDBA + {host_curr,4'b0};
+end
+
+always @(*)
+begin
+	// Choose smallest among host_limit, host_fresh and local_available
+	if(host_limit <= host_fresh && host_limit <= local_available)
+		fetch_num_s1 = host_limit;
+	else if(host_fresh <= host_limit && host_fresh <= local_available)
+		fetch_num_s1 = host_fresh;
+	else
+		fetch_num_s1 = local_available;
+
+	if(fetch_num_s1 > 1 && DPP)
+		fetch_num_s2 = 1;
+	else if(fetch_num_s1 > 64) // Max length limited by AXI bus
+		fetch_num_s2 = 64;
+	else 
+		fetch_num_s2 = fetch_num_s1;
 end
 
 // iDMA Command Dispatch
@@ -675,18 +732,7 @@ begin
 			delay_cnt <= 5;
 		end
 		S1_SET_SIZE: begin
-			if(DPP) // Prefetch disabled
-				fetch_num <= 1; // size of one descriptor
-			else if(local_available > host_fresh)
-				if(host_fresh > 64)
-					fetch_num <= 64;
-				else
-					fetch_num <= host_fresh;
-			else
-				if(local_available > 64)
-					fetch_num <= 64;
-				else
-					fetch_num <= local_available;
+			fetch_num <= fetch_num_s2;
 		end
 		S1_FETCH_0: begin
 			idma_m_tdata <= {4'h0,fetch_bytes,local_rd_address}; 

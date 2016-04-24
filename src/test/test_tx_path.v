@@ -1,5 +1,6 @@
-`timescale 1ns/10ps
+`timescale 1ns/1ps
 module test_tx_path;
+parameter CLK_PERIOD_NS=8;
 localparam DESC_SIZE=16;
 
 reg aclk;
@@ -71,8 +72,108 @@ wire mac_m_tvalid;
 wire mac_m_tlast;
 wire mac_m_tready;
 
+wire [127:0] desc_data;
+reg [63:0] desc_daddr;
+reg [15:0] desc_length;
+reg [7:0] desc_cso;
+reg desc_eop;
+reg desc_ifcs;
+reg desc_ic;
+reg desc_rs;
+reg desc_dext;
+reg desc_vle;
+reg desc_ide;
+reg [3:0] desc_sta;
+reg [7:0] desc_css;
+reg [15:0] desc_special;
 
-tx_path tx_path_i(
+assign desc_data[63:0] = desc_daddr;
+assign desc_data[79:64] = desc_length;
+assign desc_data[87:80] = desc_cso;
+assign desc_data[88] = desc_eop;
+assign desc_data[89] = desc_ifcs;
+assign desc_data[90] = desc_ic;
+assign desc_data[91] = desc_rs;
+assign desc_data[92] = 1'b0;
+assign desc_data[93] = desc_dext;
+assign desc_data[94] = desc_vle;
+assign desc_data[95] = desc_ide;
+assign desc_data[99:96] = desc_sta;
+assign desc_data[103:100] = 4'b0;
+assign desc_data[111:104] = desc_css;
+assign desc_data[127:112] = desc_special;
+
+reg [127:0] resp_data;
+wire [3:0] resp_sta;
+wire resp_dd;
+
+assign resp_sta = resp_data[99:96];
+assign resp_dd = resp_sta[0];
+
+task set_desc(input [31:0] addr, input [127:0] data);
+begin
+	ram_i.write(addr,data[31:0]); 
+	ram_i.write(addr+4,data[63:32]);
+	ram_i.write(addr+8,data[95:64]);
+	ram_i.write(addr+12,data[127:96]);
+end
+endtask
+
+task get_desc(input [31:0] addr, output [127:0] data);
+begin
+	data[31:0] = ram_i.read(addr); 
+	data[63:32] = ram_i.read(addr+4);
+	data[95:64] = ram_i.read(addr+8);
+	data[127:96] = ram_i.read(addr+12);
+end
+endtask
+
+task generate_traffic(input [12:0] octlen, input integer num);
+	integer i;
+	integer len;
+begin
+	len=octlen*8;
+
+	$display($time,,,"========START TEST LEN=%d NUM=%d========",len,num);
+
+	@(posedge aclk);
+	TDLEN <= octlen; // Desc Num = octlen*8
+	TDH <= 0;
+	TDH_set <= 1;
+	TDT <= 0;
+	TDT_set <= 1;
+	@(posedge aclk);
+	EN <= 1;
+	TDH_set <= 0;
+	TDT_set <= 0;
+
+	for(i=0;i<num;i=i+1) begin
+
+		desc_daddr = i;
+		@(posedge aclk);
+
+		set_desc(TDBA+TDT*DESC_SIZE, desc_data);
+
+		// Wait for host space
+		while(((TDT+1)%len)==TDH_fb) @(posedge aclk);
+
+		TDT <= (TDT+1)%len;
+		TDT_set <= 1;
+		@(posedge aclk);
+		TDT_set <= 0;
+
+		//repeat(16) @(posedge aclk);
+	end
+
+	while(TDH_fb != TDT) @(posedge aclk); // Wait for all DESCs done
+	EN <= 0;
+
+	$display($time,,,"========END TEST LEN=%d NUM=%d========",len,num);
+end
+endtask
+
+
+tx_path #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) tx_path_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
@@ -141,7 +242,7 @@ tx_path tx_path_i(
 	.mac_m_tready(mac_m_tready)
 );
 
-axi_ram #(.MEMORY_DEPTH(65536), .ID_WIDTH(4), .DATA_WIDTH(32))
+axi_ram #(.MEMORY_DEPTH(262144), .ID_WIDTH(4), .DATA_WIDTH(32))
 ram_i(
     // AXI Clock & Reset
     .aresetn(aresetn),
@@ -191,7 +292,7 @@ ram_i(
 initial
 begin
 	aclk = 0;
-	forever #5 aclk = ~aclk;
+	forever #(CLK_PERIOD_NS/2) aclk = ~aclk;
 end
 
 initial
@@ -216,136 +317,27 @@ begin
 	TSMT = 0;
 	TSPBP = 0;
 
+	desc_daddr = 0;
+	desc_length = 0;
+	desc_cso = 0;
+	desc_eop = 0;
+	desc_ifcs = 0;
+	desc_ic = 0;
+	desc_rs = 0;
+	desc_dext = 0;
+	desc_vle = 0;
+	desc_ide = 0;
+	desc_sta = 0;
+	desc_cso = 0;
+	desc_css = 0;
+	desc_special = 0;
+
 	$dumpfile("test_tx_path.vcd");
 	$dumpvars(0);
 
-	#1000000;
+	#20000000;
 	$stop;
 end
-
-wire [127:0] desc_data;
-reg [63:0] desc_daddr;
-reg [15:0] desc_length;
-reg [7:0] desc_cso;
-reg desc_eop;
-reg desc_ifcs;
-reg desc_ic;
-reg desc_rs;
-reg desc_dext;
-reg desc_vle;
-reg desc_ide;
-reg [3:0] desc_sta;
-reg [7:0] desc_css;
-reg [15:0] desc_special;
-
-assign desc_data[63:0] = desc_daddr;
-assign desc_data[79:64] = desc_length;
-assign desc_data[87:80] = desc_cso;
-assign desc_data[88] = desc_eop;
-assign desc_data[89] = desc_ifcs;
-assign desc_data[90] = desc_ic;
-assign desc_data[91] = desc_rs;
-assign desc_data[92] = 1'b0;
-assign desc_data[93] = desc_dext;
-assign desc_data[94] = desc_vle;
-assign desc_data[95] = desc_ide;
-assign desc_data[99:96] = desc_sta;
-assign desc_data[103:100] = 4'b0;
-assign desc_data[111:104] = desc_css;
-assign desc_data[127:112] = desc_special;
-
-reg [127:0] resp_data;
-wire [3:0] resp_sta;
-
-task set_desc(input [63:0] base, input [15:0] idx, input [127:0] data);
-	integer addr;
-begin
-	addr = base+idx*DESC_SIZE;
-	ram_i.write(addr,data[31:0]); 
-	ram_i.write(addr+4,data[63:32]);
-	ram_i.write(addr+8,data[95:64]);
-	ram_i.write(addr+12,data[127:96]);
-end
-endtask
-
-task get_desc(input [63:0] base, input [15:0] idx, output [127:0] data);
-	integer addr;
-begin
-	#1;
-	addr = base+idx*DESC_SIZE;
-	data[31:0] = ram_i.read(addr); 
-	data[63:32] = ram_i.read(addr+4);
-	data[95:64] = ram_i.read(addr+8);
-	data[127:96] = ram_i.read(addr+12);
-end
-endtask
-
-
-task test_case_01;
-	integer i;
-begin
-	@(posedge aclk);
-	TDBA <= 64'b0;
-	TDLEN <= 64; // 64*8== 512 DESCs
-	TDH <= 0;
-	TDH_set <= 1;
-	TDT <= 0;
-	TDT_set <= 1;
-	TIDV <= 0;
-	DPP <= 0;
-	PTHRESH <= 0;
-	HTHRESH <= 0;
-	WTHRESH <= 0;
-	GRAN <= 0;
-	LWTHRESH <= 1;
-	TADV <= 0;
-	TSMT <= 0;
-	TSPBP <= 0;
-	@(posedge aclk);
-	EN <= 1;
-	TDH_set <= 0;
-	TDT_set <= 0;
-	
-	for(i=0;i<512;i=i+1) begin
-		desc_daddr = i*16;
-		desc_length = 0;
-		desc_cso = 0;
-		desc_eop = 1;
-		desc_ifcs = 0;
-		desc_ic = 0;
-		desc_rs = 1;
-		desc_dext = 0;
-		desc_vle = 0;
-		desc_ide = 0;
-		desc_sta = 0;
-		desc_cso = 0;
-		desc_css = 0;
-		desc_special = 0;
-
-		#0;
-		set_desc(TDBA, i, desc_data);
-	end
-
-	@(posedge aclk);
-	TDT <= 256;
-	TDT_set <= 1;
-	@(posedge aclk);
-	TDT_set <= 0;
-	while(TDH_fb != 256) @(posedge aclk); // Wait for all DESCs done
-
-	@(posedge aclk);
-	TDT <= 0;
-	TDT_set <= 1;
-	@(posedge aclk);
-	TDT_set <= 0;
-	while(TDH_fb != 0) @(posedge aclk); // Wait for all DESCs done
-
-	for(i=0;i<512;i=i+1) begin // Report status
-		@(posedge aclk);
-		get_desc(TDBA, i, resp_data);
-	end
-end
-endtask
 
 initial
 begin
@@ -353,21 +345,73 @@ begin
 	aresetn <= 1;
 	@(posedge aclk);
 
-	test_case_01;
+	desc_rs <= 1;
+	TDBA <= 64'h0;
+
+	generate_traffic(1, 1); // LEN=8, 1 Transfers
+
+	generate_traffic(1, 7); // LEN=8, 7 Transfers
+
+	generate_traffic(1, 8); // LEN=8, 8 Transfers
+
+	generate_traffic(1, 15); // LEN=8, 15 Transfers
+
+	generate_traffic(1, 16); // LEN=8, 16 Transfers
+
+	generate_traffic(1, 24); // LEN=8, 24 Transfers
+
+	generate_traffic(2, 15); // LEN=16, 15 Transfers
+
+	generate_traffic(2, 16); // LEN=16, 16 Transfers
+
+	generate_traffic(2, 32); // LEN=16, 32 Transfers
+
+	generate_traffic(2, 48); // LEN=16, 48 Transfers
+
+	desc_ide = 1;
+	TDBA <= 64'h10; // Host address starts from 0x10
+	TIDV <= 1; // Interrupt delay 1024ns
+	TADV <= 2; // Interrupt absolute delay 2048 ns
+
+	generate_traffic(2, 48); // LEN=16, 48 Transfers
+
+	TADV <= 8; // Interrupt absolute delay 8192 ns 
+
+	generate_traffic(8191, 65536); // LEN=65528, 65536 Transfers
 
 	#100000;
 	$stop;
 end
 
+`define REPORT_FETCH
+`define REPORT_WRITE_BACK
+`define REPORT_INTERRUPT
+
+`ifdef REPORT_FETCH
 always @(posedge aclk)
 begin
-	if(axi_m_awvalid && axi_m_awready)
+	/*
+	if(axi_m_awvalid && axi_m_awready) 
 		$display($time,,,"EXT WR ADDR=%x  LEN=%d", axi_m_awaddr, axi_m_awlen+1);
+	*/
 
 	if(axi_m_arvalid && axi_m_arready)
-		$display($time,,,"EXT RD ADDR=%x  LEN=%d", axi_m_araddr, axi_m_arlen+1);
+		$display($time,,,"FETCH ADDR=%x  LEN=%d", axi_m_araddr, axi_m_arlen+1);
 end
+`endif
 
+`ifdef REPORT_WRITE_BACK
+always @(posedge aclk)
+begin
+	if(axi_m_wvalid && axi_m_wready) begin
+		get_desc(axi_m_awaddr/DESC_SIZE*DESC_SIZE, resp_data);
+		#0;
+		$display($time,,,"WRITE BACK ADDR=%x TXD=%d STA=%x", axi_m_awaddr, resp_data[31:0], axi_m_wdata[3:0]);
+	end
+end
+`endif
+
+`ifdef REPORT_INTERNAL_RAM_ACCESS
 always @(posedge aclk)
 begin
 	if(tx_path_i.desc_s_awvalid && tx_path_i.desc_s_awready)
@@ -376,7 +420,9 @@ begin
 	if(tx_path_i.desc_s_arvalid && tx_path_i.desc_s_arready)
 		$display($time,,,"INT RD ADDR=%x  LEN=%d", tx_path_i.desc_s_araddr, tx_path_i.desc_s_arlen+1);
 end
+`endif
 
+`ifdef REPORT_INTERRUPT
 always @(posedge aclk)
 begin
 	if(TXDW_req)
@@ -388,5 +434,6 @@ begin
 	if(TXD_LOW_req)
 		$display($time,,,"INTR TXD_LOW - TXD Low Threshold Hit");
 end
+`endif
 endmodule
 
