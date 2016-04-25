@@ -1,11 +1,2 @@
-set_false_path -from [get_cells -hierarchical -filter { NAME =~ "*/pci_target_i/write_ready_reg*"} ] -to [get_clocks pci_clock]
-set_false_path -from [get_cells -hierarchical -filter { NAME =~ "*/pci_target_i/read_ready_reg*"} ] -to [get_clocks pci_clock]
-set_false_path -from [get_cells -hierarchical -filter { NAME =~ "*/pci_target_i/read_data_reg*"} ] -to [get_clocks pci_clock]
-
-set_false_path -from [get_cells -hierarchical -filter { NAME =~ "*/pci_target_i/s_addr_r_reg*"} ] -to [get_clocks clk_out1_nic_clk_gen]
-set_false_path -from [get_cells -hierarchical -filter { NAME =~ "*/pci_target_i/s_data_r_reg*"} ] -to [get_clocks clk_out1_nic_clk_gen]
-set_false_path -from [get_cells -hierarchical -filter { NAME =~ "*/pci_target_i/s_be_r_reg*"} ] -to [get_clocks clk_out1_nic_clk_gen]
-set_false_path -from [get_cells -hierarchical -filter { NAME =~ "*/pci_target_i/write_enable_reg*"} ] -to [get_clocks clk_out1_nic_clk_gen]
-set_false_path -from [get_cells -hierarchical -filter { NAME =~ "*/pci_target_i/read_enable_reg*"} ] -to [get_clocks clk_out1_nic_clk_gen]
-
-set_false_path -to [get_pins pci_axi_i/intr_n_sync_reg/D]  
+create_generated_clock -name nic_clock [get_pins nic_clk_gen_i/inst/mmcm_adv_inst/CLKOUT0]
+set_clock_group -group [get_clocks pci_clock] -group [get_clocks nic_clock] -asynchronous

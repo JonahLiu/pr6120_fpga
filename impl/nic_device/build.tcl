@@ -7,8 +7,16 @@
 #
 # STEP#0: define output directory area.
 #
+set projName nic_device
 set outputDir ./output
 set part xc7k325tffg900-2
+set top device_top
+
+# clean up old outputs
+close_design -quiet
+close_project -quiet
+file delete -force $outputDir
+
 file mkdir $outputDir
 set_part $part
 #
@@ -84,34 +92,52 @@ read_xdc ../../src/device/timing.xdc
 #
 ## STEP#2: run synthesis, report utilization and timing estimates, write checkpoint design
 #
-synth_design -top device_top -part $part -flatten rebuilt
-write_checkpoint -force $outputDir/post_synth
-report_timing_summary -file $outputDir/post_synth_timing_summary.rpt
-report_power -file $outputDir/post_synth_power.rpt
+synth_design -top $top -part $part -flatten rebuilt
+write_checkpoint -force [format "$outputDir/%s_synth" $projName]
+#report_timing_summary -file $outputDir/post_synth_timing_summary.rpt
+#report_power -file $outputDir/post_synth_power.rpt
+
 #
 # STEP#3: run placement and logic optimization, report utilization and timing estimates, write checkpoint design
 #
 opt_design
-write_debug_probes -force $outputDir/debug.ltx
 #power_opt_design
 place_design
 #phys_opt_design
-write_checkpoint -force $outputDir/post_place
-report_timing_summary -file $outputDir/post_place_timing_summary.rpt
+write_debug_probes -force [format "$outputDir/%s_debug.ltx" $projName]
+write_checkpoint -force [format "$outputDir/%s_place" $projName]
+#report_timing_summary -file $outputDir/post_place_timing_summary.rpt
+
 #
-# STEP#4: run router, report actual utilization and timing, write checkpoint design, run drc, write verilog and xdc out
+# STEP#4: run router, write verilog and xdc out
 #
 route_design
-write_checkpoint -force $outputDir/post_route
+write_checkpoint -force [format "$outputDir/%s_route" $projName]
+write_verilog -force -include_xilinx_libs -mode funcsim [format "$outputDir/%s_funcsim.v" $projName]
+write_verilog -force -include_xilinx_libs -mode timesim -sdf_anno true [format "$outputDir/%s_timesim.v" $projName]
+write_sdf -force -mode timesim [format "$outputDir/%s_timesim.sdf" $projName]
+write_xdc -force -constraints INVALID $outputDir/ignored_constraints.xdc
+write_csv -force [format "$outputDir/%s_pins.csv" $projName]
+
+#
+# STEP#5: generate final reports
+#
 report_timing_summary -file $outputDir/post_route_timing_summary.rpt
 report_timing -sort_by group -max_paths 100 -path_type summary -file $outputDir/post_route_timing.rpt
-report_clock_utilization -file $outputDir/clock_util.rpt
-report_utilization -file $outputDir/post_route_util.rpt
-report_power -file $outputDir/post_route_power.rpt
-report_drc -file $outputDir/post_imp_drc.rpt
-write_verilog -force -mode timesim -sdf_anno true $outputDir/post_imp.v
-write_xdc -no_fixed_only -force $outputDir/post_imp.xdc
+report_clocks -file $outputDir/clocks.rpt
+report_clock_utilization -file $outputDir/clock_utilization.rpt
+report_clock_networks -file $outputDir/clock_networks.rpt
+report_clock_interaction -file $outputDir/clock_interaction.rpt
+report_datasheet -file $outputDir/datasheet.rpt
+report_utilization -file $outputDir/utilization.rpt
+report_utilization -append -hierarchical -hierarchical_depth 3 -file $outputDir/utilization.rpt
+report_io -file $outputDir/io.rpt
+report_power -file $outputDir/power.rpt
+report_drc -file $outputDir/drc.rpt
+
 #
-# STEP#5: generate a bitstream
+# STEP#6: generate a bitstream, write bmm file
 #
-write_bitstream -force $outputDir/device_top.bit
+write_bitstream -force [format "$outputDir/%s.bit" $projName]
+write_bmm -force -quiet [format "$outputDir/%s.bmm" $projName]
+
