@@ -122,15 +122,15 @@ write_csv -force [format "$outputDir/%s_pins.csv" $projName]
 #
 # STEP#5: generate final reports
 #
-report_timing_summary -file $outputDir/post_route_timing_summary.rpt
-report_timing -sort_by group -max_paths 100 -path_type summary -file $outputDir/post_route_timing.rpt
+report_timing_summary -no_detailed_paths -file $outputDir/post_route_timing_summary.rpt
+report_timing -sort_by group -delay_type min_max -file $outputDir/post_route_timing.rpt
 report_clocks -file $outputDir/clocks.rpt
 report_clock_utilization -file $outputDir/clock_utilization.rpt
 report_clock_networks -file $outputDir/clock_networks.rpt
 report_clock_interaction -file $outputDir/clock_interaction.rpt
 report_datasheet -file $outputDir/datasheet.rpt
 report_utilization -file $outputDir/utilization.rpt
-report_utilization -append -hierarchical -hierarchical_depth 3 -file $outputDir/utilization.rpt
+report_utilization -hierarchical -hierarchical_depth 3 -file $outputDir/utilization_hierarchical.rpt
 report_io -file $outputDir/io.rpt
 report_power -file $outputDir/power.rpt
 report_drc -file $outputDir/drc.rpt
