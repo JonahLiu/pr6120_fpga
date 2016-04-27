@@ -63,16 +63,16 @@ file mkdir $ipDir/pci32_0
 file copy -force ../../ip/pci32_0.xci $ipDir/pci32_0
 read_ip $ipDir/pci32_0/pci32_0.xci
 #set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files $ipDir/pci32_0/pci32_0.xci]
-upgrade_ip [get_ips pci32_0]
-generate_target -force {all} [get_ips pci32_0]
+#upgrade_ip [get_ips pci32_0]
+#generate_target -force {all} [get_ips pci32_0]
 
 file mkdir $ipDir/ila_0
 file copy -force ../../ip/ila_0.xci $ipDir/ila_0
 file copy -force ../../ip/ila_0.xml $ipDir/ila_0
 read_ip $ipDir/ila_0/ila_0.xci
-upgrade_ip [get_ips ila_0]
 set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files $ipDir/ila_0/ila_0.xci]
-generate_target -force {all} [get_ips ila_0]
+#upgrade_ip [get_ips ila_0]
+#generate_target -force {all} [get_ips ila_0]
 
 ################################################################################
 # Import Constraints
@@ -85,6 +85,9 @@ read_xdc ../../constraints/device.xdc
 read_xdc ../../src/device/timing.xdc
 
 ################################################################################
+# STEP#2: run synthesis, report utilization and timing estimates, write checkpoint design
+#
+################################################################################
 # Generate targets if necessory
 #generate_target -force {all} [get_files ../../src/pci/pci32_0.xci]
 #generate_target -force {all} [get_files ../../src/device/clock_generation.xci]
@@ -95,9 +98,11 @@ read_xdc ../../src/device/timing.xdc
 #set_property GENERATE_SYNTH_CHECKPOINT true [get_files ../../src/pci/pci32_0.xci]
 #set_property GENERATE_SYNTH_CHECKPOINT true [get_files ../../src/device/clock_generation.xci]
 
-################################################################################
-# STEP#2: run synthesis, report utilization and timing estimates, write checkpoint design
-#
+foreach ip [get_ips] {
+	upgrade_ip $ip
+	generate_target -force {all} $ip
+}
+
 synth_design -top $top -part $part -flatten rebuilt
 write_checkpoint -force [format "$outputDir/%s_synth" $projName]
 #report_timing_summary -file $outputDir/post_synth_timing_summary.rpt
@@ -144,10 +149,10 @@ report_drc -file $outputDir/drc.rpt
 # STEP#6: generate a bitstream, write bmm file and other configuration files
 #
 set bitstream_fn [format "$outputDir/%s.bit" $projName]
-set debug_fn [format "$outputDir/%s.ltx" $projName]
+set probes_fn [format "$outputDir/%s.ltx" $projName]
 
 write_bitstream -force $bitstream_fn
-write_debug_probes -force $debug_fn
+write_debug_probes -force $probes_fn
 
 #set output_fn [format "$outputDir/%s.bmm" $projName]
 #write_bmm -force -quiet $output_fn
