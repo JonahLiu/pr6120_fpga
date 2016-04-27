@@ -11,6 +11,7 @@
 #
 set projName nic_device
 set outputDir ./output
+set ipDir ./ip
 set part xc7k325tffg900-2
 set top device_top
 
@@ -58,19 +59,19 @@ read_verilog ../../src/e1000/axi_ram.v
 
 ################################################################################
 # Import IP Cores
-file mkdir pci32_0
-file copy -force ../../ip/pci32_0.xci pci32_0
-read_ip pci32_0/pci32_0.xci
-#set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files pci32_0/pci32_0.xci]
+file mkdir $ipDir/pci32_0
+file copy -force ../../ip/pci32_0.xci $ipDir/pci32_0
+read_ip $ipDir/pci32_0/pci32_0.xci
+#set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files $ipDir/pci32_0/pci32_0.xci]
 upgrade_ip [get_ips pci32_0]
 generate_target -force {all} [get_ips pci32_0]
 
-file mkdir ila_0
-file copy -force ../../ip/ila_0.xci ila_0
-file copy -force ../../ip/ila_0.xml ila_0
-read_ip ila_0/ila_0.xci
+file mkdir $ipDir/ila_0
+file copy -force ../../ip/ila_0.xci $ipDir/ila_0
+file copy -force ../../ip/ila_0.xml $ipDir/ila_0
+read_ip $ipDir/ila_0/ila_0.xci
 upgrade_ip [get_ips ila_0]
-set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files ila_0/ila_0.xci]
+set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files $ipDir/ila_0/ila_0.xci]
 generate_target -force {all} [get_ips ila_0]
 
 ################################################################################

@@ -148,6 +148,7 @@ wire [31:0] tgt_m_rdata;
 wire [1:0] tgt_m_rresp;
 
 wire intr_request;
+wire reset_request;
 
 wire mst_s_aclk;
 wire mst_s_aresetn;
@@ -356,7 +357,7 @@ wire uart3_dsr;
 wire uart3_ri;
 wire uart3_dcd;
 
-reg nic_rst_r;
+reg [6:0] nic_rst_sync;
 
 assign PCI_EN_N = 1'b0;
 
@@ -485,7 +486,7 @@ assign p1_txen = 1'b0;
 assign p1_txer = 1'b0;
 assign p1_gtxsclk = 1'b0;
 
-assign nic_rst = nic_rst_r;
+assign nic_rst = !nic_rst_sync[6];
 
 assign cfg_s_aclk = nic_clk;
 assign cfg_s_aresetn = !nic_rst;
@@ -503,11 +504,13 @@ assign mst_s_aresetn = !nic_rst;
 always @(posedge nic_clk, posedge ext_rst)
 begin
 	if(ext_rst) begin
-		nic_rst_r <= 1'b1;
+		nic_rst_sync <= 'b0;
 	end
-	else if(clk_locked) begin
-		nic_rst_r <= 1'b0;
+	else if(reset_request || !clk_locked) begin
+		nic_rst_sync <= 'b0;
 	end
+	else if(!nic_rst_sync[6])
+		nic_rst_sync <= nic_rst_sync+1;
 end
 
 nic_clk_gen nic_clk_gen_i(
@@ -673,6 +676,7 @@ e1000_top #(
 
 	// Interrupt Request
 	.intr_request(intr_request),
+	.reset_request(reset_request),
 
 	// AXI4 for DMA
 	.axi_m_awid(nic_m_awid),

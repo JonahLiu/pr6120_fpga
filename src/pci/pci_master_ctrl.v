@@ -114,6 +114,7 @@ wire FIN1, FIN2, FIN3;
 wire ASSERT_COMPLETE;
 reg HOLD_COMPLETE;
 reg M_DATAQ;
+reg complete_gate;
 
 assign ADIO_IN = M_ADDR_N?wdata_dout:(write_cycle?write_addr:read_addr);
 assign REQUEST = request_r;
@@ -308,6 +309,7 @@ begin
 			read_len_m1 <= 'bx;
 			rresp_err_r <= 'bx;
 			rresp_fill <= 1'b0;
+			complete_gate <= 1'b0;
 	end
 	else case(state_next)
 		S_IDLE: begin
@@ -317,12 +319,14 @@ begin
 			wresp_valid_r <= 1'b0;
 			rcmd_ready_r <= 1'b0;
 			rresp_valid_r <= 1'b0;
+			complete_gate <= 1'b0;
 		end
 		S_WRITE_INIT: begin
 			write_id <= wcmd_id;
 			write_len_m1 <= wcmd_len;
 			write_cycle <= 1'b1;
 			wcmd_ready_r <= 1'b1;
+			complete_gate <= 1'b1;
 		end
 		S_WRITE_REQ: begin
 			wcmd_ready_r <= 1'b0;
@@ -356,6 +360,7 @@ begin
 			write_cycle <= 1'b0;
 
 			rcmd_ready_r <= 1'b1;
+			complete_gate <= 1'b1;
 		end
 		S_READ_REQ: begin
 			rcmd_ready_r <= 1'b0;
@@ -469,7 +474,7 @@ assign FIN1 = (complete_cnt==0) & REQUEST;
 assign FIN2 = (complete_cnt==1) & M_DATAQ;
 assign FIN3 = (complete_cnt==2) & M_DATA_VLD;
 assign ASSERT_COMPLETE = FIN1 | FIN2 | FIN3;
-assign COMPLETE = ASSERT_COMPLETE | HOLD_COMPLETE;
+assign COMPLETE = ASSERT_COMPLETE | HOLD_COMPLETE | !complete_gate;
 
 always @(posedge clk, posedge rst)
 begin

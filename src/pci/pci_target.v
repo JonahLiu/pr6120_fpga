@@ -267,7 +267,7 @@ begin
 		awaddr_r <= 'bx;
 		wdata_r <= 'bx;
 		wstrb_r <= 'bx;
-		write_ready <= 1'b0;
+		write_ready <= 1'b1;
 	end
 	else case(ws_next)
 		WS_IDLE: begin
@@ -355,7 +355,7 @@ begin
 	if(!tgt_m_aresetn) begin
 		arvalid_r <= 1'b0;
 		rready_r <= 1'b0;
-		read_ready <= 1'b0;
+		read_ready <= 1'b1;
 		araddr_r <= 'bx;
 		read_data <= 'bx;
 		rstrb_r <= 'bx;

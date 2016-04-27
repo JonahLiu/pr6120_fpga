@@ -91,6 +91,22 @@ wire [31:0] rdata_din;
 wire rdata_valid;
 wire rdata_ready;
 
+wire clk;
+wire rst;
+
+reg [1:0] reset_sync;
+
+assign clk = CLK;
+assign rst = !reset_sync[1];
+
+always @(posedge clk, negedge mst_s_aresetn)
+begin
+	if(!mst_s_aresetn)
+		reset_sync <= 1'b0;
+	else
+		reset_sync <= {reset_sync, 1'b1};
+end
+
 pci_master_wpath wpath_i(
 	.mst_s_aclk(mst_s_aclk),
 	.mst_s_aresetn(mst_s_aresetn),
@@ -116,8 +132,8 @@ pci_master_wpath wpath_i(
 	.mst_s_bvalid(mst_s_bvalid),
 	.mst_s_bready(mst_s_bready),
 
-	.clk(CLK),
-	.rst(RST),
+	.clk(clk),
+	.rst(rst),
 
 	.data_idx(wdata_idx),
 	.data_dout(wdata_dout),
@@ -156,8 +172,8 @@ pci_master_rpath rpath_i(
 	.mst_s_rvalid(mst_s_rvalid),
 	.mst_s_rready(mst_s_rready),
 
-	.clk(CLK),
-	.rst(RST),
+	.clk(clk),
+	.rst(rst),
 
 	.cmd_id(rcmd_id),
 	.cmd_len(rcmd_len),
@@ -177,8 +193,8 @@ pci_master_rpath rpath_i(
 );
 
 pci_master_ctrl ctrl_i(
-	.rst(RST),
-	.clk(CLK),
+	.rst(rst),
+	.clk(clk),
 
 	.ADIO_IN(ADIO_IN),
 	.ADIO_OUT(ADIO_OUT),

@@ -27,6 +27,7 @@ module e1000_top(
 
 	// Interrupt request
 	output intr_request,
+	output reset_request,
 
 	// DMA Port
 	output [3:0] axi_m_awid,
@@ -110,7 +111,8 @@ wire mac_rx_m_tvalid;
 wire mac_rx_m_tlast;
 wire mac_rx_m_tready;
 
-wire [31:0] CTRL;
+wire CTRL_RST;
+wire CTRL_PHY_RST;
 
 wire [31:0] EECD;
 wire [31:0] EERD;
@@ -167,10 +169,15 @@ wire TXD_LOW_req;
 
 wire PHYINT_req;
 
+wire reset;
+
 reg [1:0] phy_int_sync;
 
-assign phy_reset_out = CTRL[31] || !aresetn;
+assign reset = !aresetn;
+assign phy_reset_out = CTRL_PHY_RST || reset;
 assign PHYINT_req = phy_int_sync[1];
+
+assign reset_request = CTRL_RST;
 
 always @(posedge aclk)
 begin
@@ -203,7 +210,8 @@ e1000_regs cmd_i(
 	.axi_s_rdata(axi_s_rdata),
 	.axi_s_rresp(axi_s_rresp),
 
-	.CTRL(CTRL),
+	.CTRL_RST(CTRL_RST),
+	.CTRL_PHY_RST(CTRL_PHY_RST),
 
 	.EECD(EECD),
 	.EECD_DO_i(eedo),
@@ -263,7 +271,7 @@ e1000_regs cmd_i(
 
 shift_eeprom shift_eeprom_i(
 	.clk(aclk),
-	.rst(!aresetn),
+	.rst(reset),
 	.sk(eesk),
 	.cs(eecs),
 	.di(eedi),
@@ -280,7 +288,7 @@ shift_eeprom shift_eeprom_i(
 
 shift_mdio shift_mdio_i(
 	.clk(aclk),
-	.rst(!aresetn),
+	.rst(reset),
 	.mdc_o(phy_mdc),
 	.mdio_i(phy_mdio_i),
 	.mdio_o(phy_mdio_o),
@@ -294,7 +302,7 @@ shift_mdio shift_mdio_i(
 
 intr_ctrl #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) intr_ctrl_i(
 	.clk_i(aclk),
-	.rst_i(!aresetn),
+	.rst_i(reset),
 
 	.ICR(ICR),
 	.ICR_fb_o(ICR_fb),

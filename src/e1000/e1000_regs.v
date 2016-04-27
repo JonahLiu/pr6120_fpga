@@ -25,7 +25,8 @@ module e1000_regs(
 	output	axi_s_rvalid,
 	input axi_s_rready,
 
-	output [31:0] CTRL,
+	output CTRL_RST,
+	output CTRL_PHY_RST,
 
 	output [31:0] EECD,
 	input 	EECD_DO_i,
@@ -103,6 +104,9 @@ reg [31:0] read_addr;
 reg [31:0] read_data;
 reg read_enable;
 reg read_ready;
+
+wire reset;
+assign reset = !aresetn;
 
 assign axi_s_awready = awready_r;
 assign axi_s_wready = wready_r;
@@ -225,43 +229,18 @@ begin
 	end
 end
 
-// Test stub
-/*
-reg [7:0] mem0 [0:127];
-reg [15:8] mem1 [0:127];
-reg [23:16] mem2 [0:127];
-reg [31:24] mem3 [0:127];
-always @(posedge aclk)
-begin
-	if(write_enable) begin
-		if(write_be[0]) mem0[write_addr] <= write_data[7:0];
-		if(write_be[1]) mem1[write_addr] <= write_data[15:8];
-		if(write_be[2]) mem2[write_addr] <= write_data[23:16];
-		if(write_be[3]) mem3[write_addr] <= write_data[31:24];
-	end
-
-	if(read_enable) begin
-		read_data <= {mem3[read_addr], mem2[read_addr], 
-			mem1[read_addr], mem0[read_addr]};
-		read_ready <= 1'b1;
-	end
-	else begin
-		read_ready <= 1'b0;
-	end
-end
-*/
-
 reg CTRL_wstb;
 reg CTRL_rstb;
 wire [31:0] CTRL_o;
 wire [31:0] CTRL_i;
 e1000_register #(.init(32'h0000_0201)) CTRL_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(CTRL_wstb), .q_o(CTRL_o)
 );
 assign CTRL_i = CTRL_o;
-assign CTRL = CTRL_o;
+assign CTRL_RST = CTRL_o[26];
+assign CTRL_PHY_RST = CTRL_o[31];
 
 reg STATUS_wstb;
 reg STATUS_rstb;
@@ -273,7 +252,7 @@ reg EECD_rstb;
 wire [31:0] EECD_o;
 wire [31:0] EECD_i;
 e1000_register #(.init(32'h0000_0110)) EECD_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(EECD_wstb), .q_o(EECD_o)
 );
@@ -285,7 +264,7 @@ reg EERD_rstb;
 wire [31:0] EERD_o;
 wire [31:0] EERD_i;
 e1000_register #(.init(32'h0)) EERD_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(EERD_wstb), .q_o(EERD_o)
 );
@@ -307,7 +286,7 @@ reg CTRL_EXT_rstb;
 wire [31:0] CTRL_EXT_o;
 wire [31:0] CTRL_EXT_i;
 e1000_register #(.init(32'h0)) CTRL_EXT_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(CTRL_EXT_wstb), .q_o(CTRL_EXT_o)
 );
@@ -318,7 +297,7 @@ reg MDIC_rstb;
 wire [31:0] MDIC_o;
 wire [31:0] MDIC_i;
 e1000_register #(.init(32'h0)) MDIC_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(MDIC_wstb), .q_o(MDIC_o)
 );
@@ -333,7 +312,7 @@ reg FCAL_rstb;
 wire [31:0] FCAL_o;
 wire [31:0] FCAL_i;
 e1000_register #(.init(32'h00C2_8001)) FCAL_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(FCAL_wstb), .q_o(FCAL_o)
 );
@@ -344,7 +323,7 @@ reg FCAH_rstb;
 wire [31:0] FCAH_o;
 wire [31:0] FCAH_i;
 e1000_register #(.init(32'h0000_0100)) FCAH_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(FCAH_wstb), .q_o(FCAH_o)
 );
@@ -355,7 +334,7 @@ reg FCT_rstb;
 wire [31:0] FCT_o;
 wire [31:0] FCT_i;
 e1000_register #(.init(32'h0000_8808)) FCT_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(FCT_wstb), .q_o(FCT_o)
 );
@@ -366,7 +345,7 @@ reg VET_rstb;
 wire [31:0] VET_o;
 wire [31:0] VET_i;
 e1000_register #(.init(32'h0000_8100)) VET_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(VET_wstb), .q_o(VET_o)
 );
@@ -377,7 +356,7 @@ reg FCTTV_rstb;
 wire [31:0] FCTTV_o;
 wire [31:0] FCTTV_i;
 e1000_register #(.init(32'h0000_8100)) FCTTV_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(FCTTV_wstb), .q_o(FCTTV_o)
 );
@@ -400,7 +379,7 @@ reg LEDCTL_rstb;
 wire [31:0] LEDCTL_o;
 wire [31:0] LEDCTL_i;
 e1000_register #(.init(32'h0706_8302)) LEDCTL_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(LEDCTL_wstb), .q_o(LEDCTL_o)
 );
@@ -411,7 +390,7 @@ reg PBA_rstb;
 wire [31:0] PBA_o;
 wire [31:0] PBA_i;
 e1000_register #(.init(32'h0010_0030)) PBA_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(PBA_wstb), .q_o(PBA_o)
 );
@@ -423,7 +402,7 @@ reg ICR_rstb;
 wire [31:0] ICR_o;
 wire [31:0] ICR_i;
 e1000_register #(.init(32'h0)) ICR_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(ICR_wstb), .q_o(ICR_o)
 );
@@ -441,7 +420,7 @@ reg ITR_rstb;
 wire [31:0] ITR_o;
 wire [31:0] ITR_i;
 e1000_register #(.init(32'h0)) ITR_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(ITR_wstb), .q_o(ITR_o)
 );
@@ -456,7 +435,7 @@ reg ICS_rstb;
 wire [31:0] ICS_o;
 wire [31:0] ICS_i;
 e1000_register #(.init(32'h0)) ICS_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(ICS_wstb), .q_o(ICS_o)
 );
@@ -471,7 +450,7 @@ reg IMS_rstb;
 wire [31:0] IMS_o;
 wire [31:0] IMS_i;
 e1000_register #(.init(32'h0)) IMS_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(IMS_wstb), .q_o(IMS_o)
 );
@@ -486,7 +465,7 @@ reg IMC_rstb;
 wire [31:0] IMC_o;
 wire [31:0] IMC_i;
 e1000_register #(.init(32'h0)) IMC_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(IMC_wstb), .q_o(IMC_o)
 );
@@ -501,7 +480,7 @@ reg RCTL_rstb;
 wire [31:0] RCTL_o;
 wire [31:0] RCTL_i;
 e1000_register #(.init(32'h0)) RCTL_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(RCTL_wstb), .q_o(RCTL_o)
 );
@@ -512,7 +491,7 @@ reg FCRTL_rstb;
 wire [31:0] FCRTL_o;
 wire [31:0] FCRTL_i;
 e1000_register #(.init(32'h0)) FCRTL_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(FCRTL_wstb), .q_o(FCRTL_o)
 );
@@ -523,7 +502,7 @@ reg FCRTH_rstb;
 wire [31:0] FCRTH_o;
 wire [31:0] FCRTH_i;
 e1000_register #(.init(32'h0)) FCRTH_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(FCRTH_wstb), .q_o(FCRTH_o)
 );
@@ -534,7 +513,7 @@ reg RDBAL_rstb;
 wire [31:0] RDBAL_o;
 wire [31:0] RDBAL_i;
 e1000_register #(.init(32'h0)) RDBAL_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(RDBAL_wstb), .q_o(RDBAL_o)
 );
@@ -545,7 +524,7 @@ reg RDBAH_rstb;
 wire [31:0] RDBAH_o;
 wire [31:0] RDBAH_i;
 e1000_register #(.init(32'h0)) RDBAH_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(RDBAH_wstb), .q_o(RDBAH_o)
 );
@@ -556,7 +535,7 @@ reg RDLEN_rstb;
 wire [31:0] RDLEN_o;
 wire [31:0] RDLEN_i;
 e1000_register #(.init(32'h0)) RDLEN_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(RDLEN_wstb), .q_o(RDLEN_o)
 );
@@ -567,7 +546,7 @@ reg RDH_rstb;
 wire [31:0] RDH_o;
 wire [31:0] RDH_i;
 e1000_register #(.init(32'h0)) RDH_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(RDH_wstb), .q_o(RDH_o)
 );
@@ -578,7 +557,7 @@ reg RDT_rstb;
 wire [31:0] RDT_o;
 wire [31:0] RDT_i;
 e1000_register #(.init(32'h0)) RDT_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(RDT_wstb), .q_o(RDT_o)
 );
@@ -589,7 +568,7 @@ reg RDTR_rstb;
 wire [31:0] RDTR_o;
 wire [31:0] RDTR_i;
 e1000_register #(.init(32'h0)) RDTR_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(RDTR_wstb), .q_o(RDTR_o)
 );
@@ -600,7 +579,7 @@ reg RADV_rstb;
 wire [31:0] RADV_o;
 wire [31:0] RADV_i;
 e1000_register #(.init(32'h0)) RADV_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(RADV_wstb), .q_o(RADV_o)
 );
@@ -611,7 +590,7 @@ reg RSRPD_rstb;
 wire [31:0] RSRPD_o;
 wire [31:0] RSRPD_i;
 e1000_register #(.init(32'h0)) RSRPD_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(RSRPD_wstb), .q_o(RSRPD_o)
 );
@@ -622,7 +601,7 @@ reg TCTL_rstb;
 wire [31:0] TCTL_o;
 wire [31:0] TCTL_i;
 e1000_register #(.init(32'h0)) TCTL_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(TCTL_wstb), .q_o(TCTL_o)
 );
@@ -635,7 +614,7 @@ reg TIPG_rstb;
 wire [31:0] TIPG_o;
 wire [31:0] TIPG_i;
 e1000_register #(.init(32'h0)) TIPG_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(TIPG_wstb), .q_o(TIPG_o)
 );
@@ -647,7 +626,7 @@ reg AIFS_rstb;
 wire [31:0] AIFS_o;
 wire [31:0] AIFS_i;
 e1000_register #(.init(32'h0)) AIFS_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(AIFS_wstb), .q_o(AIFS_o)
 );
@@ -658,7 +637,7 @@ reg TDBAL_rstb;
 wire [31:0] TDBAL_o;
 wire [31:0] TDBAL_i;
 e1000_register #(.init(32'h0)) TDBAL_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(TDBAL_wstb), .q_o(TDBAL_o)
 );
@@ -669,7 +648,7 @@ reg TDBAH_rstb;
 wire [31:0] TDBAH_o;
 wire [31:0] TDBAH_i;
 e1000_register #(.init(32'h0)) TDBAH_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(TDBAH_wstb), .q_o(TDBAH_o)
 );
@@ -682,7 +661,7 @@ reg TDLEN_rstb;
 wire [31:0] TDLEN_o;
 wire [31:0] TDLEN_i;
 e1000_register #(.init(32'h0)) TDLEN_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(TDLEN_wstb), .q_o(TDLEN_o)
 );
@@ -694,7 +673,7 @@ reg TDH_rstb;
 wire [31:0] TDH_o;
 wire [31:0] TDH_i;
 e1000_register #(.init(32'h0)) TDH_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(TDH_wstb), .q_o(TDH_o)
 );
@@ -709,7 +688,7 @@ reg TDT_rstb;
 wire [31:0] TDT_o;
 wire [31:0] TDT_i;
 e1000_register #(.init(32'h0)) TDT_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(TDT_wstb), .q_o(TDT_o)
 );
@@ -724,7 +703,7 @@ reg TIDV_rstb;
 wire [31:0] TIDV_o;
 wire [31:0] TIDV_i;
 e1000_register #(.init(32'h0)) TIDV_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(TIDV_wstb), .q_o(TIDV_o)
 );
@@ -736,7 +715,7 @@ reg TXDMAC_rstb;
 wire [31:0] TXDMAC_o;
 wire [31:0] TXDMAC_i;
 e1000_register #(.init(32'h0000_0001)) TXDMAC_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(TXDMAC_wstb), .q_o(TXDMAC_o)
 );
@@ -748,7 +727,7 @@ reg TXDCTL_rstb;
 wire [31:0] TXDCTL_o;
 wire [31:0] TXDCTL_i;
 e1000_register #(.init(32'h0)) TXDCTL_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(TXDCTL_wstb), .q_o(TXDCTL_o)
 );
@@ -765,7 +744,7 @@ reg TADV_rstb;
 wire [31:0] TADV_o;
 wire [31:0] TADV_i;
 e1000_register #(.init(32'h0)) TADV_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(TADV_wstb), .q_o(TADV_o)
 );
@@ -777,7 +756,7 @@ reg TSPMT_rstb;
 wire [31:0] TSPMT_o;
 wire [31:0] TSPMT_i;
 e1000_register #(.init(32'h0100_0400)) TSPMT_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(TSPMT_wstb), .q_o(TSPMT_o)
 );
@@ -790,7 +769,7 @@ reg RXDCTL_rstb;
 wire [31:0] RXDCTL_o;
 wire [31:0] RXDCTL_i;
 e1000_register #(.init(32'h0101_0000)) RXDCTL_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(RXDCTL_wstb), .q_o(RXDCTL_o)
 );
@@ -801,7 +780,7 @@ reg RXCSUM_rstb;
 wire [31:0] RXCSUM_o;
 wire [31:0] RXCSUM_i;
 e1000_register #(.init(32'h0)) RXCSUM_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(RXCSUM_wstb), .q_o(RXCSUM_o)
 );
@@ -833,7 +812,7 @@ reg WUC_rstb;
 wire [31:0] WUC_o;
 wire [31:0] WUC_i;
 e1000_register #(.init(32'h0)) WUC_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(WUC_wstb), .q_o(WUC_o)
 );
@@ -844,7 +823,7 @@ reg WUFC_rstb;
 wire [31:0] WUFC_o;
 wire [31:0] WUFC_i;
 e1000_register #(.init(32'h0)) WUFC_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(WUFC_wstb), .q_o(WUFC_o)
 );
@@ -861,7 +840,7 @@ reg IPAV_rstb;
 wire [31:0] IPAV_o;
 wire [31:0] IPAV_i;
 e1000_register #(.init(32'h0)) IPAV_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(IPAV_wstb), .q_o(IPAV_o)
 );
@@ -886,7 +865,7 @@ reg WUPL_rstb;
 wire [31:0] WUPL_o;
 wire [31:0] WUPL_i;
 e1000_register #(.init(32'h0)) WUPL_reg_i( 
-	.clk_i(aclk), .arst_i(!aresetn), 
+	.clk_i(aclk), .arst_i(reset), 
 	.wbe_i(write_be), .d_i(write_data), 
 	.srst_i(1'b0), .wen_i(WUPL_wstb), .q_o(WUPL_o)
 );

@@ -414,6 +414,8 @@ task initialize_nic;
 	begin
 		e1000_write(E1000_CTRL, E1000_CTRL_RST); 
 
+		#1000; // Wait 1us
+
 		e1000_write(E1000_TXDMAC, 32'h0000_0000); 
 
 		e1000_write(E1000_TCTL, 32'h0000_0000); 
