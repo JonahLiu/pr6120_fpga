@@ -32,7 +32,7 @@ module e1000_top(
 	output [3:0] axi_m_awid,
 	output [63:0] axi_m_awaddr,
 
-	output [3:0] axi_m_awlen,
+	output [7:0] axi_m_awlen,
 	output [2:0] axi_m_awsize,
 	output [1:0] axi_m_awburst,
 	output [3:0] axi_m_awcache,
@@ -53,7 +53,7 @@ module e1000_top(
 
 	output [3:0] axi_m_arid,
 	output [63:0] axi_m_araddr,
-	output [3:0] axi_m_arlen,
+	output [7:0] axi_m_arlen,
 	output [2:0] axi_m_arsize,
 	output [1:0] axi_m_arburst,
 	output [3:0] axi_m_arcache,
@@ -99,6 +99,16 @@ module e1000_top(
 
 parameter PHY_ADDR=5'b0;
 parameter CLK_PERIOD_NS=8;
+
+wire [7:0] mac_tx_s_tdata;
+wire mac_tx_s_tvalid;
+wire mac_tx_s_tlast;
+wire mac_tx_s_tready;
+
+wire [7:0] mac_rx_m_tdata;
+wire mac_rx_m_tvalid;
+wire mac_rx_m_tlast;
+wire mac_rx_m_tready;
 
 wire [31:0] CTRL;
 

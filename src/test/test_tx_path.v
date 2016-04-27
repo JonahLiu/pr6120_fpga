@@ -368,14 +368,19 @@ begin
 
 	generate_traffic(2, 48); // LEN=16, 48 Transfers
 
+	DPP <= 1; // Disable prefetch
+
+	generate_traffic(2, 48); // LEN=16, 48 Transfers
+
 	desc_ide = 1;
+	DPP <= 0;
 	TDBA <= 64'h10; // Host address starts from 0x10
-	TIDV <= 1; // Interrupt delay 1024ns
+	TIDV <= 1; // Interrupt delay 1024 ns
 	TADV <= 2; // Interrupt absolute delay 2048 ns
 
 	generate_traffic(2, 48); // LEN=16, 48 Transfers
 
-	TADV <= 8; // Interrupt absolute delay 8192 ns 
+	TADV <= 16; // Interrupt absolute delay 16384 ns 
 
 	generate_traffic(8191, 65536); // LEN=65528, 65536 Transfers
 

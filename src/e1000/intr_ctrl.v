@@ -67,6 +67,7 @@ assign src_req[4] = RXDMT0_req;
 assign src_req[5] = 1'b0;
 assign src_req[6] = RXO_req;
 assign src_req[7] = RXT0_req;
+assign src_req[8] = 1'b0;
 assign src_req[9] = MDAC_req;
 assign src_req[10] = RXCFG_req;
 assign src_req[11] = 1'b0;

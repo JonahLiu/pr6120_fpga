@@ -395,7 +395,7 @@ begin
 		local_available <= local_available-in_enq_incr;
 	end
 	else if(out_dequeue) begin
-		local_pending <= local_pending-in_enq_incr;
+		local_pending <= local_pending-out_deq_incr;
 		local_available <= local_available+out_deq_incr;
 	end
 end
@@ -598,9 +598,9 @@ begin
 				else 
 					// Dequeue no report
 					s1_next = S1_DEQUEUE;
-			else if(((PTHRESH==0 || local_pending < PTHRESH) && 
+			else if((!DPP && (PTHRESH==0 || local_pending < PTHRESH) && 
 					host_fresh > HTHRESH) ||
-				(DPP && local_pending == 0 && host_fresh > 0))
+				(local_pending == 0 && host_fresh > 0))
 				s1_next = S1_SET_SIZE;
 			else
 				s1_next = S1_READY;

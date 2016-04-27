@@ -96,7 +96,8 @@ parameter HARDWIRE_IDSEL=24;
 // Default PHY address in e1000 is 5'b00001
 // Change this according to hardware design
 parameter PHY_ADDR=5'b0;
-parameter CORE_CLK_PERIOD_NS=8;
+parameter NIC_CLK_PERIOD_NS=8;
+parameter DEBUG="TRUE";
 
 wire ext_clk;
 wire ext_rst;
@@ -152,7 +153,7 @@ wire mst_s_aclk;
 wire mst_s_aresetn;
 wire [3:0] mst_s_awid;
 wire [63:0] mst_s_awaddr;
-wire [3:0] mst_s_awlen;
+wire [7:0] mst_s_awlen;
 wire [2:0] mst_s_awsize;
 wire [1:0] mst_s_awburst;
 wire [3:0] mst_s_awcache;
@@ -170,7 +171,7 @@ wire mst_s_bvalid;
 wire mst_s_bready;
 wire [3:0] mst_s_arid;
 wire [63:0] mst_s_araddr;
-wire [3:0] mst_s_arlen;
+wire [7:0] mst_s_arlen;
 wire [2:0] mst_s_arsize;
 wire [1:0] mst_s_arburst;
 wire [3:0] mst_s_arcache;
@@ -205,7 +206,7 @@ wire [1:0] nic_s_rresp;
 
 wire [3:0] nic_m_awid;
 wire [63:0] nic_m_awaddr;
-wire [3:0] nic_m_awlen;
+wire [7:0] nic_m_awlen;
 wire [2:0] nic_m_awsize;
 wire [1:0] nic_m_awburst;
 wire [3:0] nic_m_awcache;
@@ -223,7 +224,7 @@ wire nic_m_bvalid;
 wire nic_m_bready;
 wire [3:0] nic_m_arid;
 wire [63:0] nic_m_araddr;
-wire [3:0] nic_m_arlen;
+wire [7:0] nic_m_arlen;
 wire [2:0] nic_m_arsize;
 wire [1:0] nic_m_arburst;
 wire [3:0] nic_m_arcache;
@@ -259,9 +260,13 @@ wire	p0_mdio_i;
 wire	p0_mdio_o;
 wire	p0_mdio_oe;
 
+wire	p0_reset_out;
+
 wire	p1_mdio_i;
 wire	p1_mdio_o;
 wire	p1_mdio_oe;
+
+wire	p1_reset_out;
 
 wire	eesk;
 wire	eecs;
@@ -389,6 +394,7 @@ assign p0_mdio_o = phy_mdio_o;
 assign p0_mdio_oe = phy_mdio_oe;
 assign p0_reset_out = phy_reset_out;
 assign phy_mdio_i = p0_mdio_i;
+assign phy_int = p0_int;
 
 assign p1_mdc = 1'b0;
 assign p1_mdio_o = 1'b0;
@@ -426,6 +432,7 @@ assign tgt_m_rresp = nic_s_rresp;
 assign nic_s_rready = tgt_m_rready;
 
 assign mst_s_awid = nic_m_awid;
+assign mst_s_awaddr = nic_m_awaddr;
 assign mst_s_awlen = nic_m_awlen;
 assign mst_s_awsize = nic_m_awsize;
 assign mst_s_awburst = nic_m_awburst;
@@ -452,6 +459,7 @@ assign mst_s_arsize = nic_m_arsize;
 assign mst_s_arburst = nic_m_arburst;
 assign mst_s_arcache = nic_m_arcache;
 assign mst_s_arvalid = nic_m_arvalid;
+assign nic_m_arready = mst_s_arready;
 
 assign nic_m_rid = mst_s_rid;
 assign nic_m_rdata = mst_s_rdata;
@@ -487,6 +495,7 @@ assign tgt_m_aresetn = !nic_rst;
 
 assign nic_aclk = nic_clk;
 assign nic_aresetn = !nic_rst;
+assign nic_areset = nic_rst;
 
 assign mst_s_aclk = nic_clk;
 assign mst_s_aresetn = !nic_rst;
@@ -579,6 +588,7 @@ pci_axi_top #(.HARDWIRE_IDSEL(HARDWIRE_IDSEL))pci_axi_i(
 	.tgt_m_arvalid(tgt_m_arvalid),
 	.tgt_m_arready(tgt_m_arready),
 	.tgt_m_araddr(tgt_m_araddr),
+	.tgt_m_aruser(),
 
 	.tgt_m_rvalid(tgt_m_rvalid),
 	.tgt_m_rready(tgt_m_rready),
@@ -632,7 +642,7 @@ pci_axi_top #(.HARDWIRE_IDSEL(HARDWIRE_IDSEL))pci_axi_i(
 
 e1000_top #(
 	.PHY_ADDR(PHY_ADDR),
-	.CLK_PERIOD_NS(CORE_CLK_PERIOD_NS)
+	.CLK_PERIOD_NS(NIC_CLK_PERIOD_NS)
 
 ) e1000_i(
 	.aclk(nic_aclk),
@@ -1093,7 +1103,40 @@ master_crossbar master_crossbar_i(
 );
 */
 
-ila_0 ila_0_i(
+generate
+if(DEBUG=="TRUE") begin
+ila_0 ila_mst_i0(
+	.clk(mst_s_aclk), // input wire clk
+	.probe0({
+		mst_s_awaddr,
+		mst_s_awlen,
+		mst_s_awvalid,
+		mst_s_awready,
+
+		mst_s_wdata,
+		mst_s_wstrb,
+		mst_s_wlast,
+		mst_s_wvalid,
+		mst_s_wready,
+
+		mst_s_bresp,
+		mst_s_bvalid,
+		mst_s_bready,
+
+		mst_s_araddr,
+		mst_s_arlen,
+		mst_s_arvalid,
+		mst_s_arready,
+
+		mst_s_rdata,
+		mst_s_rresp,
+		mst_s_rlast,
+		mst_s_rvalid,
+		mst_s_rready
+	})
+);
+
+ila_0 ila_tgt_i1(
 	.clk(tgt_m_aclk), // input wire clk
 	.probe0({
 		tgt_m_awaddr,
@@ -1118,10 +1161,10 @@ ila_0 ila_0_i(
 		tgt_m_rvalid,
 		tgt_m_rready,
 
-		intr_request,
-
-		read_count,
-		write_count,
-		access_count})
+		intr_request
+	})
 );
+end
+endgenerate
+
 endmodule

@@ -27,6 +27,7 @@ set_part $part
 #read_verilog [ glob ./Sources/hdl/*.v ]
 #read_xdc ./Sources/bft_full.xdc
 read_verilog ../../src/device/device_top.v
+read_verilog ../../src/device/nic_clk_gen.v
 read_verilog ../../src/pci/pci_axi_top.v
 read_verilog ../../src/pci/pci_lc.v
 read_verilog ../../src/pci/pci_target.v
@@ -57,12 +58,12 @@ read_ip pci32_0/pci32_0.xci
 upgrade_ip [get_ips pci32_0]
 generate_target -force {all} [get_ips pci32_0]
 
-file mkdir nic_clk_gen
-file copy -force ../../ip/nic_clk_gen.xci nic_clk_gen
-read_ip nic_clk_gen/nic_clk_gen.xci
-upgrade_ip [get_ips nic_clk_gen]
-set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files nic_clk_gen/nic_clk_gen.xci]
-generate_target -force {all} [get_ips nic_clk_gen]
+#file mkdir nic_clk_gen
+#file copy -force ../../ip/nic_clk_gen.xci nic_clk_gen
+#read_ip nic_clk_gen/nic_clk_gen.xci
+#upgrade_ip [get_ips nic_clk_gen]
+#set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files nic_clk_gen/nic_clk_gen.xci]
+#generate_target -force {all} [get_ips nic_clk_gen]
 
 file mkdir ila_0
 file copy -force ../../ip/ila_0.xci ila_0
@@ -138,6 +139,15 @@ report_drc -file $outputDir/drc.rpt
 #
 # STEP#6: generate a bitstream, write bmm file
 #
-write_bitstream -force [format "$outputDir/%s.bit" $projName]
-write_bmm -force -quiet [format "$outputDir/%s.bmm" $projName]
+set bitstream_fn [format "$outputDir/%s.bit" $projName]
+write_bitstream -force $bitstream_fn
+
+#set output_fn [format "$outputDir/%s.bmm" $projName]
+#write_bmm -force -quiet $output_fn
+
+set output_fn [format "$outputDir/%s_spi_x1.mcs" $projName]
+write_cfgmem -force -format MCS -interface SPIx1 -loadbit "up 0x0 $bitstream_fn" $output_fn 
+
+set output_fn [format "$outputDir/%s_bpi_x16.mcs" $projName]
+write_cfgmem -force -format MCS -interface BPIx16 -loadbit "up 0x0 $bitstream_fn" $output_fn
 

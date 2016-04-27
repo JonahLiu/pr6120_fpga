@@ -196,7 +196,11 @@ begin
 				if(write_ack_cnt)
 					state_next = S_WRITE_CONT;
 				else
-					state_next = S_WRITE_FAIL;
+				    // Jonah: if lost grant at first cycle, the core will retry automatically;
+					// must wait for its retry.
+					// see NOTE on p86, ug262.
+					//state_next = S_WRITE_FAIL
+					state_next = S_WRITE_ADDR; 
 			else
 				state_next = S_WRITE_DATA;
 		end

@@ -97,7 +97,7 @@ begin
 	@(posedge clk);
 	req_n_o <= `BD 1'b0;
 	@(posedge clk);
-	while(gnt_n_i) @(posedge clk);
+	while(gnt_n_i || !(frame_n_i&&irdy_n_i&&trdy_n_i&&stop_n_i&&devsel_n_i)) @(posedge clk);
 end
 endtask
 

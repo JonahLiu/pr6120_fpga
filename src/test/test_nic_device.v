@@ -5,7 +5,9 @@ module test_nic_device;
 //
 // Host Address
 parameter HOST_BASE = 32'hE000_0000;
-parameter HOST_SIZE = 65536;
+parameter HOST_SIZE = 1024*1024;
+
+parameter HOST_DESC_BATCH = 4;
 
 // Target Addresses
 parameter TGT_CONF_ADDR  = 32'h0100_0000;
@@ -247,7 +249,11 @@ pci_behavioral_master master(
 	.PCLK(PCLK)
 );
 
-pci_behavioral_target #(.BAR0_BASE(HOST_BASE), .BAR0_SIZE(HOST_SIZE)) host(
+pci_behavioral_target #(
+	.BAR0_BASE(HOST_BASE), 
+	.BAR0_SIZE(HOST_SIZE),
+	.DATA_LATENCY(0)
+) host(
 	.AD(AD),
 	.CBE(CBE),
 	.PAR(PAR),
@@ -486,9 +492,14 @@ begin
 		end
 
 		tail = (tail+1)%len;
-		e1000_write(E1000_TDT, tail);
 
+		if(i%HOST_DESC_BATCH==(HOST_DESC_BATCH-1))
+			e1000_write(E1000_TDT, tail);
+
+		repeat(16) @(posedge PCLK);
 	end
+
+	e1000_write(E1000_TDT, tail);
 
 	while(head != tail) begin
 		#1000;
@@ -541,8 +552,8 @@ begin
 
 	$dumpfile("test_nic_device.vcd");
 	$dumpvars(1);
-	$dumpvars(1,dut_i);
-	#100000;
+	//$dumpvars(1,dut_i);
+	#1_000_000_000;
 	$finish;
 end
 
@@ -558,13 +569,13 @@ begin:T0
 
 	initialize_nic();
 
-	dbg_msg = "Test 8 1";
-
 	base = HOST_BASE;
 	desc_rs = 1;
 
 	e1000_write(E1000_TDBAL, base);
 
+`ifdef SHOULD_NOT_EXIST
+	dbg_msg = "Test 8 1";
 	generate_traffic(1, 1); // LEN=8, 1 Transfers
 
 	dbg_msg = "Test 8 7";
@@ -579,34 +590,49 @@ begin:T0
 	dbg_msg = "Test 8 16";
 	generate_traffic(1, 16); // LEN=8, 16 Transfers
 
-`ifdef SHOULD_NOT_EXIST
+	dbg_msg = "Test 8 24";
 	generate_traffic(1, 24); // LEN=8, 24 Transfers
 
+	dbg_msg = "Test 16 15";
 	generate_traffic(2, 15); // LEN=16, 15 Transfers
 
+	dbg_msg = "Test 16 16";
 	generate_traffic(2, 16); // LEN=16, 16 Transfers
 
+	dbg_msg = "Test 16 32";
 	generate_traffic(2, 32); // LEN=16, 32 Transfers
 
+	dbg_msg = "Test 16 48";
 	generate_traffic(2, 48); // LEN=16, 48 Transfers
 
+	dbg_msg = "Test 16 48 DPP";
 	e1000_write(E1000_TXDMAC, E1000_TXDMAC_DPP);
-
 	generate_traffic(2, 48); // LEN=16, 48 Transfers
 
-	desc_ide = 1;
+	dbg_msg = "Test 16 48 HOST OFFSET";
 	base = HOST_BASE+'h10;
 	e1000_write(E1000_TXDMAC, 0);
 	e1000_write(E1000_TDBAL, base);
-	e1000_write(E1000_TIDV, 1);
-	e1000_write(E1000_TADV, 2);
-
 	generate_traffic(2, 48); // LEN=16, 48 Transfers
 
-	TADV <= 16; // Interrupt absolute delay 16384 ns 
+	dbg_msg = "Test 16 48 IDT";
+	desc_ide = 1;
+	e1000_write(E1000_TIDV, 16);// Interrupt delay 16384 ns 
+	e1000_write(E1000_TADV, 32);// Interrupt absolute delay 32768 ns 
+	generate_traffic(2, 48); // LEN=16, 48 Transfers
 
-	generate_traffic(8191, 65536); // LEN=65528, 65536 Transfers
+	dbg_msg = "Test 16 48 PTH=8 HTH=4 LWTH=16 IDT";
+	e1000_write(E1000_TXDCTL, 
+		(8<<E1000_TXDCTL_PTHRESH_SHIFT) |
+		(4<<E1000_TXDCTL_HTHRESH_SHIFT) |
+		(8<<E1000_TXDCTL_LWTHRESH_SHIFT)|
+		E1000_TXDCTL_GRAN
+	);
+	generate_traffic(2, 48); // LEN=16, 48 Transfers
+
 `endif
+	dbg_msg = "Test 65528 65536 PTH=8 HTH=4 LWTH=16 IDT";
+	generate_traffic(8191, 65536); // LEN=65528, 65536 Transfers
 
 	#10000;
 	$finish;
@@ -645,9 +671,9 @@ end
 `endif
 
 `ifdef REPORT_INTERRUPT
-wire TXDW_req = (intr_state>>0)&32'b1;
-wire TXQE_req = (intr_state>>1)&32'b1;
-wire TXD_LOW_req = (intr_state>>15)&32'b1;
+wire TXDW_req = ((intr_state>>0)&32'b1) && !INTA_N;
+wire TXQE_req = ((intr_state>>1)&32'b1) && !INTA_N;
+wire TXD_LOW_req = ((intr_state>>15)&32'b1) && !INTA_N;
 
 always @(posedge TXDW_req)
 		$display($time,,,"INTR TXDW SET");

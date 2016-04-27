@@ -18,8 +18,8 @@ module pci_behavioral_target(
 );
 
 parameter DECODE_LATENCY=0;
-parameter ADDRESS_BASE=32'h0000_0000;
-parameter ADDRESS_MASK=32'hffff_0000;
+parameter BAR0_BASE=32'h0000_0000;
+parameter BAR0_SIZE=32'h0001_0000;
 parameter INITIAL_LATENCY=1;
 parameter DATA_LATENCY=1;
 parameter DATA_LENGTH=(~0);
@@ -38,6 +38,16 @@ localparam
 	CMD_DUAL_ADDR_CYC = 4'hD,
 	CMD_MEM_READ_LN = 4'hE,
 	CMD_MEM_WRITE_INVAL = 4'hF;
+
+function integer clogb2 (input integer size);
+begin
+	size = size - 1;
+	for (clogb2=1; size>1; clogb2=clogb2+1)
+		size = size >> 1;
+end
+endfunction
+
+localparam MEM_ADDR_MSB = clogb2(BAR0_SIZE)-1;
 
 wire clk;
 wire rst;
@@ -67,8 +77,8 @@ reg [7:0] disconnect;
 reg [7:0] initial_latency_cnt;
 reg [7:0] initial_latency;
 
-reg [31:0] address_base;
-reg [31:0] address_mask;
+reg [31:0] bar0_base;
+reg [31:0] bar0_mask;
 reg address_valid;
 
 reg frame_r;
@@ -88,10 +98,10 @@ reg [3:0] cmd_a;
 reg [31:0] read_addr;
 reg [31:0] write_addr;
 
-reg [7:0] mem_b0 [0:255];
-reg [7:0] mem_b1 [0:255];
-reg [7:0] mem_b2 [0:255];
-reg [7:0] mem_b3 [0:255];
+reg [7:0] mem_b0 [0:2**(MEM_ADDR_MSB-1)-1];
+reg [7:0] mem_b1 [0:2**(MEM_ADDR_MSB-1)-1];
+reg [7:0] mem_b2 [0:2**(MEM_ADDR_MSB-1)-1];
+reg [7:0] mem_b3 [0:2**(MEM_ADDR_MSB-1)-1];
 
 reg busy_r;
 
@@ -118,8 +128,8 @@ assign `BD SERR_N = ctrl_oe?(~serr_r):1'bz;
 initial
 begin
 	decode_latency = DECODE_LATENCY;
-	address_base = ADDRESS_BASE;
-	address_mask = ADDRESS_MASK;
+	bar0_base = BAR0_BASE;
+	bar0_mask = BAR0_SIZE-1;
 	initial_latency = INITIAL_LATENCY;
 	data_latency = DATA_LATENCY;
 	data_length = DATA_LENGTH;
@@ -163,7 +173,7 @@ end
 
 always @(*)
 begin
-	if(((addr_a^address_base)&address_mask)==32'h0)
+	if(((addr_a^bar0_base)&(~bar0_mask))==32'h0)
 		address_valid = 1;
 	else
 		address_valid = 0;
@@ -528,40 +538,50 @@ end
 always @(posedge clk)
 begin
 	if(frame_r && !FRAME_N) begin
-		write_addr <= AD;
+		write_addr <= AD & bar0_mask;
 	end
 	else if(!IRDY_N && !TRDY_N) begin
-		write_addr <= write_addr + 3'b100;
+		write_addr <= (write_addr + 3'b100) & bar0_mask;
 	end
 end
 
 always @(posedge clk)
 begin
 	if(frame_r && !FRAME_N) begin
-		read_addr <= AD;
+		read_addr <= AD & bar0_mask;
 	end
 	else if(state_next==S_READ_ACK) begin
-		read_addr <= read_addr + 3'b100;
+		read_addr <= (read_addr + 3'b100) & bar0_mask;
 	end	
 end
 
+wire [31:0] wdata;
+wire wstrobe;
+wire [31:0] rdata;
+wire rstrobe;
+
+assign wstrobe = state==S_WRITE_ACK || state==S_WRITE_STOP_WITH_DATA;
+assign rstrobe = state_next == S_READ_ACK || state_next==S_READ_STOP_WITH_DATA;
+assign wdata = AD;
+assign rdata = data_r;
+
 always @(posedge clk)
 begin
-	if(state==S_WRITE_ACK || state==S_WRITE_STOP_WITH_DATA) begin
-		if(!CBE[0]) mem_b0[write_addr[9:2]] = AD[7:0];
-		if(!CBE[1]) mem_b1[write_addr[9:2]] = AD[15:8];
-		if(!CBE[2]) mem_b2[write_addr[9:2]] = AD[23:16];
-		if(!CBE[3]) mem_b3[write_addr[9:2]] = AD[31:24];
+	if(wstrobe) begin
+		if(!CBE[0]) mem_b0[write_addr[MEM_ADDR_MSB:2]] = AD[7:0];
+		if(!CBE[1]) mem_b1[write_addr[MEM_ADDR_MSB:2]] = AD[15:8];
+		if(!CBE[2]) mem_b2[write_addr[MEM_ADDR_MSB:2]] = AD[23:16];
+		if(!CBE[3]) mem_b3[write_addr[MEM_ADDR_MSB:2]] = AD[31:24];
 	end
 end
 
 always @(posedge clk)
 begin
-	if(state_next == S_READ_ACK || state_next==S_READ_STOP_WITH_DATA) begin
-		data_r[7:0] <= mem_b0[read_addr[9:2]];
-		data_r[15:8] <= mem_b1[read_addr[9:2]];
-		data_r[23:16] <= mem_b2[read_addr[9:2]];
-		data_r[31:24] <= mem_b3[read_addr[9:2]];
+	if(rstrobe) begin
+		data_r[7:0] <= mem_b0[read_addr[MEM_ADDR_MSB:2]];
+		data_r[15:8] <= mem_b1[read_addr[MEM_ADDR_MSB:2]];
+		data_r[23:16] <= mem_b2[read_addr[MEM_ADDR_MSB:2]];
+		data_r[31:24] <= mem_b3[read_addr[MEM_ADDR_MSB:2]];
 	end
 end
 
@@ -576,4 +596,36 @@ begin
 		par_r <= ^data_r;
 	end
 end
+
+task init(input [31:0] data);
+	integer i;
+begin
+	for(i=0;i<BAR0_SIZE/4;i=i+1) begin
+		mem_b0[i] <= data[7:0];
+		mem_b1[i] <= data[15:8];
+		mem_b2[i] <= data[23:16];
+		mem_b3[i] <= data[31:24];
+	end
+end
+endtask
+
+task write(input [31:0] addr, input [31:0] data);
+begin
+	mem_b0[addr[MEM_ADDR_MSB:2]] <= data[7:0];
+	mem_b1[addr[MEM_ADDR_MSB:2]] <= data[15:8];
+	mem_b2[addr[MEM_ADDR_MSB:2]] <= data[23:16];
+	mem_b3[addr[MEM_ADDR_MSB:2]] <= data[31:24];
+end
+endtask
+
+function [31:0] read(input [31:0] addr);
+begin
+	read = { 
+		mem_b3[addr[MEM_ADDR_MSB:2]], 
+		mem_b2[addr[MEM_ADDR_MSB:2]],
+		mem_b1[addr[MEM_ADDR_MSB:2]],
+		mem_b0[addr[MEM_ADDR_MSB:2]]
+	};
+end
+endfunction
 endmodule

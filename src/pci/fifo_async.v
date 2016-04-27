@@ -22,8 +22,10 @@ input wr_en, wr_clk, wr_rst;
 input rd_en, rd_clk, rd_rst;
 
 reg full,empty;
-reg [ASIZE:0] wptr, rptr, wq2_rptr, rq2_wptr, wq1_rptr,rq1_wptr;
+reg [ASIZE:0] wptr, rptr;
 reg [ASIZE:0] rbin, wbin;
+(* ASYNC_REG = "TRUE" *) reg [ASIZE:0] wq2_rptr, wq1_rptr;
+(* ASYNC_REG = "TRUE" *) reg [ASIZE:0] rq2_wptr, rq1_wptr;
 reg [DSIZE-1:0] mem[0:(1<<ASIZE)-1];
 
 wire [ASIZE-1:0] waddr, raddr;
@@ -43,6 +45,7 @@ else begin
 		else if(rd_en && !empty)
 			dout_r <= mem[raddr];
 	end
+	assign dout=dout_r;
 end
 endgenerate
 
