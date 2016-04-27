@@ -574,7 +574,6 @@ begin:T0
 
 	e1000_write(E1000_TDBAL, base);
 
-`ifdef SHOULD_NOT_EXIST
 	dbg_msg = "Test 8 1";
 	generate_traffic(1, 1); // LEN=8, 1 Transfers
 
@@ -630,9 +629,11 @@ begin:T0
 	);
 	generate_traffic(2, 48); // LEN=16, 48 Transfers
 
-`endif
+`define LARGE_TRAFFIC
+`ifdef LARGE_TRAFFIC
 	dbg_msg = "Test 65528 65536 PTH=8 HTH=4 LWTH=16 IDT";
 	generate_traffic(8191, 65536); // LEN=65528, 65536 Transfers
+`endif
 
 	#10000;
 	$finish;

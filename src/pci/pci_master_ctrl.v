@@ -100,6 +100,7 @@ reg [7:0] read_ack_cnt;
 reg [31:0] read_addr;
 reg [8:0] read_len;
 
+reg grant;
 
 reg rresp_fill;
 
@@ -107,6 +108,12 @@ reg target_abort;
 
 wire [3:0] write_be_n;
 wire [8:0] cacheline_mask;
+
+reg [7:0] complete_cnt;
+wire FIN1, FIN2, FIN3;
+wire ASSERT_COMPLETE;
+reg HOLD_COMPLETE;
+reg M_DATAQ;
 
 assign ADIO_IN = M_ADDR_N?wdata_dout:(write_cycle?write_addr:read_addr);
 assign REQUEST = request_r;
@@ -130,7 +137,7 @@ assign rresp_err = rresp_err_r;
 
 assign rdata_valid = (!write_cycle && M_DATA_VLD) || rresp_fill ;
 
-assign rdata_din = ADIO_OUT;
+assign rdata_din = rresp_fill?32'hFFFFFFFF:ADIO_OUT;
 
 assign write_be_n = ~wdata_strb;
 
@@ -195,11 +202,12 @@ begin
 			else if(!M_DATA)
 				if(write_ack_cnt)
 					state_next = S_WRITE_CONT;
+				else if(M_DATAQ) // this must be an error
+					state_next = S_WRITE_FAIL;
 				else
 				    // Jonah: if lost grant at first cycle, the core will retry automatically;
 					// must wait for its retry.
 					// see NOTE on p86, ug262.
-					//state_next = S_WRITE_FAIL
 					state_next = S_WRITE_ADDR; 
 			else
 				state_next = S_WRITE_DATA;
@@ -242,8 +250,11 @@ begin
 			else if(!M_DATA)
 				if(read_ack_cnt)
 					state_next = S_READ_CONT;
-				else
+				else if(M_DATAQ)
 					state_next = S_READ_FILL;
+				else
+					// same reason with write, see above
+					state_next = S_READ_ADDR;
 			else
 				state_next = S_READ_DATA;
 		end
@@ -322,6 +333,7 @@ begin
 			request_r <= 1'b0;
 			//TODO: try MEM_WRITE_INVAL
 			bus_command <= CMD_MEM_WRITE;
+			grant <= 1'b0;
 		end
 		S_WRITE_DATA: begin
 			if(!STOPQ_N)
@@ -436,12 +448,6 @@ begin
 		read_len <= read_len-1;
 	end
 end
-
-reg [7:0] complete_cnt;
-wire FIN1, FIN2, FIN3;
-wire ASSERT_COMPLETE;
-reg HOLD_COMPLETE;
-reg M_DATAQ;
 
 always @(posedge clk)
 begin
