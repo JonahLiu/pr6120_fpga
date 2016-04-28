@@ -54,11 +54,23 @@ module tx_desc_ctrl(
 	output reg teng_s_tready
 );
 
+parameter DESC_RAM_DWORDS = 1024;
 parameter CLK_PERIOD_NS = 8;
+
+function integer clogb2 (input integer size);
+begin
+	size = size - 1;
+	for (clogb2=1; size>1; clogb2=clogb2+1)
+		size = size >> 1;
+end
+endfunction
+
 localparam CYCLES_1024NS = 1024/CLK_PERIOD_NS;
+localparam DESC_MAX_NUM = DESC_RAM_DWORDS/4;
+localparam DESC_NUM_BITS = clogb2(DESC_MAX_NUM);
 
 // Flag memory for RS and IDE
-reg [1:0] flag_mem[0:255];
+reg [1:0] flag_mem[0:DESC_MAX_NUM-1];
 reg [1:0] flag_current;
 reg [3:0] delay_cnt;
 
@@ -99,25 +111,25 @@ reg [15:0] host_limit;
 
 // Input Queue
 // Stores TX Descriptors in local memory but not submitted to TX engine
-reg [7:0] in_head;
-reg [7:0] in_tail;
-reg [7:0] in_num;
-reg [7:0] in_enq_incr;
+reg [DESC_NUM_BITS-1:0] in_head;
+reg [DESC_NUM_BITS-1:0] in_tail;
+reg [DESC_NUM_BITS-1:0] in_num;
+reg [DESC_NUM_BITS-1:0] in_enq_incr;
 reg in_enqueue;
 reg in_dequeue;
 
 // Output Queue
 // Stores TX Descriptors in local memory that finished TX process
-reg [7:0] out_head;
-reg [7:0] out_tail;
-reg [7:0] out_num;
-reg [7:0] out_deq_incr;
+reg [DESC_NUM_BITS-1:0] out_head;
+reg [DESC_NUM_BITS-1:0] out_tail;
+reg [DESC_NUM_BITS-1:0] out_num;
+reg [DESC_NUM_BITS-1:0] out_deq_incr;
 reg out_enqueue;
 reg out_dequeue;
 
 // Overall local descriptors
-reg [8:0] local_pending;
-reg [8:0] local_available;
+reg [DESC_NUM_BITS:0] local_pending;
+reg [DESC_NUM_BITS:0] local_available;
 
 // Temporary variables for calculating host pointers
 reg [4:0] host_calc_stage;
@@ -159,9 +171,9 @@ assign flag_delay_interrupt = flag_current[1];
 assign fetch_bytes = {fetch_num,4'h0};
 
 
-assign local_wb_address = {4'b0, out_head, 4'b0};
-assign local_rd_address = {4'b0, in_tail, 4'b0};
-assign local_teng_address = {4'b0, in_head, 4'b0};
+assign local_wb_address = {16'b0, out_head, 4'b0};
+assign local_rd_address = {16'b0, in_tail, 4'b0};
+assign local_teng_address = {16'b0, in_head, 4'b0};
 
 assign host_length = {TDLEN, 3'b0};
 
@@ -388,7 +400,7 @@ always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
 		local_pending <= 0;
-		local_available <= 256;
+		local_available <= DESC_MAX_NUM;
 	end
 	else if(in_enqueue) begin
 		local_pending <= local_pending+in_enq_incr;

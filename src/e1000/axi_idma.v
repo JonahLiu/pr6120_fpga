@@ -21,7 +21,7 @@ module axi_idma(
 	input stat_m_tready,
 
 	output reg [3:0] int_m_awid,
-	output [11:0] int_m_awaddr,
+	output [15:0] int_m_awaddr,
 
 	output [7:0] int_m_awlen,
 	output [2:0] int_m_awsize,
@@ -42,7 +42,7 @@ module axi_idma(
 	output reg int_m_bready,
 
 	output reg [3:0] int_m_arid,
-	output [11:0] int_m_araddr,
+	output [15:0] int_m_araddr,
 	output [7:0] int_m_arlen,
 	output [2:0] int_m_arsize,
 	output [1:0] int_m_arburst,
@@ -95,7 +95,7 @@ module axi_idma(
 
 reg cmd_direction;
 reg [10:0] cmd_bytes;
-reg [11:0] cmd_int_addr;
+reg [15:0] cmd_int_addr;
 reg [63:0] cmd_ext_addr;
 reg [2:0] cmd_shift;
 reg [10:0] cmd_bytes_exp;
@@ -121,12 +121,12 @@ assign cmd_len_out = cmd_bytes_out[9:2]-1;
 assign int_m_awburst = 2'b01;
 assign int_m_awsize = 3'b010;
 assign int_m_awlen = cmd_len_in;
-assign int_m_awaddr = {cmd_int_addr[11:2],2'b0};
+assign int_m_awaddr = {cmd_int_addr[15:2],2'b0};
 
 assign int_m_arburst = 2'b01;
 assign int_m_arsize = 3'b010;
 assign int_m_arlen = cmd_len_out;
-assign int_m_araddr = {cmd_int_addr[11:2],2'b0};
+assign int_m_araddr = {cmd_int_addr[15:2],2'b0};
 
 assign ext_m_awburst = 2'b01;
 assign ext_m_awsize = 3'b010;
@@ -340,7 +340,7 @@ begin
 		end
 		S_OUT_REPORT: begin
 			ext_m_bready <= 1'b0;
-			stat_m_tdata[15:0] <= {4'b0, cmd_int_addr}; 
+			stat_m_tdata[15:0] <= cmd_int_addr; 
 			stat_m_tdata[27:16] <= {1'b0, cmd_bytes};
 			stat_m_tdata[30:28] <= {1'b0, ext_m_bresp};
 			stat_m_tdata[31] <= cmd_direction;
@@ -362,7 +362,7 @@ begin
 		end
 		S_IN_REPORT: begin
 			int_m_bready <= 1'b0;
-			stat_m_tdata[15:0] <= {4'b0, cmd_int_addr}; 
+			stat_m_tdata[15:0] <= cmd_int_addr; 
 			stat_m_tdata[27:16] <= {1'b0, cmd_bytes};
 			stat_m_tdata[30:28] <= {1'b0, ext_m_bresp};
 			stat_m_tdata[31] <= cmd_direction;

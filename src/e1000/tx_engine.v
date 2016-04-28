@@ -17,7 +17,7 @@ module tx_engine(
 	input stat_m_tready,
 
 	output reg [3:0] ram_m_awid,
-	output reg [11:0] ram_m_awaddr,
+	output reg [15:0] ram_m_awaddr,
 
 	output reg [7:0] ram_m_awlen,
 	output reg [2:0] ram_m_awsize,
@@ -38,7 +38,7 @@ module tx_engine(
 	output reg ram_m_bready,
 
 	output reg [3:0] ram_m_arid,
-	output reg [11:0] ram_m_araddr,
+	output reg [15:0] ram_m_araddr,
 	output reg [7:0] ram_m_arlen,
 	output reg [2:0] ram_m_arsize,
 	output reg [1:0] ram_m_arburst,
@@ -50,8 +50,53 @@ module tx_engine(
 	input [1:0] ram_m_rresp,
 	input ram_m_rlast,
 	input ram_m_rvalid,
-	output reg ram_m_rready
+	output reg ram_m_rready,
+
+	// iDMA Command Port
+	// C1: [31]=IN(0)/OUT(1),[30:28]=RSV, [27:16]=Bytes, 
+	//     [15:0]=Local Address
+	// C2: Lower 32-bit address
+	// C3: Upper 32-bit address
+	output reg [31:0] idma_m_tdata,
+	output reg idma_m_tvalid,
+	output reg idma_m_tlast,
+	input idma_m_tready,
+
+	// iDMA Response Port
+	// [31:18]=RSV, [17]=IDE, [16]=RS, [15:0]=Local Address
+	input [31:0] idma_s_tdata,
+	input idma_s_tvalid,
+	input idma_s_tlast,
+	output reg idma_s_tready,
+
+	// Frame Process Command Port
+	// C1: [31:16]=Length, [15:0]=Local Address 
+	// C2: [31:0]=DESC_DW2
+	// C3: [31:0]=DESC_DW3
+	output reg [31:0] frm_m_tdata,
+	output reg frm_m_tvalid,
+	output reg frm_m_tlast,
+	input frm_m_tready,
+
+	// Frame Process Response Port
+	// [31:16]=Length, [15:0]=Local Address
+	input [31:0] frm_s_tdata,
+	input frm_s_tvalid,
+	input frm_s_tlast,
+	output reg frm_s_tready
 );
+
+parameter DATA_RAM_DWORDS=8192;
+
+function integer clogb2 (input integer size);
+begin
+	size = size - 1;
+	for (clogb2=1; size>1; clogb2=clogb2+1)
+		size = size >> 1;
+end
+endfunction
+
+localparam DATA_IDX_BITS = clogb2(DATA_RAM_DWORDS);
 
 reg [15:0] local_addr;
 reg [1:0] fetch_cnt;
@@ -60,6 +105,18 @@ reg [31:0] desc_dw0;
 reg [31:0] desc_dw1;
 reg [31:0] desc_dw2;
 reg [31:0] desc_dw3;
+
+reg start_fetch_data;
+reg busy_fetch_data;
+reg [11:0] fetch_size;
+reg [15:0] data_remain;
+reg [DATA_IDX_BITS-1:0] dram_head;
+reg [DATA_IDX_BITS-1:0] dram_tail;
+reg [DATA_IDX_BITS:0] dram_available;
+reg [15:0] data_remain_init;
+reg [11:0] fetch_size_init;
+reg [63:0] host_address;
+reg [DATA_IDX_BITS-1:0] dram_head_next;
 
 // Legacy Descriptor Layout
 wire [63:0] desc_buf_addr;
@@ -104,6 +161,9 @@ integer state, state_next;
 
 localparam S_IDLE=0, S_FETCH_ASTB=1, S_FETCH_DLATCH=2, S_PROCESS=3,
 	S_CHECK_RS=4, S_WRITE_STROBE=5, S_WRITE_ACK=6, S_REPORT=7;
+
+integer s2, s2_next;
+localparam S2_IDLE=0, S2_FETCH_CALC=1, S2_FETCH_C1=2, S2_FETCH_C2=3, S2_FETCH_C3=4, S2_FETCH_INCR=5, S2_FETCH_ACK=6, S2_CMD_C1=7, S2_CMD_C2=8, S2_CMD_C3=9, S2_UNSUPPORT=10;
 
 assign desc_buf_addr = {desc_dw1, desc_dw0};
 assign desc_length = desc_dw2[15:0];
@@ -178,12 +238,13 @@ end
 
 always @(posedge aclk)
 begin
-	case(fetch_cnt) /* synthesis full_case */
-		2'b00: desc_dw0 <= ram_m_rdata;
-		2'b01: desc_dw1 <= ram_m_rdata;
-		2'b10: desc_dw2 <= ram_m_rdata;
-		2'b11: desc_dw3 <= ram_m_rdata;
-	endcase
+	if(ram_m_rvalid && ram_m_rready)
+		case(fetch_cnt) /* synthesis full_case */
+			2'b00: desc_dw0 <= ram_m_rdata;
+			2'b01: desc_dw1 <= ram_m_rdata;
+			2'b10: desc_dw2 <= ram_m_rdata;
+			2'b11: desc_dw3 <= ram_m_rdata;
+		endcase
 end
 
 always @(posedge aclk, negedge aresetn)
@@ -211,12 +272,9 @@ begin
 		end
 		S_FETCH_DLATCH: begin
 			if(ram_m_rvalid && ram_m_rlast)
-				state_next = S_PROCESS;
+				state_next = S_CHECK_RS;
 			else
 				state_next = S_FETCH_DLATCH;
-		end
-		S_PROCESS: begin
-			state_next = S_CHECK_RS;
 		end
 		S_CHECK_RS: begin
 			if(desc_rs)
@@ -238,7 +296,13 @@ begin
 			if(stat_m_tready)
 				state_next = S_IDLE;
 			else
-				state_next = S_REPORT;
+				state_next = S_PROCESS;
+		end
+		S_PROCESS: begin
+			if(busy_fetch_data)
+				state_next = S_PROCESS;
+			else
+				state_next = S_IDLE;
 		end
 		default: begin
 			state_next = 'bx;
@@ -266,6 +330,7 @@ begin
 		stat_m_tlast <= 1'b1;
 		ram_m_bready <= 1'b1;
 		ram_m_rready <= 1'b1;
+		start_fetch_data <= 1'b0;
 	end
 	else case(state_next)
 		S_IDLE: begin
@@ -279,11 +344,11 @@ begin
 		S_FETCH_DLATCH: begin
 			ram_m_arvalid <= 1'b0;
 		end
-		S_PROCESS: begin
-		end
 		S_CHECK_RS: begin
+			start_fetch_data <= 1'b1;
 		end
 		S_WRITE_STROBE: begin
+			start_fetch_data <= 1'b0;
 			ram_m_awvalid <= 1'b1;
 			ram_m_wvalid <= 1'b1;
 		end
@@ -294,10 +359,202 @@ begin
 				ram_m_wvalid <= 1'b0;
 		end
 		S_REPORT: begin
+			start_fetch_data <= 1'b0;
 			ram_m_awvalid <= 1'b0;
 			ram_m_wvalid <= 1'b0;
 			stat_m_tvalid <= 1'b1;
 		end
+		S_PROCESS: begin
+			stat_m_tvalid <= 1'b0;
+		end
 	endcase
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn)
+		s2 <= S2_IDLE;
+	else
+		s2 <= s2_next;
+end
+
+always @(*)
+begin
+	case(s2)
+		S2_IDLE: begin
+			if(start_fetch_data)
+				if(desc_dext)
+					s2_next = S2_UNSUPPORT;
+				else
+					s2_next = S2_FETCH_CALC;
+			else
+				s2_next = S2_IDLE;
+		end
+		S2_FETCH_CALC: begin
+			if(fetch_size>0 && host_address!=0) // 0 is null pointer
+				if(dram_available >= fetch_size)
+					s2_next = S2_FETCH_C1;
+				else
+					s2_next = S2_FETCH_CALC;
+			else
+				s2_next = S2_IDLE;
+		end
+		S2_FETCH_C1: begin
+			if(idma_m_tready)
+				s2_next = S2_FETCH_C2;
+			else
+				s2_next = S2_FETCH_C1;
+		end
+		S2_FETCH_C2: begin
+			if(idma_m_tready)
+				s2_next = S2_FETCH_C3;
+			else
+				s2_next = S2_FETCH_C2;
+		end
+		S2_FETCH_C3: begin
+			if(idma_m_tready)
+				s2_next = S2_FETCH_ACK;
+			else
+				s2_next = S2_FETCH_INCR;
+		end
+		S2_FETCH_INCR,S2_FETCH_ACK: begin
+			if(idma_s_tvalid)
+				if(data_remain>0)
+					s2_next = S2_FETCH_CALC;
+				else
+					s2_next = S2_CMD_C1;
+			else
+				s2_next = S2_FETCH_ACK;
+		end
+		S2_CMD_C1: begin
+			if(frm_m_tready)
+				s2_next = S2_CMD_C2;
+			else
+				s2_next = S2_CMD_C1;
+		end
+		S2_CMD_C2: begin
+			if(frm_m_tready)
+				s2_next = S2_CMD_C3;
+			else
+				s2_next = S2_CMD_C2;
+		end
+		S2_CMD_C3: begin
+			if(frm_m_tready)
+				s2_next = S2_IDLE;
+			else
+				s2_next = S2_CMD_C3;
+		end
+		S2_UNSUPPORT: begin // TODO: add other process 
+			s2_next = S2_IDLE;
+		end
+		default: begin
+			s2_next = 'bx;
+		end
+	endcase
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		busy_fetch_data <= 1'b0;
+		idma_m_tdata <= 1'bx;
+		idma_m_tvalid <= 1'b0;
+		idma_m_tlast <= 1'bx;
+		idma_s_tready <= 1'b1;
+		frm_m_tvalid <= 1'b0;
+		frm_m_tlast <= 1'bx;
+		frm_s_tready <= 1'b1;
+		dram_tail <= 'b0;
+		data_remain <= 'bx;
+		fetch_size <= 'bx;
+	end
+	else case(s2_next)
+		S2_IDLE: begin
+			busy_fetch_data <= 1'b0;
+			data_remain <= data_remain_init;
+			host_address <= {desc_buf_addr[63:2],2'b0};
+		end
+		S2_FETCH_CALC: begin
+			busy_fetch_data <= 1'b1;
+			fetch_size <= fetch_size_init;
+		end
+		S2_FETCH_C1: begin
+			idma_m_tvalid <= 1'b1;
+			idma_m_tdata[15:0] <= {dram_tail,2'b0};
+			idma_m_tdata[27:16] <= fetch_size;
+			idma_m_tdata[30:28] <= 'b0;
+			idma_m_tdata[31] <= 0;
+			idma_m_tlast <= 1'b0;
+		end
+		S2_FETCH_C2: begin
+			idma_m_tdata <= host_address[31:0];
+		end
+		S2_FETCH_C3: begin
+			idma_m_tdata <= host_address[63:32];
+			idma_m_tlast <= 1'b1;
+		end
+		S2_FETCH_INCR: begin
+			data_remain <= data_remain-fetch_size;
+			idma_s_tready <= 1'b1;
+			dram_tail <= dram_tail+fetch_size;
+			host_address <= host_address+4;
+		end
+		S2_FETCH_ACK: begin
+			idma_m_tvalid <= 1'b0;
+		end
+		S2_CMD_C1: begin
+			frm_m_tdata[15:0] <= {15'b0,dram_tail,desc_buf_addr[1:0]};
+			frm_m_tdata[31:16] <= desc_length;
+			frm_m_tvalid <= 1'b1;
+			frm_m_tlast <= 1'b0;
+		end
+		S2_CMD_C2: begin
+			frm_m_tdata <= desc_dw2;
+		end
+		S2_CMD_C3: begin
+			frm_m_tdata <= desc_dw3;
+		end
+		S2_UNSUPPORT: begin
+			busy_fetch_data <= 1'b1;
+		end
+	endcase
+end
+
+always @(*)
+begin:DATA_REMAIN_INIT_CALC
+	reg [15:0] length;
+	if(desc_length!=0)
+		length = desc_length+desc_buf_addr[1:0];
+	else
+		length = 0;
+
+	data_remain_init = length[15:2]+(|length[1:0]);
+
+	if(data_remain_init > 256)
+		fetch_size_init = 256;
+	else
+		fetch_size_init = data_remain_init;
+end
+
+always @(*)
+begin:BRAM_HEAD_NEXT_CALC
+	reg [15:0] address;
+	address = frm_s_tdata[15:0]+frm_s_tdata[31:16];
+	dram_head_next = address[15:2]+(|address[1:0]);
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		dram_head <= 'b0;
+	end
+	else if(frm_s_tvalid && frm_s_tlast) begin
+		dram_head <= dram_head_next;
+	end
+end
+
+always @(posedge aclk)
+begin
+	dram_available <= dram_head-dram_tail-1;
 end
 endmodule
