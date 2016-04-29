@@ -63,7 +63,8 @@ module tx_path(
 	output axi_m_rready,
 
 	// MAC Tx Port
-	output [7:0] mac_m_tdata,
+	output [31:0] mac_m_tdata,
+	output [3:0] mac_m_tkeep,
 	output mac_m_tvalid,
 	output mac_m_tlast,
 	input mac_m_tready	

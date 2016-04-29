@@ -364,7 +364,7 @@ begin
 			int_m_bready <= 1'b0;
 			stat_m_tdata[15:0] <= cmd_int_addr; 
 			stat_m_tdata[27:16] <= {1'b0, cmd_bytes};
-			stat_m_tdata[30:28] <= {1'b0, ext_m_bresp};
+			stat_m_tdata[30:28] <= {1'b0, int_m_bresp};
 			stat_m_tdata[31] <= cmd_direction;
 			stat_m_tvalid <= 1'b1;
 		end

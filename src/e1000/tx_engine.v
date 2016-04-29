@@ -108,15 +108,16 @@ reg [31:0] desc_dw3;
 
 reg start_fetch_data;
 reg busy_fetch_data;
-reg [11:0] fetch_size;
-reg [15:0] data_remain;
+reg [11:0] fetch_dwords;
+reg [15:0] remain_dwords;
 reg [DATA_IDX_BITS-1:0] dram_head;
 reg [DATA_IDX_BITS-1:0] dram_tail;
 reg [DATA_IDX_BITS:0] dram_available;
-reg [15:0] data_remain_init;
-reg [11:0] fetch_size_init;
+reg [15:0] remain_dwords_init;
+reg [11:0] fetch_dwords_next;
 reg [63:0] host_address;
 reg [DATA_IDX_BITS-1:0] dram_head_next;
+reg [15:0] local_start;
 
 // Legacy Descriptor Layout
 wire [63:0] desc_buf_addr;
@@ -294,9 +295,9 @@ begin
 		end
 		S_REPORT: begin
 			if(stat_m_tready)
-				state_next = S_IDLE;
-			else
 				state_next = S_PROCESS;
+			else
+				state_next = S_REPORT;
 		end
 		S_PROCESS: begin
 			if(busy_fetch_data)
@@ -391,8 +392,8 @@ begin
 				s2_next = S2_IDLE;
 		end
 		S2_FETCH_CALC: begin
-			if(fetch_size>0 && host_address!=0) // 0 is null pointer
-				if(dram_available >= fetch_size)
+			if(fetch_dwords>0 && host_address!=0) // 0 is null pointer
+				if(dram_available >= fetch_dwords)
 					s2_next = S2_FETCH_C1;
 				else
 					s2_next = S2_FETCH_CALC;
@@ -413,13 +414,13 @@ begin
 		end
 		S2_FETCH_C3: begin
 			if(idma_m_tready)
-				s2_next = S2_FETCH_ACK;
-			else
 				s2_next = S2_FETCH_INCR;
+			else
+				s2_next = S2_FETCH_C3;
 		end
 		S2_FETCH_INCR,S2_FETCH_ACK: begin
 			if(idma_s_tvalid)
-				if(data_remain>0)
+				if(remain_dwords>0)
 					s2_next = S2_FETCH_CALC;
 				else
 					s2_next = S2_CMD_C1;
@@ -465,23 +466,26 @@ begin
 		frm_m_tlast <= 1'bx;
 		frm_s_tready <= 1'b1;
 		dram_tail <= 'b0;
-		data_remain <= 'bx;
-		fetch_size <= 'bx;
+		remain_dwords <= 'bx;
+		fetch_dwords <= 'bx;
+		local_start <= 'bx;
 	end
 	else case(s2_next)
 		S2_IDLE: begin
 			busy_fetch_data <= 1'b0;
-			data_remain <= data_remain_init;
+			remain_dwords <= remain_dwords_init;
 			host_address <= {desc_buf_addr[63:2],2'b0};
+			frm_m_tvalid <= 1'b0;
+			local_start <= {15'b0, dram_tail, desc_buf_addr[1:0]};
 		end
 		S2_FETCH_CALC: begin
 			busy_fetch_data <= 1'b1;
-			fetch_size <= fetch_size_init;
+			fetch_dwords <= fetch_dwords_next;
 		end
 		S2_FETCH_C1: begin
 			idma_m_tvalid <= 1'b1;
 			idma_m_tdata[15:0] <= {dram_tail,2'b0};
-			idma_m_tdata[27:16] <= fetch_size;
+			idma_m_tdata[27:16] <= {fetch_dwords,2'b0};
 			idma_m_tdata[30:28] <= 'b0;
 			idma_m_tdata[31] <= 0;
 			idma_m_tlast <= 1'b0;
@@ -494,16 +498,16 @@ begin
 			idma_m_tlast <= 1'b1;
 		end
 		S2_FETCH_INCR: begin
-			data_remain <= data_remain-fetch_size;
+			remain_dwords <= remain_dwords-fetch_dwords;
 			idma_s_tready <= 1'b1;
-			dram_tail <= dram_tail+fetch_size;
-			host_address <= host_address+4;
+			dram_tail <= dram_tail+fetch_dwords;
+			host_address <= host_address+{fetch_dwords,2'b0};
 		end
 		S2_FETCH_ACK: begin
 			idma_m_tvalid <= 1'b0;
 		end
 		S2_CMD_C1: begin
-			frm_m_tdata[15:0] <= {15'b0,dram_tail,desc_buf_addr[1:0]};
+			frm_m_tdata[15:0] <= local_start; 
 			frm_m_tdata[31:16] <= desc_length;
 			frm_m_tvalid <= 1'b1;
 			frm_m_tlast <= 1'b0;
@@ -513,6 +517,7 @@ begin
 		end
 		S2_CMD_C3: begin
 			frm_m_tdata <= desc_dw3;
+			frm_m_tlast <= 1'b1;
 		end
 		S2_UNSUPPORT: begin
 			busy_fetch_data <= 1'b1;
@@ -528,12 +533,16 @@ begin:DATA_REMAIN_INIT_CALC
 	else
 		length = 0;
 
-	data_remain_init = length[15:2]+(|length[1:0]);
+	remain_dwords_init = length[15:2]+(|length[1:0]);
 
-	if(data_remain_init > 256)
-		fetch_size_init = 256;
+end
+
+always @(*)
+begin
+	if(remain_dwords > 256)
+		fetch_dwords_next = 256;
 	else
-		fetch_size_init = data_remain_init;
+		fetch_dwords_next = remain_dwords;
 end
 
 always @(*)
@@ -548,7 +557,7 @@ begin
 	if(!aresetn) begin
 		dram_head <= 'b0;
 	end
-	else if(frm_s_tvalid && frm_s_tlast) begin
+	else if(frm_s_tvalid && frm_s_tlast && frm_s_tready) begin
 		dram_head <= dram_head_next;
 	end
 end

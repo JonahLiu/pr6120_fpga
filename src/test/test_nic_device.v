@@ -5,7 +5,9 @@ module test_nic_device;
 //
 // Host Address
 parameter HOST_BASE = 32'hE000_0000;
-parameter HOST_SIZE = 1024*1024;
+parameter HOST_SIZE = 2*1024*1024;
+parameter HOST_DESC_OFFSET = 0;
+parameter HOST_DATA_OFFSET = HOST_BASE+HOST_SIZE/2;
 
 parameter HOST_DESC_BATCH = 4;
 
@@ -346,7 +348,7 @@ reg [31:0] head;
 reg [31:0] tail;
 reg [31:0] intr_state;
 
-reg [127:0] dbg_msg;
+reg [0:511] dbg_msg;
 
 function pci_cmd_is_mm_rd(input [3:0] cmd);
 begin
@@ -435,6 +437,31 @@ task initialize_nic;
 	end
 endtask
 
+task set_data(input [31:0] addr, input [15:0] length);
+	reg [31:0] dword;
+	integer i;
+	reg [31:0] idx;
+begin
+	idx = addr%HOST_SIZE;
+	dword = 'bx;
+	for(i=0;i<length;i=i+1) begin
+		case(idx[1:0])
+			0: dword[7:0] = i; 
+			1: dword[15:8] = i;
+			2: dword[23:16] = i;
+			3: begin 
+				dword[31:24] = i;
+				host.write({idx[31:2],2'b0},dword);
+				dword = 'bx; 
+			end
+		endcase
+		idx = idx+1;
+	end
+	if(idx[1:0]) // last bytes remain
+		host.write({idx[31:2],2'b0},dword);
+end
+endtask
+
 task set_desc(input [31:0] addr, input [127:0] data);
 begin
 	host.write(addr,data[31:0]); 
@@ -465,6 +492,8 @@ begin
 
 	$display("========START TEST LEN=%d NUM=%d========",len,num);
 
+	set_data(desc_daddr, desc_length);
+
 	e1000_write(E1000_IMS, E1000_INTR_TXDW|E1000_INTR_TXQE|E1000_INTR_TXD_LOW);
 
 	e1000_write(E1000_TDLEN, len*DESC_SIZE);
@@ -479,9 +508,6 @@ begin
 
 		if(!INTA_N)
 			e1000_read(E1000_ICR, intr_state);
-
-		desc_daddr = i;
-		@(posedge PCLK);
 
 		set_desc(base+tail*DESC_SIZE, desc_data);
 
@@ -555,6 +581,7 @@ begin
 	$dumpfile("test_nic_device.vcd");
 	$dumpvars(1);
 	//$dumpvars(1,dut_i);
+	$dumpvars(0,dut_i.e1000_i.tx_path_i);
 	#1_000_000_000;
 	$finish;
 end
@@ -577,9 +604,38 @@ begin:T0
 	e1000_write(E1000_TDBAL, base);
 
 	dbg_msg = "Test 8 1";
+	desc_daddr = HOST_DATA_OFFSET;
+	desc_length = 60;
 	generate_traffic(1, 1); // LEN=8, 1 Transfers
 
+	dbg_msg = "Test 8 1 NON ALIGN OFFSET 1";
+	desc_daddr = HOST_DATA_OFFSET+1;
+	desc_length = 60;
+	generate_traffic(1, 1); // LEN=8, 1 Transfers
+
+	dbg_msg = "Test 8 1 NON ALIGN OFFSET 2";
+	desc_daddr = HOST_DATA_OFFSET+2;
+	desc_length = 60;
+	generate_traffic(1, 1); // LEN=8, 1 Transfers
+
+	dbg_msg = "Test 8 1 NON ALIGN OFFSET 3";
+	desc_daddr = HOST_DATA_OFFSET+3;
+	desc_length = 60;
+	generate_traffic(1, 1); // LEN=8, 1 Transfers
+
+	dbg_msg = "Test 8 17 NON ALIGN OFFSET 3 LONG";
+	desc_daddr = HOST_DATA_OFFSET+3;
+	desc_length = 16384;
+	generate_traffic(1, 17); // LEN=8, 17 Transfers
+
+	dbg_msg = "Test 8 7 NON ALIGN OFFSET 3 short";
+	desc_daddr = HOST_DATA_OFFSET+3;
+	desc_length = 1;
+	generate_traffic(1, 7); // LEN=8, 1 Transfers
+
 	dbg_msg = "Test 8 7";
+	desc_daddr = 0;
+	desc_length = 0;
 	generate_traffic(1, 7); // LEN=8, 7 Transfers
 
 	dbg_msg = "Test 8 8";
@@ -631,7 +687,7 @@ begin:T0
 	);
 	generate_traffic(2, 48); // LEN=16, 48 Transfers
 
-`define LARGE_TRAFFIC
+`undef LARGE_TRAFFIC
 `ifdef LARGE_TRAFFIC
 	dbg_msg = "Test 65528 65536 PTH=8 HTH=4 LWTH=16 IDT";
 	generate_traffic(8191, 65536); // LEN=65528, 65536 Transfers
@@ -668,7 +724,7 @@ begin
 	if(host.wstrobe) begin
 		get_desc(host.write_addr/DESC_SIZE*DESC_SIZE, resp_data);
 		#0;
-		$display($time,,,"WRITE BACK ADDR=%x TXD=%d STA=%x", host.write_addr, resp_data[31:0], host.wdata[3:0]);
+		$display($time,,,"WRITE BACK ADDR=%x PDATA=%x STA=%x", host.write_addr, resp_data[31:0], host.wdata[3:0]);
 	end
 end
 `endif

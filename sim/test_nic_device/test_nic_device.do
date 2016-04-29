@@ -44,6 +44,7 @@ vlog $vlog_opts ../../src/e1000/tx_desc_ctrl.v
 vlog $vlog_opts ../../src/e1000/tx_engine.v
 vlog $vlog_opts ../../src/e1000/tx_frame.v
 vlog $vlog_opts ../../src/e1000/tx_path.v
+vlog $vlog_opts ../../src/e1000/axi_rdma.v
 
 vlog ../../src/test/glbl.v
 

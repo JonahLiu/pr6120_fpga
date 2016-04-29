@@ -101,12 +101,14 @@ module e1000_top(
 parameter PHY_ADDR=5'b0;
 parameter CLK_PERIOD_NS=8;
 
-wire [7:0] mac_tx_s_tdata;
+wire [31:0] mac_tx_s_tdata;
+wire [3:0] mac_tx_s_tkeep;
 wire mac_tx_s_tvalid;
 wire mac_tx_s_tlast;
 wire mac_tx_s_tready;
 
-wire [7:0] mac_rx_m_tdata;
+wire [31:0] mac_rx_m_tdata;
+wire [3:0] mac_rx_m_tkeep;
 wire mac_rx_m_tvalid;
 wire mac_rx_m_tlast;
 wire mac_rx_m_tready;
@@ -178,6 +180,8 @@ assign phy_reset_out = CTRL_PHY_RST || reset;
 assign PHYINT_req = phy_int_sync[1];
 
 assign reset_request = CTRL_RST;
+
+assign mac_tx_s_tready = 1'b1;
 
 always @(posedge aclk)
 begin
@@ -501,6 +505,7 @@ tx_path #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) tx_path_i(
 
 	// MAC RX Stream Port
 	.mac_m_tdata(mac_tx_s_tdata),
+	.mac_m_tkeep(mac_tx_s_tkeep),
 	.mac_m_tvalid(mac_tx_s_tvalid),
 	.mac_m_tlast(mac_tx_s_tlast),
 	.mac_m_tready(mac_tx_s_tready)
