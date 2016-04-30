@@ -278,7 +278,12 @@ begin
 				state_next = S_FETCH_DLATCH;
 		end
 		S_CHECK_RS: begin
-			if(desc_rs)
+			state_next = S_PROCESS;
+		end
+		S_PROCESS: begin
+			if(busy_fetch_data)
+				state_next = S_PROCESS;
+			else if(desc_rs)
 				state_next = S_WRITE_STROBE;
 			else
 				state_next = S_REPORT;
@@ -295,15 +300,9 @@ begin
 		end
 		S_REPORT: begin
 			if(stat_m_tready)
-				state_next = S_PROCESS;
+				state_next = S_IDLE;
 			else
 				state_next = S_REPORT;
-		end
-		S_PROCESS: begin
-			if(busy_fetch_data)
-				state_next = S_PROCESS;
-			else
-				state_next = S_IDLE;
 		end
 		default: begin
 			state_next = 'bx;
@@ -348,8 +347,10 @@ begin
 		S_CHECK_RS: begin
 			start_fetch_data <= 1'b1;
 		end
-		S_WRITE_STROBE: begin
+		S_PROCESS: begin
 			start_fetch_data <= 1'b0;
+		end
+		S_WRITE_STROBE: begin
 			ram_m_awvalid <= 1'b1;
 			ram_m_wvalid <= 1'b1;
 		end
@@ -360,13 +361,9 @@ begin
 				ram_m_wvalid <= 1'b0;
 		end
 		S_REPORT: begin
-			start_fetch_data <= 1'b0;
 			ram_m_awvalid <= 1'b0;
 			ram_m_wvalid <= 1'b0;
 			stat_m_tvalid <= 1'b1;
-		end
-		S_PROCESS: begin
-			stat_m_tvalid <= 1'b0;
 		end
 	endcase
 end
@@ -475,8 +472,8 @@ begin
 			busy_fetch_data <= 1'b0;
 			remain_dwords <= remain_dwords_init;
 			host_address <= {desc_buf_addr[63:2],2'b0};
-			frm_m_tvalid <= 1'b0;
 			local_start <= {15'b0, dram_tail, desc_buf_addr[1:0]};
+			frm_m_tvalid <= 1'b0;
 		end
 		S2_FETCH_CALC: begin
 			busy_fetch_data <= 1'b1;
