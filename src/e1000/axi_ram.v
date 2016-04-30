@@ -301,13 +301,13 @@ task init(input [DATA_WIDTH-1:0] data);
 	integer i;
 begin
 	for(i=0;i<MEMORY_DEPTH;i=i+1) 
-		mem[i] <= data;
+		mem[i] = data;
 end
 endtask
 
 task write(input [MEM_ADDR_MSB:0] addr, input [DATA_WIDTH-1:0] data);
 begin
-	mem[addr[MEM_ADDR_MSB:MEM_ADDR_LSB]] <= data;
+	mem[addr[MEM_ADDR_MSB:MEM_ADDR_LSB]] = data;
 end
 endtask
 

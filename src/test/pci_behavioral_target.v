@@ -601,20 +601,20 @@ task init(input [31:0] data);
 	integer i;
 begin
 	for(i=0;i<BAR0_SIZE/4;i=i+1) begin
-		mem_b0[i] <= data[7:0];
-		mem_b1[i] <= data[15:8];
-		mem_b2[i] <= data[23:16];
-		mem_b3[i] <= data[31:24];
+		mem_b0[i] = data[7:0];
+		mem_b1[i] = data[15:8];
+		mem_b2[i] = data[23:16];
+		mem_b3[i] = data[31:24];
 	end
 end
 endtask
 
 task write(input [31:0] addr, input [31:0] data);
 begin
-	mem_b0[addr[MEM_ADDR_MSB:2]] <= data[7:0];
-	mem_b1[addr[MEM_ADDR_MSB:2]] <= data[15:8];
-	mem_b2[addr[MEM_ADDR_MSB:2]] <= data[23:16];
-	mem_b3[addr[MEM_ADDR_MSB:2]] <= data[31:24];
+	mem_b0[addr[MEM_ADDR_MSB:2]] = data[7:0];
+	mem_b1[addr[MEM_ADDR_MSB:2]] = data[15:8];
+	mem_b2[addr[MEM_ADDR_MSB:2]] = data[23:16];
+	mem_b3[addr[MEM_ADDR_MSB:2]] = data[31:24];
 end
 endtask
 

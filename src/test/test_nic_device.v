@@ -343,12 +343,19 @@ wire resp_dd;
 assign resp_sta = resp_data[99:96];
 assign resp_dd = resp_sta[0];
 
-reg [31:0] base;
-reg [31:0] head;
-reg [31:0] tail;
+reg [31:0] host_base;
+reg [15:0] host_head;
+reg [15:0] host_tail;
+reg [15:0] host_len;
+reg [31:0] host_dptr;
 reg [31:0] intr_state;
 
 reg [0:511] dbg_msg;
+
+integer PARAM_RS;
+integer PARAM_IDE;
+
+localparam REPORT_NONE=0, REPORT_ALL=1, REPORT_EOP=2;
 
 function pci_cmd_is_mm_rd(input [3:0] cmd);
 begin
@@ -412,50 +419,66 @@ begin
 end
 endtask
 
-task initialize_nic;
+task initialize_nic(input integer octlen, input integer tidv, input integer tadv,
+	input integer pthresh, input integer hthresh, input integer lwthresh);
+	integer len;
+	reg [31:0] data;
 	begin
-		e1000_write(E1000_CTRL, E1000_CTRL_RST); 
+		host_len=octlen*8;
+		host_head=0;
+		host_tail=0;
 
+		e1000_write(E1000_CTRL, E1000_CTRL_RST);
 		#1000; // Wait 1us
 
 		e1000_write(E1000_TXDMAC, 32'h0000_0000); 
 
-		e1000_write(E1000_TCTL, 32'h0000_0000); 
-
 		e1000_write(E1000_IMC, 32'hFFFF_FFFF);
 		e1000_write(E1000_ICR, 32'hFFFF_FFFF);
+		e1000_write(E1000_IMS, E1000_INTR_TXDW|E1000_INTR_TXQE|E1000_INTR_TXD_LOW);
 
-		e1000_write(E1000_TDBAL, HOST_BASE); 
-		e1000_write(E1000_TDBAH, 32'h0000_0000); 
-		e1000_write(E1000_TDLEN, 32'h0000_0000); 
-		e1000_write(E1000_TDH, 32'h0000_0000); 
-		e1000_write(E1000_TDT, 32'h0000_0000); 
-		e1000_write(E1000_TIDV, 32'h0000_0000); 
-		e1000_write(E1000_TXDCTL,32'h0000_0000); 
-		e1000_write(E1000_TADV, 32'h0000_0000); 
+		e1000_write(E1000_TDBAL, host_base);
+		e1000_write(E1000_TDBAH, 32'h0);
+		e1000_write(E1000_TDLEN, host_len*DESC_SIZE);
+		e1000_write(E1000_TDH, host_head);
+		e1000_write(E1000_TDT, host_tail);
+
+		e1000_write(E1000_TIDV, tidv); 
+		e1000_write(E1000_TADV, tadv); 
+		e1000_write(E1000_TXDCTL,
+			((pthresh&E1000_TXDCTL_PTHRESH_MASK)<<E1000_TXDCTL_PTHRESH_SHIFT) |
+			((hthresh&E1000_TXDCTL_HTHRESH_MASK)<<E1000_TXDCTL_HTHRESH_SHIFT) |
+			((lwthresh&E1000_TXDCTL_LWTHRESH_MASK)<<E1000_TXDCTL_LWTHRESH_SHIFT) |
+			E1000_TXDCTL_GRAN
+		); 
+
 		e1000_write(E1000_TSPMT, 32'h0000_0000); 
+
+		e1000_read(E1000_TCTL, data);
+		e1000_write(E1000_TCTL, data|E1000_TCTL_EN);
 	end
 endtask
 
-task set_data(input [31:0] addr, input [15:0] length);
+task set_data(input [31:0] addr, input [15:0] length, input [7:0] data);
 	reg [31:0] dword;
 	integer i;
 	reg [31:0] idx;
 begin
 	idx = addr%HOST_SIZE;
-	dword = 'bx;
+	dword = host.read({idx[31:2],2'b0});
 	for(i=0;i<length;i=i+1) begin
+		if(idx[1:0]==0)
+			dword = host.read({idx[31:2],2'b0});
 		case(idx[1:0])
-			0: dword[7:0] = i; 
-			1: dword[15:8] = i;
-			2: dword[23:16] = i;
-			3: begin 
-				dword[31:24] = i;
-				host.write({idx[31:2],2'b0},dword);
-				dword = 'bx; 
-			end
+			0: dword[7:0] = data; 
+			1: dword[15:8] = data;
+			2: dword[23:16] = data;
+			3: dword[31:24] = data;
 		endcase
+		if(idx[1:0]==3)
+			host.write({idx[31:2],2'b0},dword);
 		idx = idx+1;
+		data = data+1;
 	end
 	if(idx[1:0]) // last bytes remain
 		host.write({idx[31:2],2'b0},dword);
@@ -480,69 +503,117 @@ begin
 end
 endtask
 
-task generate_traffic(input integer octlen, input integer num);
+task add_tx_packet(input integer length, input integer seglen);
+	reg [7:0] data;
+	begin
+		data=0;
+		while(length > 0) begin
+
+			while(queue_spare(host_head, host_tail, host_len)==0) begin
+				commit_tail();
+				check_available(1);
+			end
+
+			if(length<seglen)
+				seglen = length;
+			length = length-seglen;
+
+			desc_daddr = host_dptr;
+			desc_length = seglen;
+			case(PARAM_RS)
+				REPORT_ALL: desc_rs = 1;
+				REPORT_EOP: desc_rs = (length==0);
+				REPORT_NONE: desc_rs = 0;
+			endcase
+			desc_ide = PARAM_IDE;
+			desc_eop = (length==0);
+
+			#0; // desc_data need a delta time to update
+
+			set_data(desc_daddr, desc_length, data);
+			set_desc(host_base+host_tail*DESC_SIZE, desc_data);
+
+			host_tail = (host_tail+1)%host_len;
+			host_dptr = host_dptr+desc_length;
+			data = data+desc_length;
+		end
+	end
+endtask
+
+task commit_tail();
+	begin
+		e1000_write(E1000_TDT, host_tail);
+	end
+endtask
+
+task update_head();
+	begin
+		e1000_read(E1000_TDH, host_head);
+	end
+endtask
+
+function integer queue_spare(input integer head, input integer tail, input integer len);
+	integer n;
+	begin
+		n=0;
+		n = head-tail-1;
+		if(n<0) n=n+len;
+		queue_spare=n;
+	end
+endfunction
+
+function integer queue_pending(input integer head, input integer tail, input integer len);
+	integer n;
+	begin
+		n=tail-head;
+		if(n<0) n=n+len;
+		queue_pending=n;
+	end
+endfunction
+
+task check_available(input integer num);
+	begin
+		while(queue_spare(host_head, host_tail, host_len)<num) begin
+			#10_000;
+			update_head();
+			update_interrupt();
+		end
+	end
+endtask
+
+task check_done();
+	begin
+		while(queue_pending(host_head, host_tail, host_len)>0) begin
+			#10_000;
+			update_head();
+			update_interrupt();
+		end
+	end
+endtask
+
+task update_interrupt();
+	begin
+		if(!INTA_N) // Clear Interrupt
+			e1000_read(E1000_ICR, intr_state);
+	end
+endtask
+
+//% Generate transmit requests
+//%
+//% @length: packet length
+//% @seglen: length of each segment. A packet may consist of several data
+//%  segment and descriptors
+//% @num: number of packets to generate
+task generate_tx_traffic(input integer length, input integer seglen, input integer num);
 	integer i;
-	integer len;
 	reg [31:0] data;
 begin
-	len=octlen*8;
-	head=0;
-	tail=0;
-	intr_state=0;
-
-	$display("========START TEST LEN=%d NUM=%d========",len,num);
-
-	set_data(desc_daddr, desc_length);
-
-	e1000_write(E1000_IMS, E1000_INTR_TXDW|E1000_INTR_TXQE|E1000_INTR_TXD_LOW);
-
-	e1000_write(E1000_TDLEN, len*DESC_SIZE);
-
-	e1000_write(E1000_TDH, head);
-	e1000_write(E1000_TDT, tail);
-
-	e1000_read(E1000_TCTL, data);
-	e1000_write(E1000_TCTL, data|E1000_TCTL_EN);
 
 	for(i=0;i<num;i=i+1) begin
-
-		if(!INTA_N)
-			e1000_read(E1000_ICR, intr_state);
-
-		set_desc(base+tail*DESC_SIZE, desc_data);
-
-		// Wait for host space
-		while((tail+1)%len==head) begin
-			#1000;
-			e1000_read(E1000_TDH, head);
-			if(!INTA_N)
-				e1000_read(E1000_ICR, intr_state);
-		end
-
-		tail = (tail+1)%len;
-
-		if(i%HOST_DESC_BATCH==(HOST_DESC_BATCH-1))
-			e1000_write(E1000_TDT, tail);
-
-		repeat(16) @(posedge PCLK);
+		add_tx_packet(length, seglen);
 	end
 
-	e1000_write(E1000_TDT, tail);
-
-	while(head != tail) begin
-		#1000;
-		e1000_read(E1000_TDH, head);
-		if(!INTA_N)
-			e1000_read(E1000_ICR, intr_state);
-	end
-
-	e1000_read(E1000_TCTL, data);
-	e1000_write(E1000_TCTL, data&(~E1000_TCTL_EN));
-
-	e1000_write(E1000_IMC, 32'hFFFF_FFFF);
-	e1000_write(E1000_ICR, 32'hFFFF_FFFF);
-
-	$display("========END TEST LEN=%d NUM=%d========",len,num);
+	commit_tail();
 end
 endtask
 
@@ -574,17 +645,168 @@ begin
 	desc_vle = 0;
 	desc_ide = 0;
 	desc_sta = 0;
-	desc_cso = 0;
 	desc_css = 0;
 	desc_special = 0;
+
+	PARAM_RS = REPORT_ALL;
+	PARAM_IDE = 0;
 
 	$dumpfile("test_nic_device.vcd");
 	$dumpvars(1);
 	//$dumpvars(1,dut_i);
-	$dumpvars(0,dut_i.e1000_i.tx_path_i);
+	//$dumpvars(0,dut_i.e1000_i.tx_path_i);
 	#1_000_000_000;
 	$finish;
 end
+
+task test_packet_size();
+	begin
+		dbg_msg = "Test Packet Size";
+		host_base = HOST_BASE;
+
+		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
+
+		PARAM_RS = REPORT_ALL;
+		PARAM_IDE = 0;
+
+		host_dptr = HOST_DATA_OFFSET;
+		generate_tx_traffic(1, 1, 1); 
+		generate_tx_traffic(2, 2, 1); 
+		generate_tx_traffic(4, 4, 1); 
+		generate_tx_traffic(8, 8, 1); 
+		generate_tx_traffic(16384, 16384, 1); 
+		check_done();
+		#50_000;
+	end
+endtask
+
+task test_host_queue_size();
+	begin
+		dbg_msg = "Test Host Queue Size";
+		host_base = HOST_BASE;
+		PARAM_RS = REPORT_ALL;
+		PARAM_IDE = 0;
+
+		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
+		host_dptr = HOST_DATA_OFFSET;
+		generate_tx_traffic(1, 1, 7); 
+		check_done();
+		generate_tx_traffic(1, 1, 8); 
+		check_done();
+		generate_tx_traffic(1, 1, 15); 
+		check_done();
+		generate_tx_traffic(1, 1, 16); 
+		check_done();
+		generate_tx_traffic(1, 1, 24); 
+		check_done();
+
+		initialize_nic(2/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
+		host_dptr = HOST_DATA_OFFSET;
+		generate_tx_traffic(1, 1, 15); 
+		check_done();
+		generate_tx_traffic(1, 1, 16); 
+		check_done();
+		generate_tx_traffic(1, 1, 32); 
+		check_done();
+		generate_tx_traffic(1, 1, 48); 
+		check_done();
+	end
+endtask
+
+task test_multi_desc();
+	begin
+		dbg_msg = "Test Multi-Desc Packet";
+		host_base = HOST_BASE;
+		PARAM_RS = REPORT_EOP;
+		PARAM_IDE = 0;
+
+		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
+
+		host_dptr = HOST_DATA_OFFSET;
+		generate_tx_traffic(2, 1, 1); 
+		generate_tx_traffic(16384, 4096, 1); 
+		check_done();
+	end
+endtask
+
+task test_disable_prefetch();
+	begin
+		dbg_msg = "Test Disalbe Prefetch";
+		host_base = HOST_BASE;
+		PARAM_RS = REPORT_ALL;
+		PARAM_IDE = 0;
+
+		initialize_nic(2/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
+		e1000_write(E1000_TXDMAC, E1000_TXDMAC_DPP);
+
+		host_dptr = HOST_DATA_OFFSET;
+		generate_tx_traffic(1, 1, 16); 
+		check_done();
+	end
+endtask
+
+task test_non_aligned_desc();
+	begin
+		dbg_msg = "Test Non-aligned Desc Queue";
+		host_base = HOST_BASE+'h10;
+		PARAM_RS = REPORT_ALL;
+		PARAM_IDE = 0;
+
+		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
+
+		host_dptr = HOST_DATA_OFFSET;
+		generate_tx_traffic(1, 1, 16); 
+		check_done();
+	end
+endtask
+
+task test_interrupt_delay();
+	begin
+		dbg_msg = "Test Interrupt Delay";
+		host_base = HOST_BASE;
+		PARAM_RS = REPORT_ALL;
+		PARAM_IDE = 1;
+
+		initialize_nic(16/*octlen*/,16/*tidv*/,32/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
+
+		host_dptr = HOST_DATA_OFFSET;
+		generate_tx_traffic(1, 1, 64); 
+		check_done();
+		#16_000;
+	end
+endtask
+
+task test_prefetch();
+	begin
+		dbg_msg = "Test Prefetch";
+		host_base = HOST_BASE;
+		PARAM_RS = REPORT_ALL;
+		PARAM_IDE = 0;
+
+		initialize_nic(2/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,8/*lwth*/);
+
+		host_dptr = HOST_DATA_OFFSET;
+		repeat(64) generate_tx_traffic(1, 1, 1); 
+		check_done();
+	end
+endtask
+
+task test_large_queue();
+	begin
+		dbg_msg = "Test Large_queue";
+		host_base = HOST_BASE;
+		PARAM_RS = REPORT_NONE;
+		PARAM_IDE = 0;
+
+		initialize_nic(8191/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,8/*lwth*/);
+
+		host_dptr = HOST_DATA_OFFSET;
+		//generate_tx_traffic(1, 1, 65536); 
+		// Break into multiple to avoid reaching iteration limit
+		repeat(64) generate_tx_traffic(1, 1, 1024); 
+		check_done();
+	end
+endtask
 
 initial
 begin:T0
@@ -594,115 +816,92 @@ begin:T0
 
 	config_target();
 
-	dbg_msg = "Init NIC";
+	test_host_queue_size();
+	test_non_aligned_desc();
+	test_packet_size();
+	test_multi_desc();
+	test_disable_prefetch();
+	test_interrupt_delay();
+	test_prefetch();
 
-	initialize_nic();
-
-	base = HOST_BASE;
-	desc_rs = 1;
-
-	e1000_write(E1000_TDBAL, base);
-
-	dbg_msg = "Test 8 1";
-	desc_daddr = HOST_DATA_OFFSET;
-	desc_length = 60;
-	generate_traffic(1, 1); // LEN=8, 1 Transfers
-
-	dbg_msg = "Test 8 1 NON ALIGN OFFSET 1";
-	desc_daddr = HOST_DATA_OFFSET+1;
-	desc_length = 60;
-	generate_traffic(1, 1); // LEN=8, 1 Transfers
-
-	dbg_msg = "Test 8 1 NON ALIGN OFFSET 2";
-	desc_daddr = HOST_DATA_OFFSET+2;
-	desc_length = 60;
-	generate_traffic(1, 1); // LEN=8, 1 Transfers
-
-	dbg_msg = "Test 8 1 NON ALIGN OFFSET 3";
-	desc_daddr = HOST_DATA_OFFSET+3;
-	desc_length = 60;
-	generate_traffic(1, 1); // LEN=8, 1 Transfers
-
-	dbg_msg = "Test 8 17 NON ALIGN OFFSET 3 LONG";
-	desc_daddr = HOST_DATA_OFFSET+3;
-	desc_length = 16384;
-	generate_traffic(1, 17); // LEN=8, 17 Transfers
-
-	dbg_msg = "Test 8 7 NON ALIGN OFFSET 3 short";
-	desc_daddr = HOST_DATA_OFFSET+3;
-	desc_length = 1;
-	generate_traffic(1, 7); // LEN=8, 1 Transfers
-
-	dbg_msg = "Test 8 7";
-	desc_daddr = 0;
-	desc_length = 0;
-	generate_traffic(1, 7); // LEN=8, 7 Transfers
-
-	dbg_msg = "Test 8 8";
-	generate_traffic(1, 8); // LEN=8, 8 Transfers
-
-	dbg_msg = "Test 8 15";
-	generate_traffic(1, 15); // LEN=8, 15 Transfers
-
-	dbg_msg = "Test 8 16";
-	generate_traffic(1, 16); // LEN=8, 16 Transfers
-
-	dbg_msg = "Test 8 24";
-	generate_traffic(1, 24); // LEN=8, 24 Transfers
-
-	dbg_msg = "Test 16 15";
-	generate_traffic(2, 15); // LEN=16, 15 Transfers
-
-	dbg_msg = "Test 16 16";
-	generate_traffic(2, 16); // LEN=16, 16 Transfers
-
-	dbg_msg = "Test 16 32";
-	generate_traffic(2, 32); // LEN=16, 32 Transfers
-
-	dbg_msg = "Test 16 48";
-	generate_traffic(2, 48); // LEN=16, 48 Transfers
-
-	dbg_msg = "Test 16 48 DPP";
-	e1000_write(E1000_TXDMAC, E1000_TXDMAC_DPP);
-	generate_traffic(2, 48); // LEN=16, 48 Transfers
-
-	dbg_msg = "Test 16 48 HOST OFFSET";
-	base = HOST_BASE+'h10;
-	e1000_write(E1000_TXDMAC, 0);
-	e1000_write(E1000_TDBAL, base);
-	generate_traffic(2, 48); // LEN=16, 48 Transfers
-
-	dbg_msg = "Test 16 48 IDT";
-	desc_ide = 1;
-	e1000_write(E1000_TIDV, 16);// Interrupt delay 16384 ns 
-	e1000_write(E1000_TADV, 32);// Interrupt absolute delay 32768 ns 
-	generate_traffic(2, 48); // LEN=16, 48 Transfers
-
-	dbg_msg = "Test 16 48 PTH=8 HTH=4 LWTH=16 IDT";
-	e1000_write(E1000_TXDCTL, 
-		(8<<E1000_TXDCTL_PTHRESH_SHIFT) |
-		(4<<E1000_TXDCTL_HTHRESH_SHIFT) |
-		(8<<E1000_TXDCTL_LWTHRESH_SHIFT)|
-		E1000_TXDCTL_GRAN
-	);
-	generate_traffic(2, 48); // LEN=16, 48 Transfers
-
-`undef LARGE_TRAFFIC
-`ifdef LARGE_TRAFFIC
-	dbg_msg = "Test 65528 65536 PTH=8 HTH=4 LWTH=16 IDT";
-	generate_traffic(8191, 65536); // LEN=65528, 65536 Transfers
+`define TEST_LARGE_QUEUE
+`ifdef TEST_LARGE_QUEUE
+	test_large_queue();
 `endif
 
-	#10000;
+	#100_000;
 	$finish;
 end
 
-`define REPORT_FETCH;
-`define REPORT_WRITE_BACK;
-`define REPORT_INTERRUPT;
+`define REPORT_PCI_FETCH
+`undef REPORT_FETCH
+`define REPORT_WRITE_BACK
+`define REPORT_INTERRUPT
 
 reg dbg_frame_0;
+reg dbg_host_rd;
+reg [31:0] dbg_host_addr;
+reg [8:0] dbg_host_dcnt;
 always @(posedge PCLK) dbg_frame_0 <= FRAME_N;
+always @(posedge PCLK)
+begin
+	if(dbg_frame_0 && !FRAME_N && pci_cmd_is_mm_rd(CBE) &&
+		((AD&(~HOST_MASK))==HOST_BASE)) begin
+		dbg_host_rd <= 1'b1;
+		dbg_host_addr <= AD;
+	end
+	else if(FRAME_N && IRDY_N && TRDY_N && STOP_N)
+		dbg_host_rd <= 1'b0;
+end
+always @(posedge PCLK)
+begin
+	if(!dbg_host_rd) begin
+		dbg_host_dcnt <= 0;
+	end
+	else if(dbg_host_rd && !IRDY_N && !TRDY_N) begin
+		dbg_host_dcnt <= dbg_host_dcnt+1;
+	end
+end
+
+integer dbg_mac_tx_dcnt;
+integer dbg_mac_tx_pkt;
+reg dbg_mac_tx_eop;
+initial 
+begin
+	dbg_mac_tx_dcnt = 0;
+	dbg_mac_tx_eop = 0;
+	dbg_mac_tx_pkt = 0;
+end
+always @(posedge dut_i.e1000_i.aclk)
+begin
+	if(!dbg_mac_tx_eop && dut_i.e1000_i.mac_tx_s_tvalid && dut_i.e1000_i.mac_tx_s_tlast 
+		&& dut_i.e1000_i.mac_tx_s_tready) begin
+			dbg_mac_tx_eop <= 1'b1;
+			dbg_mac_tx_pkt <= dbg_mac_tx_pkt+1;
+	end
+	else begin
+			dbg_mac_tx_eop <= 1'b0;
+	end
+	if(dbg_mac_tx_eop) begin
+		dbg_mac_tx_dcnt <= 0;
+		$display($time,,, "MAC TX PACKET %d, %d DW", dbg_mac_tx_pkt, dbg_mac_tx_dcnt);
+	end
+	else if(dut_i.e1000_i.mac_tx_s_tvalid && dut_i.e1000_i.mac_tx_s_tready) begin
+		dbg_mac_tx_dcnt <= dbg_mac_tx_dcnt+1;
+	end
+end
+
+`ifdef REPORT_PCI_FETCH
+always @(posedge PCLK)
+begin
+	if(dbg_host_rd && FRAME_N && IRDY_N && TRDY_N) begin
+		if(dbg_host_addr < HOST_DATA_OFFSET)
+			$display($time,,,"FETCH DESC @%X, %d DW", dbg_host_addr, dbg_host_dcnt);
+		else
+			$display($time,,,"FETCH DATA @%X, %d DW", dbg_host_addr, dbg_host_dcnt);
+	end
+end
+`endif
 
 `ifdef REPORT_FETCH
 always @(posedge PCLK)
@@ -724,12 +923,22 @@ begin
 	if(host.wstrobe) begin
 		get_desc(host.write_addr/DESC_SIZE*DESC_SIZE, resp_data);
 		#0;
-		$display($time,,,"WRITE BACK ADDR=%x PDATA=%x STA=%x", host.write_addr, resp_data[31:0], host.wdata[3:0]);
+		$display($time,,,"WRITE BACK @%x PDATA=%x STA=%x", host.write_addr, resp_data[31:0], host.wdata[3:0]);
 	end
 end
 `endif
 
 `ifdef REPORT_INTERRUPT
+always @(negedge INTA_N, posedge INTA_N)
+begin
+	if(!INTA_N) begin
+		$display($time,,,"INTR Set");
+	end
+	else begin
+		$display($time,,,"INTR Clear");
+	end
+end
+/*
 wire TXDW_req = ((intr_state>>0)&32'b1) && !INTA_N;
 wire TXQE_req = ((intr_state>>1)&32'b1) && !INTA_N;
 wire TXD_LOW_req = ((intr_state>>15)&32'b1) && !INTA_N;
@@ -751,6 +960,7 @@ always @(posedge TXD_LOW_req)
 
 always @(negedge TXD_LOW_req)
 		$display($time,,,"INTR TXD_LOW CLEAR");
+*/
 `endif
 
 
