@@ -66,11 +66,29 @@ reg [15:0] local_addr;
 reg [31:0] desc_dw2;
 reg [31:0] desc_dw3;
 
+wire [7:0] desc_cmd;
+wire desc_eop;
+
+wire [31:0] rdma_tdata;
+wire [3:0] rdma_tkeep;
+wire rdma_tvalid;
+wire rdma_tlast;
+wire rdma_tready;
+
+assign desc_cmd = desc_dw2[31:24];
+assign desc_eop = desc_cmd[0];
+
 reg [1:0] cmd_cnt;
 
 wire cmd_valid;
 
 assign cmd_valid = cmd_s_tready&cmd_s_tvalid&cmd_s_tlast;
+
+assign mac_m_tdata = rdma_tdata;
+assign mac_m_tkeep = rdma_tkeep;
+assign mac_m_tvalid = rdma_tvalid;
+assign mac_m_tlast = rdma_tlast & desc_eop;
+assign rdma_tready = mac_m_tready;
 
 axi_rdma #(.ADDRESS_BITS(16), .LENGTH_BITS(16)) rdma_i(
 	.aclk(aclk),
@@ -96,11 +114,11 @@ axi_rdma #(.ADDRESS_BITS(16), .LENGTH_BITS(16)) rdma_i(
 	.axi_m_rvalid(dram_m_rvalid),
 	.axi_m_rready(dram_m_rready),
 
-	.dout_tdata(mac_m_tdata),
-	.dout_tkeep(mac_m_tkeep),
-	.dout_tlast(mac_m_tlast),
-	.dout_tvalid(mac_m_tvalid),
-	.dout_tready(mac_m_tready)
+	.dout_tdata(rdma_tdata),
+	.dout_tkeep(rdma_tkeep),
+	.dout_tlast(rdma_tlast),
+	.dout_tvalid(rdma_tvalid),
+	.dout_tready(rdma_tready)
 );
 
 always @(*) stat_m_tdata = {length, local_addr};
@@ -153,7 +171,7 @@ begin
 		stat_m_tvalid <= 1'b0;
 		stat_m_tlast <= 1'b1;
 	end
-	else if(mac_m_tvalid && mac_m_tlast && mac_m_tready) begin
+	else if(rdma_tvalid && rdma_tlast && rdma_tready) begin
 		stat_m_tvalid <= 1'b1;
 	end
 	else if(stat_m_tvalid && stat_m_tready && stat_m_tlast) begin

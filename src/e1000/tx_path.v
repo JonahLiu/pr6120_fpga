@@ -753,6 +753,7 @@ tx_frame tx_frame_i(
 
 	// MAC Tx Stream Port
 	.mac_m_tdata(mac_m_tdata),
+	.mac_m_tkeep(mac_m_tkeep),
 	.mac_m_tvalid(mac_m_tvalid),
 	.mac_m_tlast(mac_m_tlast),
 	.mac_m_tready(mac_m_tready)
