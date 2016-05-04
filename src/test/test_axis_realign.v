@@ -154,6 +154,36 @@ begin
 	strobe(32'hCCDDEEFF, 4'b1111, 1);
 	finish();
 
+	strobe(32'h00XXXXXX, 4'b1000, 0);
+	strobe(32'hXX11XXXX, 4'b0100, 1);
+	finish();
+
+	strobe(32'h00XXXXXX, 4'b1000, 0);
+	strobe(32'hXX11XXXX, 4'b0100, 0);
+	strobe(32'hXXXX22XX, 4'b0010, 1);
+	finish();
+
+	strobe(32'h00XXXXXX, 4'b1000, 0);
+	strobe(32'hXX11XXXX, 4'b0100, 0);
+	strobe(32'hXXXX22XX, 4'b0010, 0);
+	strobe(32'hXXXXXX33, 4'b0001, 1);
+	finish();
+
+	strobe(32'hXXXXXX33, 4'b0001, 0);
+	strobe(32'hXXXX22XX, 4'b0010, 0);
+	strobe(32'hXX11XXXX, 4'b0100, 0);
+	strobe(32'h00XXXXXX, 4'b1000, 1);
+	finish();
+
+	strobe(32'h4455XXXX, 4'b1100, 0);
+	strobe(32'hXX6677xx, 4'b0110, 0);
+	strobe(32'hXXXX8899, 4'b0011, 1);
+	finish();
+
+	strobe(32'hXXXX4455, 4'b0011, 0);
+	strobe(32'hXX6677xx, 4'b0110, 0);
+	strobe(32'h8899XXXX, 4'b1100, 1);
+	finish();
 
 end
 
