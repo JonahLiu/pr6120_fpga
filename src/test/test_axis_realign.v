@@ -16,7 +16,7 @@ wire m_tvalid;
 reg m_tready;
 
 
-axis_realign dut(
+axis_realign #(.INPUT_BIG_ENDIAN("TRUE"),.OUTPUT_BIG_ENDIAN("FALSE")) dut(
 	.aclk(aclk),
 	.aresetn(aresetn),
 	.s_tdata(s_tdata),
@@ -61,6 +61,7 @@ endtask
 task finish();
 	begin
 		s_tvalid <= 1'b0;
+		s_tlast <= 1'b0;
 		@(posedge aclk);
 	end
 endtask
@@ -185,6 +186,8 @@ begin
 	strobe(32'h8899XXXX, 4'b1100, 1);
 	finish();
 
+	#1000;
+	$finish();
 end
 
 

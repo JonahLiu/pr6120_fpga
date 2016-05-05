@@ -15,7 +15,8 @@ module axis_realign(
 	input	m_tready
 );
 
-parameter BIG_ENDIAN="TRUE";
+parameter INPUT_BIG_ENDIAN="TRUE";
+parameter OUTPUT_BIG_ENDIAN="TRUE";
 
 reg [7:0] out_b0;
 reg [7:0] out_b1;
@@ -44,20 +45,27 @@ wire [7:0] in_b0;
 wire [7:0] in_b1;
 wire [7:0] in_b2;
 wire [7:0] in_b3;
-wire [3:0] s_tkeep_i;
+wire [3:0] in_be;
 
 generate
-if(BIG_ENDIAN=="TRUE") begin
+if(INPUT_BIG_ENDIAN=="TRUE") begin
+	assign {in_b0,in_b1,in_b2,in_b3} = s_tdata;
+	assign in_be = s_tkeep;
+end
+else begin
+	assign {in_b3,in_b2,in_b1,in_b0} = s_tdata;
+	assign {in_be[0],in_be[1],in_be[2],in_be[3]} = s_tkeep;
+end
+endgenerate
+
+generate
+if(OUTPUT_BIG_ENDIAN=="TRUE") begin
 	assign m_tdata = {out_b0, out_b1, out_b2, out_b3};
 	assign m_tkeep = out_be;
-	assign {in_b0,in_b1,in_b2,in_b3} = s_tdata;
-	assign s_tkeep_i = s_tkeep;
 end
 else begin
 	assign m_tdata = {out_b3, out_b2, out_b1, out_b0};
 	assign m_tkeep = {out_be[0],out_be[1],out_be[2],out_be[3]};
-	assign {in_b3,in_b2,in_b1,in_b0} = s_tdata;
-	assign {s_tkeep_i[0],s_tkeep_i[1],s_tkeep_i[2],s_tkeep_i[3]} = s_tkeep;
 end
 endgenerate
 
@@ -66,7 +74,7 @@ assign s_tready = last_r?1'b0:m_tready;
 always @(*)
 begin
 	if(s_tvalid && s_tready)
-		casex(s_tkeep_i)
+		casex(in_be)
 			4'b1xxx: s = 0;
 			4'b01xx: s = 1;
 			4'b001x: s = 2;
@@ -77,7 +85,7 @@ begin
 		s = 0;
 
 	if(s_tvalid && s_tready)
-		casex(s_tkeep_i)
+		casex(in_be)
 			4'b1000,4'b0100,4'b0010,4'b0001: l = 1;
 			4'b1100,4'b0110,4'b0011: l = 2;
 			4'b1110,4'b0111: l = 3;
@@ -122,7 +130,7 @@ always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn)
 		last_r <= 1'b0;
-	else if(s_tvalid && s_tlast && s_tready)
+	else if(s_tvalid && s_tlast && s_tready && b_next>4)
 		last_r <= 1'b1;
 	else if(m_tvalid && m_tlast && m_tready)
 		last_r <= 1'b0;
@@ -146,11 +154,8 @@ always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn)
 		m_tlast <= 1'b0;
-	else if(s_tvalid && s_tlast && s_tready)
-		if(b_next<=4) 
-			m_tlast <= 1;
-		else
-			m_tlast <= 0;
+	else if(s_tvalid && s_tlast && s_tready && b_next<=4)
+		m_tlast <= 1;
 	else if(last_r)
 		m_tlast <= 1;
 	else
