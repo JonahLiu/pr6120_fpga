@@ -38,8 +38,22 @@ reg [1:0] s;
 reg [2:0] b;
 reg [2:0] l;
 reg [2:0] b_next;
+reg [3:0] sum;
 reg last_r;
 reg [3:0] out_be;
+
+reg signed [3:0] sel_base;
+reg [1:0] b0_sel_a;
+reg [1:0] b0_sel_d;
+reg [1:0] b1_sel_a;
+reg [1:0] b1_sel_d;
+reg [1:0] b2_sel_a;
+reg [1:0] b2_sel_d;
+reg [1:0] b3_sel_a;
+reg [1:0] b3_sel_d;
+reg [1:0] b4_sel_a;
+reg [1:0] b5_sel_a;
+reg [1:0] b6_sel_a;
 
 wire [7:0] in_b0;
 wire [7:0] in_b1;
@@ -79,18 +93,21 @@ begin
 			4'b01xx: s = 1;
 			4'b001x: s = 2;
 			4'b0001: s = 3;
-			default: s = 'bx;
+			default: s = 0; // invalid
 		endcase
 	else
 		s = 0;
+end
 
+always @(*)
+begin
 	if(s_tvalid && s_tready)
-		casex(in_be)
+		case(in_be)
 			4'b1000,4'b0100,4'b0010,4'b0001: l = 1;
 			4'b1100,4'b0110,4'b0011: l = 2;
 			4'b1110,4'b0111: l = 3;
 			4'b1111: l = 4;
-			default: l = 'bx;
+			default: l = 0; // invalid
 		endcase
 	else
 		l = 0;
@@ -98,10 +115,15 @@ end
 
 always @(*)
 begin
+	sum = b+l;
+end
+
+always @(*)
+begin
 	if(s_tvalid && s_tready)
 		if(m_tvalid && m_tready)
-			if(b+l>4)
-				b_next = b+l-4;
+			if(sum>4)
+				b_next = sum-4;
 			else
 				b_next = 0;
 		else
@@ -164,26 +186,47 @@ end
 
 always @(*)
 begin
-	if(m_tvalid && m_tready)
-		if(b>4)
+	sel_base = s-b;
+
+	b0_sel_a = sel_base+4;
+	b0_sel_d = sel_base;
+
+	b1_sel_a = b0_sel_a+1;
+	b1_sel_d = b0_sel_d+1;
+
+	b2_sel_a = b1_sel_a+1;
+	b2_sel_d = b1_sel_d+1;
+
+	b3_sel_a = b2_sel_a+1;
+	b3_sel_d = b2_sel_d+1;
+
+	b4_sel_a = b3_sel_a+1;
+
+	b5_sel_a = b4_sel_a+1;
+
+	b6_sel_a = b5_sel_a+1;
+end
+
+always @(*)
+begin
+	if(m_tvalid && m_tready) // output valid
+		if(b>4) // load buffered bytes
 			out_b0_next = out_b4;
-		else
-			case((s+4-b)&2'b11)
+		else // load input bytes
+			case(b0_sel_a) /* synthesis full_case */
 				0:out_b0_next = in_b0;
 				1:out_b0_next = in_b1;
 				2:out_b0_next = in_b2;
 				3:out_b0_next = in_b3;
-				default: out_b0_next = 'bx;
 			endcase
-	else if(b<1 && s_tvalid && s_tready)
-		case((s-b)&2'b11)
+	else if(b<1 && s_tvalid && s_tready) // load input bytes
+		case(b0_sel_d) /* synthesis full_case */
 			0: out_b0_next = in_b0;
 			1: out_b0_next = in_b1;
 			2: out_b0_next = in_b2;
 			3: out_b0_next = in_b3;
-			default: out_b0_next = 'bx;
 		endcase
-	else
+	else // keep
 		out_b0_next = out_b0;
 end
 
@@ -193,20 +236,18 @@ begin
 		if(b>5)
 			out_b1_next = out_b5;
 		else
-			case((s+5-b)&2'b11)
+			case(b1_sel_a)/* synthesis full_case */
 				0:out_b1_next = in_b0;
 				1:out_b1_next = in_b1;
 				2:out_b1_next = in_b2;
 				3:out_b1_next = in_b3;
-				default: out_b1_next = 'bx;
 			endcase
 	else if(b<2 && s_tvalid && s_tready)
-		case((s+1-b)&2'b11)
+		case(b1_sel_d)/* synthesis full_case */
 			0: out_b1_next = in_b0;
 			1: out_b1_next = in_b1;
 			2: out_b1_next = in_b2;
 			3: out_b1_next = in_b3;
-			default: out_b1_next = 'bx;
 		endcase
 	else
 		out_b1_next = out_b1;
@@ -218,20 +259,18 @@ begin
 		if(b>6)
 			out_b2_next = out_b6;
 		else
-			case((s+6-b)&2'b11)
+			case(b2_sel_a)/* synthesis full_case */
 				0:out_b2_next = in_b0;
 				1:out_b2_next = in_b1;
 				2:out_b2_next = in_b2;
 				3:out_b2_next = in_b3;
-				default: out_b2_next = 'bx;
 			endcase
 	else if(b<3 && s_tvalid && s_tready)
-		case((s+2-b)&2'b11)
+		case(b2_sel_d)/* synthesis full_case */
 			0: out_b2_next = in_b0;
 			1: out_b2_next = in_b1;
 			2: out_b2_next = in_b2;
 			3: out_b2_next = in_b3;
-			default: out_b2_next = 'bx;
 		endcase
 	else
 		out_b2_next = out_b2;
@@ -240,20 +279,18 @@ end
 always @(*)
 begin
 	if(m_tvalid && m_tready)
-		case((s+7-b)&2'b11)
+		case(b3_sel_a)/* synthesis full_case */
 			0:out_b3_next = in_b0;
 			1:out_b3_next = in_b1;
 			2:out_b3_next = in_b2;
 			3:out_b3_next = in_b3;
-			default: out_b3_next = 'bx;
 		endcase
 	else if(b<4 && s_tvalid && s_tready)
-		case((s+3-b)&2'b11)
+		case(b3_sel_d)/* synthesis full_case */
 			0: out_b3_next = in_b0;
 			1: out_b3_next = in_b1;
 			2: out_b3_next = in_b2;
 			3: out_b3_next = in_b3;
-			default: out_b3_next = 'bx;
 		endcase
 	else
 		out_b3_next = out_b3;
@@ -262,12 +299,11 @@ end
 always @(*)
 begin
 	if(s_tvalid && s_tready)
-		case((s+8-b)&2'b11)
-			//0:out_b4_next = in_b0;
+		case(b4_sel_a)/* synthesis full_case */
+			0:out_b4_next = /*in_b0*/'bx; // invalid
 			1:out_b4_next = in_b1;
 			2:out_b4_next = in_b2;
 			3:out_b4_next = in_b3;
-			default: out_b4_next = 'bx;
 		endcase
 	else
 		out_b4_next = 'bx;
@@ -276,12 +312,11 @@ end
 always @(*)
 begin
 	if(s_tvalid && s_tready)
-		case((s+9-b)&2'b11)
-			//0:out_b5_next = in_b0;
-			//1:out_b5_next = in_b1;
+		case(b5_sel_a)/* synthesis full_case */
+			0:out_b5_next = /*in_b0*/'bx; // invalid
+			1:out_b5_next = /*in_b1*/'bx; // invalid
 			2:out_b5_next = in_b2;
 			3:out_b5_next = in_b3;
-			default: out_b5_next = 'bx;
 		endcase
 	else
 		out_b5_next = 'bx;
@@ -290,12 +325,11 @@ end
 always @(*)
 begin
 	if(s_tvalid && s_tready)
-		case((s+10-b)&2'b11)
-			//0:out_b6_next = in_b0;
-			//1:out_b6_next = in_b1;
-			//2:out_b6_next = in_b2;
+		case(b6_sel_a)/* synthesis full_case */
+			0:out_b6_next = /*in_b0*/'bx; // invalid
+			1:out_b6_next = /*in_b1*/'bx; // invalid
+			2:out_b6_next = /*in_b2*/'bx; // invalid
 			3:out_b6_next = in_b3;
-			default: out_b6_next = 'bx;
 		endcase
 	else
 		out_b6_next = 'bx;
