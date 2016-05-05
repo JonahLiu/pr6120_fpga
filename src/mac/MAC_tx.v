@@ -49,6 +49,7 @@
 // Revision 1.1.1.1  2005/12/13 01:51:44  Administrator
 // no message
 //   
+`include "header.v"
 module MAC_tx(
 input           Reset               ,
 input           Clk                 ,
