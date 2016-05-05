@@ -27,7 +27,7 @@ output  [DATA_WIDTH -1:0]   q_a;
 input   [DATA_WIDTH -1:0]   data_b;
 input   [ADDR_WIDTH -1:0]   address_b;
 input                       clock_b;
-output  [DATA_WIDTH -1:0]   q_b;
+output  reg [DATA_WIDTH -1:0]   q_b;
 
 reg [DATA_WIDTH-1:0] mem [0:ADDR_DEPTH-1];
 
@@ -42,7 +42,7 @@ begin
 	q_b <= mem[address_b];
 end
 
-assign q_a <= 'b0;
+assign q_a = 'b0;
  
  
  

@@ -1,4 +1,3 @@
-`timescale 1 ns/100ps
 `timescale 1ns/1ps
 module test_mac_top(
 );
@@ -27,6 +26,10 @@ reg		[31:0]	Tx_mac_data	        	;
 reg		[1:0]	Tx_mac_BE				;//big endian
 reg				Tx_mac_sop	        	;
 reg				Tx_mac_eop				;
+				//pkg_lgth fifo
+wire			Pkg_lgth_fifo_rd		;
+wire			Pkg_lgth_fifo_ra		;
+wire	[15:0]	Pkg_lgth_fifo_data		;
 				//Phy interface     	 
 				//Phy interface			
 wire			Gtx_clk					;//used only in GMII mode
@@ -49,7 +52,9 @@ wire    [7:0]   CA                      ;
 wire			Line_loop_en			;
 wire	[2:0]	Speed					;
 				//mii
-wire         	Mdio                	;// MII Management Data In
+wire         	Mdo	                	;// MII Management Data Out
+wire         	MdoEn                	;// MII Management Data OE
+wire         	Mdi	                	;// MII Management Data In
 wire        	Mdc                		;// MII Management Data Clock	
 wire            CPU_init_end            ;
 //******************************************************************************
@@ -96,7 +101,8 @@ initial
 	begin
 	$dumpfile("test_mac_top.vcd");
 	$dumpvars(1);
-	#100_000_000;
+	//#100_000;
+	//$finish();
 	end
 
 
@@ -125,6 +131,10 @@ MAC_top U_MAC_top(
 .Tx_mac_BE				        (Tx_mac_BE				    ),
 .Tx_mac_sop	        	        (Tx_mac_sop	        	    ),
 .Tx_mac_eop				        (Tx_mac_eop				    ),
+ //pkg_lgth fifo
+.Pkg_lgth_fifo_rd				(Pkg_lgth_fifo_rd			),
+.Pkg_lgth_fifo_ra				(Pkg_lgth_fifo_ra			),
+.Pkg_lgth_fifo_data				(Pkg_lgth_fifo_data			),
  //Phy interface     	        (//Phy interface     	    ),
  //Phy interface			    (//Phy interface			),
 .Gtx_clk					    (Gtx_clk					),
@@ -145,7 +155,9 @@ MAC_top U_MAC_top(
 .CD_out                         (CD_out                     ),
 .CA                             (CA                         ),
  //MII interface signals        (//MII interface signals    ),
-.Mdio                	        (Mdio                	    ),
+.Mdo                	        (Mdo                	    ),
+.MdoEn                	        (MdoEn                	    ),
+.Mdi                	        (Mdi                	    ),
 .Mdc                		    (Mdc                		)
 );
 
@@ -207,13 +219,79 @@ host_sim U_host_sim(
 );
 */
 
+task generate_packet(input integer length);
+	integer i;
+	begin
+		i=0;
+		while(i<length) begin
+			@(posedge Clk_user);
+			if(Tx_mac_wa) begin
+				Tx_mac_wr <= 1'b1;
+				Tx_mac_data[31:24] <= i;
+				Tx_mac_data[23:16] <= i+1;
+				Tx_mac_data[15:8] <= i+2;
+				Tx_mac_data[7:0] <= i+3;
+
+				if(i==0)
+					Tx_mac_sop <= 1;
+				else
+					Tx_mac_sop <= 0;
+
+				if(i+4 >= length)
+					Tx_mac_eop <= 1;
+				else
+					Tx_mac_eop <= 0;
+
+				if(i+4 >= length && length-i-1<3)
+					Tx_mac_BE <= (length-i); 
+				else
+					Tx_mac_BE <= 0;
+
+				i = i+4;
+			end
+			else begin
+				Tx_mac_wr <= 1'b0;
+			end
+		end
+		@(posedge Clk_user);
+		Tx_mac_wr <= 1'b0;
+		Tx_mac_sop <= 1'b0;
+		Tx_mac_eop <= 1'b0;
+		Tx_mac_data <= 'b0;
+		Tx_mac_BE <= 'b0;
+	end
+endtask
+
 initial
 begin
-	Rx_mac_rd = 0;
-	Tx_mac_wr = 0;
-	Tx_mac_data = 0;
-	Tx_mac_BE = 0;
-	Tx_mac_sop = 0;
-	Tx_mac_eop = 0;
+	Tx_mac_wr <= 0;
+	Tx_mac_data <= 0;
+	Tx_mac_BE <= 0;
+	Tx_mac_sop <= 0;
+	Tx_mac_eop <= 0;
+
+	#1000;
+	generate_packet(12);
+	generate_packet(13);
+	generate_packet(60);
+	generate_packet(1500);
+	generate_packet(9996); // 9996+4(FCS) = 10000
+	//generate_packet(16380); // 16380+4(FCS) = 16384
+
+	#1000000;
+	$finish();
 end
+
+always @(posedge Clk_user, posedge Reset)
+begin
+	if(Reset)
+		Rx_mac_rd <= 1'b0;
+	else if(!Rx_mac_rd && Rx_mac_ra)
+		Rx_mac_rd <= 1'b1;
+	else if(Rx_mac_pa && Rx_mac_eop)
+		Rx_mac_rd <= 1'b0;
+end
+
+assign Pkg_lgth_fifo_rd = Pkg_lgth_fifo_ra;
+
 endmodule

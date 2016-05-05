@@ -299,7 +299,7 @@ always @ (posedge Reset or posedge MAC_rx_clk_div)
         rx_pkg_lgth_fifo_wr <=0; 
 
 afifo U_rx_pkg_lgth_fifo (
-.din                        (RX_APPEND_CRC?Rx_pkt_length_rmon:Rx_pkt_length_rmon-4),
+.din                        (RX_APPEND_CRC?Rx_pkt_length_rmon:Rx_pkt_length_rmon-16'd4),
 .wr_en                      (rx_pkg_lgth_fifo_wr        ),
 .wr_clk                     (MAC_rx_clk_div             ),
 .rd_en                      (Pkg_lgth_fifo_rd           ),

@@ -28,7 +28,7 @@ output  [31:0]  Doutb;
 wire            Clka;
 wire            Clkb;
 assign          Clka=Clk;
-assign  #2      Clkb=Clk;
+assign          Clkb=Clk;
 //******************************************************************************
 
 duram #(32,6,"M4K") U_duram(    
