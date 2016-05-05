@@ -322,6 +322,11 @@ wire [1:0] frm_dram_rresp;
 wire frm_dram_rlast;
 wire frm_dram_rvalid;
 wire frm_dram_rready;
+wire [31:0] frm_m_tdata;
+wire [3:0] frm_m_tkeep;
+wire frm_m_tlast;
+wire frm_m_tvalid;
+wire frm_m_tready;
 
 wire [3:0] desc_s_awid;
 wire [15:0] desc_s_awaddr;
@@ -752,11 +757,29 @@ tx_frame tx_frame_i(
 	.dram_m_bready(frm_dram_bready),
 
 	// MAC Tx Stream Port
-	.mac_m_tdata(mac_m_tdata),
-	.mac_m_tkeep(mac_m_tkeep),
-	.mac_m_tvalid(mac_m_tvalid),
-	.mac_m_tlast(mac_m_tlast),
-	.mac_m_tready(mac_m_tready)
+	.mac_m_tdata(frm_m_tdata),
+	.mac_m_tkeep(frm_m_tkeep),
+	.mac_m_tvalid(frm_m_tvalid),
+	.mac_m_tlast(frm_m_tlast),
+	.mac_m_tready(frm_m_tready)
+);
+
+axis_realign #(
+	.INPUT_BIG_ENDIAN("FALSE"), 
+	.OUTPUT_BIG_ENDIAN("TRUE")
+) tx_align_i(
+	.aclk(aclk),
+	.aresetn(aresetn),
+	.s_tdata(frm_m_tdata),
+	.s_tkeep(frm_m_tkeep),
+	.s_tlast(frm_m_tlast),
+	.s_tvalid(frm_m_tvalid),
+	.s_tready(frm_m_tready),
+	.m_tdata(mac_m_tdata),
+	.m_tkeep(mac_m_tkeep),
+	.m_tlast(mac_m_tlast),
+	.m_tvalid(mac_m_tvalid),
+	.m_tready(mac_m_tready)
 );
 
 //% Tx Descriptor RAM

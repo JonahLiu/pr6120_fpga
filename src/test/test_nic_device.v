@@ -654,7 +654,7 @@ begin
 	$dumpfile("test_nic_device.vcd");
 	$dumpvars(1);
 	//$dumpvars(1,dut_i);
-	//$dumpvars(0,dut_i.e1000_i.tx_path_i);
+	$dumpvars(0,dut_i.e1000_i.tx_path_i);
 	#1_000_000_000;
 	$finish;
 end
@@ -817,14 +817,21 @@ begin:T0
 	config_target();
 
 	test_host_queue_size();
+	#100_000;
 	test_non_aligned_desc();
+	#100_000;
 	test_packet_size();
+	#100_000;
 	test_multi_desc();
+	#100_000;
 	test_disable_prefetch();
+	#100_000;
 	test_interrupt_delay();
+	#100_000;
 	test_prefetch();
+	#100_000;
 
-`define TEST_LARGE_QUEUE
+`undef TEST_LARGE_QUEUE
 `ifdef TEST_LARGE_QUEUE
 	test_large_queue();
 `endif
