@@ -109,6 +109,7 @@ wire mac_tx_s_tready;
 
 wire [31:0] mac_rx_m_tdata;
 wire [3:0] mac_rx_m_tkeep;
+//wire [15:0] mac_rx_m_tuser;
 wire mac_rx_m_tvalid;
 wire mac_rx_m_tlast;
 wire mac_rx_m_tready;
@@ -181,7 +182,7 @@ assign PHYINT_req = phy_int_sync[1];
 
 assign reset_request = CTRL_RST;
 
-assign mac_tx_s_tready = 1'b1;
+assign mac_rx_m_tready = 1'b1;
 
 always @(posedge aclk)
 begin
@@ -510,6 +511,86 @@ tx_path #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) tx_path_i(
 	.mac_m_tlast(mac_tx_s_tlast),
 	.mac_m_tready(mac_tx_s_tready)
 );
+
+wire [2:0] Speed;
+wire RX_APPEND_CRC;       
+wire CRC_chk_en;       
+wire [5:0] RX_IFG_SET;       
+wire [15:0] RX_MAX_LENGTH;
+wire [6:0] RX_MIN_LENGTH;
+wire pause_frame_send_en;       
+wire [15:0] pause_quanta_set;       
+wire xoff_cpu;       
+wire xon_cpu;       
+wire FullDuplex;       
+wire [3:0] MaxRetry;       
+wire [5:0] IFGset;       
+wire tx_pause_en;       
+wire Line_loop_en;
+
+assign	Speed = 3'b100;
+assign	RX_APPEND_CRC = 1'b0;
+assign	CRC_chk_en = 1'b1;
+assign	RX_IFG_SET = 16'h000c;
+assign	RX_MAX_LENGTH = 16'h4000;
+assign	RX_MIN_LENGTH = 16'h40;
+assign	pause_frame_send_en = 1'b0;
+assign	pause_quanta_set = 16'h0;
+assign	xoff_cpu = 1'b0;
+assign	xon_cpu = 1'b0;
+assign	FullDuplex = 1'b1;
+assign	MaxRetry = 16'h0002;
+assign	IFGset = 16'h000c;
+assign	tx_pause_en = 1'b0;
+assign	Line_loop_en = 1'b0;
+
+mac_axis mac_i(
+	.Clk_125M(clk125),
+	.aclk(aclk),
+	.aresetn(aresetn),
+
+	.Speed(Speed),
+	.RX_APPEND_CRC(RX_APPEND_CRC),
+	.CRC_chk_en(CRC_chk_en),
+	.RX_IFG_SET(RX_IFG_SET),
+	.RX_MAX_LENGTH(RX_MAX_LENGTH),
+	.RX_MIN_LENGTH(RX_MIN_LENGTH),
+	.pause_frame_send_en(pause_frame_send_en),
+	.pause_quanta_set(pause_quanta_set),
+	.xoff_cpu(xoff_cpu),
+	.xon_cpu(xon_cpu),
+	.FullDuplex(FullDuplex),
+	.MaxRetry(MaxRetry),
+	.IFGset(IFGset),
+	.tx_pause_en(tx_pause_en),
+	.Line_loop_en(Line_loop_en),
+
+	.rx_mac_tdata(mac_rx_m_tdata),
+	.rx_mac_tkeep(mac_rx_m_tkeep),
+//	.rx_mac_tuser(mac_rx_m_tuser),
+	.rx_mac_tlast(mac_rx_m_tlast),
+	.rx_mac_tvalid(mac_rx_m_tvalid),
+	.rx_mac_tready(mac_rx_m_tready),
+
+	.tx_mac_tdata(mac_tx_s_tdata),
+	.tx_mac_tkeep(mac_tx_s_tkeep),
+	.tx_mac_tlast(mac_tx_s_tlast),
+	.tx_mac_tvalid(mac_tx_s_tvalid),
+	.tx_mac_tready(mac_tx_s_tready)
+
+	.Rxd(mac_rxdat),
+	.Rx_dv(mac_rxdv),
+	.Rx_er(mac_rxer),
+	.Rx_clk(mac_rxsclk),
+	.TxD(mac_txdat),
+	.Tx_en(mac_txen),
+	.Tx_er(mac_txer),
+	.Tx_Clk(mac_txsclk),
+	.Gtx_clk(mac_gtxsclk),
+	.Crs(mac_crs),
+	.Col(mac_col)
+);
+
 /*
 
 ext_crossbar ext_crossbar(
@@ -620,33 +701,6 @@ ext_crossbar ext_crossbar(
 	.m0_axi_rlast(axi_m_rlast),
 	.m0_axi_rvalid(axi_m_rvalid),
 	.m0_axi_rready(axi_m_rready)
-);
-
-mac_axi mac_i(
-	.aclk(axi_s_aclk),
-	.aresetn(axi_s_aresetn),
-
-	.tx_s_tdata(mac_tx_s_tdata),
-	.tx_s_tvalid(mac_tx_s_tvalid),
-	.tx_s_tlast(mac_tx_s_tlast),
-	.tx_s_tready(mac_tx_s_tready)
-
-	.rx_m_tdata(mac_rx_m_tdata),
-	.rx_m_tvalid(mac_rx_m_tvalid),
-	.rx_m_tlast(mac_rx_m_tlast),
-	.rx_m_tready(mac_rx_m_tready),
-
-	.mac_rxdat(mac_rxdat),
-	.mac_rxdv(mac_rxdv),
-	.mac_rxer(mac_rxer),
-	.mac_rxsclk(mac_rxsclk),
-	.mac_txdat(mac_txdat),
-	.mac_txen(mac_txen),
-	.mac_txer(mac_txer),
-	.mac_txsclk(mac_txsclk),
-	.mac_gtxsclk(mac_gtxsclk),
-	.mac_crs(mac_crs),
-	.mac_col(mac_col)
 );
 */
 

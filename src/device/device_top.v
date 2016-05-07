@@ -479,7 +479,7 @@ assign mac_col = p0_col;
 assign p0_txdat = mac_txdat;
 assign p0_txen = mac_txen;
 assign p0_txer = mac_txer;
-assign p0_gtxsclk = mac_gtxsclk;
+//assign p0_gtxsclk = mac_gtxsclk;
 
 assign p1_txdat = 'b0;
 assign p1_txen = 1'b0;
@@ -512,6 +512,16 @@ begin
 	else if(!nic_rst_sync[6])
 		nic_rst_sync <= nic_rst_sync+1;
 end
+
+ODDR p0_gtxsclk_oddr_i(
+	.D1(1'b0),
+	.D2(1'b1),
+	.CE(1'b1),
+	.C(mac_gtxsclk),
+	.S(1'b0),
+	.R(1'b0),
+	.Q(p0_gtxsclk)
+);
 
 nic_clk_gen nic_clk_gen_i(
 	.reset(ext_rst),

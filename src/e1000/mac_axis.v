@@ -23,7 +23,7 @@ input			Line_loop_en			,
 //Rx user interface 
 output	[31:0]	rx_mac_tdata			,
 output	[3:0]	rx_mac_tkeep			,
-output  [15:0]  rx_mac_tuser			, // packet length
+//output  [15:0]  rx_mac_tuser			, // packet length
 output			rx_mac_tlast			,
 output			rx_mac_tvalid			,
 input			rx_mac_tready			,
@@ -52,6 +52,8 @@ input           Col
 //******************************************************************************
 //internal signals                                                              
 //******************************************************************************
+wire			Reset					;
+wire			Clk_user				;
 wire          Rx_mac_ra               ;
 wire		  Rx_mac_rd               ;
 wire  [31:0]  Rx_mac_data             ;
@@ -146,11 +148,23 @@ reg             rx_pkg_lgth_fifo_wr_tmp;
 reg             rx_pkg_lgth_fifo_wr_tmp_pl1;
 reg             rx_pkg_lgth_fifo_wr;
 
+wire [35:0] rx_fifo_din;
+wire [35:0] rx_fifo_dout;
+wire rx_fifo_empty;
+wire [4:0] rx_fifo_wr_count;
+
+wire [35:0] tx_fifo_din;
+wire [35:0] tx_fifo_dout;
+wire tx_fifo_full;
+wire tx_fifo_empty;
+
 reg	tx_flag;
 reg [1:0] tx_be;
 reg [3:0] rx_keep;
 reg rx_rd;
 reg rx_rd_lgth;
+reg [1:0] rx_state;
+reg [15:0] rx_length;
 
 always @(posedge aclk, negedge aresetn)
 begin
@@ -174,7 +188,7 @@ end
 
 always @(*)
 begin
-	case(Rx_mac_BE) /* synthesis full_case */
+	case(rx_fifo_dout[33:32]) /* synthesis full_case */
 		2'b00: rx_keep = 4'b1111;
 		2'b11: rx_keep = 4'b1110;
 		2'b10: rx_keep = 4'b1100;
@@ -182,27 +196,37 @@ begin
 	endcase
 end
 
-always @(posedge aclk, negedge aresetn)
+always @(posedge Clk_user, posedge Reset)
 begin
-	if(!aresetn) begin
+	if(Reset) begin
 		rx_rd <= 1'b0;
 		rx_rd_lgth <= 1'b0;
+		rx_state <= 0;
+		rx_length <= 'bx;
 	end
 	else begin
-		case({rx_rd_lgth, rx_rd})
-			2'b00: begin
-				if(Pkg_lgth_fifo_ra) begin
-					rx_rd <= 1'b1;
-				end
-			end
-			2'b01: begin
-				if(Rx_mac_pa && Rx_mac_eop) begin
-					rx_rd <= 1'b0;
+		case(rx_state) /* synthesis full_case */
+			0: begin
+				//if(Pkg_lgth_fifo_ra) begin
+				if(Rx_mac_ra) begin
+					rx_rd <= rx_fifo_wr_count<10;
+					rx_state <= 1;
+					rx_length <= Pkg_lgth_fifo_data;
 					rx_rd_lgth <= 1'b1;
 				end
 			end
-			2'b10: begin
+			1: begin
 				rx_rd_lgth <= 1'b0;
+				if(Rx_mac_pa && Rx_mac_eop) begin
+					rx_rd <= 1'b0;
+					rx_state <= 2;
+				end
+				else begin
+					rx_rd <= rx_fifo_wr_count<10;
+				end
+			end
+			2: begin
+				rx_state <= 0;
 			end
 		endcase
 	end
@@ -211,21 +235,29 @@ end
 assign Reset = !aresetn;
 assign Clk_user = aclk;
 
-assign Tx_mac_data = tx_mac_tdata;
-assign Tx_mac_wr = tx_mac_tvalid&tx_mac_tready;
-assign Tx_mac_sop = !tx_flag;
-assign Tx_mac_eop = tx_mac_tlast;
-assign Tx_mac_BE = tx_be;
+assign Tx_mac_data = tx_fifo_dout[31:0];
+assign Tx_mac_wr = !tx_fifo_empty && Tx_mac_wa;
+assign Tx_mac_sop = tx_fifo_dout[35];
+assign Tx_mac_eop = tx_fifo_dout[34];
+assign Tx_mac_BE = tx_fifo_dout[33:32];
 
-assign tx_mac_tready = Tx_mac_wa;
+assign tx_mac_tready = !tx_fifo_full;
+
+//assign Tx_mac_data = tx_mac_tdata;
+//assign Tx_mac_wr = tx_mac_tvalid&tx_mac_tready;
+//assign Tx_mac_sop = !tx_flag;
+//assign Tx_mac_eop = tx_mac_tlast;
+//assign Tx_mac_BE = tx_be;
+
+//assign tx_mac_tready = Tx_mac_wa;
 
 assign Rx_mac_rd = rx_rd;
 
-assign rx_mac_tdata = Rx_mac_data;
-assign rx_mac_tvalid = Rx_mac_pa;
-assign rx_mac_tlast = Rx_mac_eop;
+assign rx_mac_tdata = rx_fifo_dout[31:0];
+assign rx_mac_tvalid = !rx_fifo_empty;
+assign rx_mac_tlast = rx_fifo_dout[34];
 assign rx_mac_tkeep = rx_keep;
-assign rx_mac_tuser = Pkg_lgth_fifo_data;
+assign rx_mac_tuser = rx_length;
 
 assign Pkg_lgth_fifo_rd = rx_rd_lgth;
 
@@ -249,6 +281,10 @@ assign MAC_tx_add_en = 1'b0;
 assign MAC_tx_add_prom_data = 'b0;
 assign MAC_tx_add_prom_add = 'b0;
 assign MAC_tx_add_prom_wr = 1'b0;
+
+assign rx_fifo_din = {Rx_mac_sop,Rx_mac_eop,Rx_mac_BE,Rx_mac_data};
+
+assign tx_fifo_din = {!tx_flag, tx_mac_tlast, tx_be, tx_mac_tdata};
 
 //******************************************************************************
 // internal modules
@@ -334,7 +370,37 @@ MAC_tx U_MAC_tx(
 .pause_quanta_val           (pause_quanta_val           )
 );
 
+fifo_async #(.DSIZE(36),.ASIZE(4),.MODE("FWFT")) rx_fifo_i(
+	.wr_rst(Reset),
+	.wr_clk(Clk_user),
+	.din(rx_fifo_din),
+	.full(),
+	.wr_count(rx_fifo_wr_count),
+	.wr_en(Rx_mac_pa),
+	.rd_rst(Reset),
+	.rd_clk(aclk),
+	.dout(rx_fifo_dout),
+	.empty(rx_fifo_empty),
+	.rd_count(),
+	.rd_en(rx_mac_tvalid && rx_mac_tready)
+);
 
+fifo_async #(.DSIZE(36),.ASIZE(4),.MODE("FWFT")) tx_fifo_i(
+	.wr_rst(Reset),
+	.wr_clk(aclk),
+	.din(tx_fifo_din),
+	.full(tx_fifo_full),
+	.wr_count(),
+	.wr_en(tx_mac_tvalid && tx_mac_tready),
+	.rd_rst(Reset),
+	.rd_clk(Clk_user),
+	.dout(tx_fifo_dout),
+	.empty(tx_fifo_empty),
+	.rd_count(),
+	.rd_en(Tx_mac_wr)
+);
+
+/*
 assign Pkg_lgth_fifo_ra=!Pkg_lgth_fifo_empty;
 always @ (posedge Reset or posedge MAC_rx_clk_div)
     if (Reset)
@@ -358,22 +424,21 @@ always @ (posedge Reset or posedge MAC_rx_clk_div)
     else
         rx_pkg_lgth_fifo_wr <=0; 
 
-afifo #(.DATA_WIDTH(16),.ADDR_WIDTH(8)) U_rx_pkg_lgth_fifo (
+fifo_async #(.DSIZE(16),.ASIZE(8),.MODE("FWFT")) U_rx_pkg_lgth_fifo (
 .din                        (RX_APPEND_CRC?Rx_pkt_length_rmon:Rx_pkt_length_rmon-16'd4),
 .wr_en                      (rx_pkg_lgth_fifo_wr        ),
 .wr_clk                     (MAC_rx_clk_div             ),
+.wr_rst						(Reset                      ),
 .rd_en                      (Pkg_lgth_fifo_rd           ),
 .rd_clk                     (Clk_user                   ),
-.ainit                      (Reset                      ),
+.rd_rst						(Reset                      ),
 .dout                       (Pkg_lgth_fifo_data         ),
 .full                       (                           ),
-.almost_full                (                           ),
 .empty                      (Pkg_lgth_fifo_empty        ),
 .wr_count                   (                           ),
-.rd_count                   (                           ),
-.rd_ack                     (                           ),
-.wr_ack                     (                           ));
-
+.rd_count                   (                           )
+);
+*/
 
 /*
 RMON U_RMON(

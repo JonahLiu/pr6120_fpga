@@ -7,6 +7,7 @@ set vlog_opts {-incr}
 vlib work
 
 vlog $vlog_opts ../../src/e1000/mac_axis.v
+vlog $vlog_opts ../../src/common/fifo_async.v
 vlog $vlog_opts ../../src/mac/afifo.v
 vlog $vlog_opts ../../src/mac/Clk_ctrl.v
 vlog $vlog_opts ../../src/mac/Phy_int.v
