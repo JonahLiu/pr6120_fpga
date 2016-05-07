@@ -1,14 +1,26 @@
-module MAC_top(
-                //system signals
-input			aresetn,
-input			aclk,
-//input           Reset                   ,
-//input           Clk_125M                ,
-//input           Clk_user                ,
-//input           Clk_reg                 ,
-//output  [2:0]   Speed                   ,
-//
-                //Rx user interface 
+module mac_axis(
+// system signals
+input			Clk_125M				,
+input			aresetn					,
+input			aclk					,
+// Options
+input	[2:0]   Speed                   ,
+input			RX_APPEND_CRC			,       
+input			CRC_chk_en				,       
+input	[5:0]	RX_IFG_SET	  			,       
+input	[15:0]	RX_MAX_LENGTH 			,
+input	[6:0]	RX_MIN_LENGTH			,
+input			pause_frame_send_en		,       
+input	[15:0]	pause_quanta_set		,       
+input			xoff_cpu	        	,       
+input			xon_cpu	            	,       
+input			FullDuplex         		,       
+input	[3:0]	MaxRetry	        	,       
+input	[5:0]	IFGset					,       
+input			tx_pause_en				,       
+input			Line_loop_en			,
+
+//Rx user interface 
 output	[31:0]	rx_mac_tdata			,
 output	[3:0]	rx_mac_tkeep			,
 output  [15:0]  rx_mac_tuser			, // packet length
@@ -16,14 +28,14 @@ output			rx_mac_tlast			,
 output			rx_mac_tvalid			,
 input			rx_mac_tready			,
 
-                //Tx user interface 
+//Tx user interface 
 input	[31:0]	tx_mac_tdata			,
 input	[3:0]	tx_mac_tkeep			,
 input			tx_mac_tlast			,
 input			tx_mac_tvalid			,
 output			tx_mac_tready			,
 
-                //Phy interface         
+//Phy interface         
 output          Gtx_clk                 ,//used only in GMII mode
 input           Rx_clk                  ,
 input           Tx_clk                  ,//used only in MII mode
@@ -40,19 +52,23 @@ input           Col
 //******************************************************************************
 //internal signals                                                              
 //******************************************************************************
-wire          Rx_mac_ra               ,
-wire		  Rx_mac_rd               ,
-wire  [31:0]  Rx_mac_data             ,
-wire  [1:0]   Rx_mac_BE               ,
-wire          Rx_mac_pa               ,
-wire          Rx_mac_sop              ,
-wire          Rx_mac_eop              ,
-wire		   Tx_mac_wa               ,
-wire           Tx_mac_wr               ,
-wire   [31:0]  Tx_mac_data             ,
-wire   [1:0]   Tx_mac_BE               ,//big endian
-wire           Tx_mac_sop              ,
-wire           Tx_mac_eop              ,
+wire          Rx_mac_ra               ;
+wire		  Rx_mac_rd               ;
+wire  [31:0]  Rx_mac_data             ;
+wire  [1:0]   Rx_mac_BE               ;
+wire          Rx_mac_pa               ;
+wire          Rx_mac_sop              ;
+wire          Rx_mac_eop              ;
+wire		   Tx_mac_wa               ;
+wire           Tx_mac_wr               ;
+wire   [31:0]  Tx_mac_data             ;
+wire   [1:0]   Tx_mac_BE               ;//big endian
+wire           Tx_mac_sop              ;
+wire           Tx_mac_eop              ;
+
+wire 			Pkg_lgth_fifo_rd        ;
+wire          Pkg_lgth_fifo_ra        ;
+wire  [15:0]  Pkg_lgth_fifo_data      ;
 
                 //RMON interface
 wire    [15:0]  Rx_pkt_length_rmon      ;
@@ -82,40 +98,28 @@ wire            MAC_rx_clk_div          ;
                 //reg signals   
 wire    [4:0]	Tx_Hwmark				;       
 wire    [4:0]	Tx_Lwmark				;       
-wire    		pause_frame_send_en		;       
-wire    [15:0]	pause_quanta_set		;       
 wire    		MAC_tx_add_en			;       
-wire    		FullDuplex         		;       
-wire    [3:0]	MaxRetry	        	;       
-wire    [5:0]	IFGset					;       
 wire    [7:0]	MAC_tx_add_prom_data	;       
 wire    [2:0]	MAC_tx_add_prom_add		;       
 wire    		MAC_tx_add_prom_wr		;       
-wire    		tx_pause_en				;       
-wire    		xoff_cpu	        	;       
-wire    		xon_cpu	            	;       
 		        //Rx host interface 	 
 wire    		MAC_rx_add_chk_en		;       
 wire    [7:0]	MAC_rx_add_prom_data	;       
 wire    [2:0]	MAC_rx_add_prom_add		;       
 wire    		MAC_rx_add_prom_wr		;       
 wire    		broadcast_filter_en	    ;       
-wire    [15:0]	broadcast_MAX	        ;       
-wire    		RX_APPEND_CRC			;       
 wire    [4:0]	Rx_Hwmark			    ;           
 wire    [4:0]	Rx_Lwmark			    ;           
-wire    		CRC_chk_en				;       
-wire    [5:0]	RX_IFG_SET	  			;       
-wire    [15:0]	RX_MAX_LENGTH 			;
-wire    [6:0]	RX_MIN_LENGTH			;
 		        		//RMON host interface    
+/*
 wire    [5:0]	CPU_rd_addr				;
 wire    		CPU_rd_apply			;
 wire    		CPU_rd_grant			;
 wire    [31:0]	CPU_rd_dout				;
+*/
 		        		//Phy int host interface 
-wire    		Line_loop_en			;
 		        		//MII to CPU             
+/*
 wire    [7:0] 	Divider            		;
 wire    [15:0] 	CtrlData           		;
 wire    [4:0] 	Rgad               		;
@@ -131,6 +135,9 @@ wire    [15:0] 	Prsd               		;
 wire         	WCtrlDataStart     		;
 wire         	RStatStart         		;
 wire         	UpdateMIIRX_DATAReg		;
+*/
+
+
 wire    [15:0]  broadcast_bucket_depth              ;
 wire    [15:0]  broadcast_bucket_interval           ;
 wire            Pkg_lgth_fifo_empty;
@@ -138,9 +145,113 @@ wire            Pkg_lgth_fifo_empty;
 reg             rx_pkg_lgth_fifo_wr_tmp;
 reg             rx_pkg_lgth_fifo_wr_tmp_pl1;
 reg             rx_pkg_lgth_fifo_wr;
-              
+
+reg	tx_flag;
+reg [1:0] tx_be;
+reg [3:0] rx_keep;
+reg rx_rd;
+reg rx_rd_lgth;
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn)
+		tx_flag<= 1'b0;
+	else if(!tx_flag && tx_mac_tvalid && tx_mac_tready)
+		tx_flag <= 1'b1;
+	else if(tx_flag && tx_mac_tvalid && tx_mac_tlast && tx_mac_tready)
+		tx_flag <= 1'b0;
+end
+
+always @(*)
+begin
+	casex(tx_mac_tkeep)
+		4'b1110: tx_be = 2'b11;
+		4'b110x: tx_be = 2'b10;
+		4'b10xx: tx_be = 2'b01;
+		default: tx_be = 2'b00;
+	endcase
+end
+
+always @(*)
+begin
+	case(Rx_mac_BE) /* synthesis full_case */
+		2'b00: rx_keep = 4'b1111;
+		2'b11: rx_keep = 4'b1110;
+		2'b10: rx_keep = 4'b1100;
+		2'b01: rx_keep = 4'b1000;
+	endcase
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		rx_rd <= 1'b0;
+		rx_rd_lgth <= 1'b0;
+	end
+	else begin
+		case({rx_rd_lgth, rx_rd})
+			2'b00: begin
+				if(Pkg_lgth_fifo_ra) begin
+					rx_rd <= 1'b1;
+				end
+			end
+			2'b01: begin
+				if(Rx_mac_pa && Rx_mac_eop) begin
+					rx_rd <= 1'b0;
+					rx_rd_lgth <= 1'b1;
+				end
+			end
+			2'b10: begin
+				rx_rd_lgth <= 1'b0;
+			end
+		endcase
+	end
+end
+
+assign Reset = !aresetn;
+assign Clk_user = aclk;
+
+assign Tx_mac_data = tx_mac_tdata;
+assign Tx_mac_wr = tx_mac_tvalid&tx_mac_tready;
+assign Tx_mac_sop = !tx_flag;
+assign Tx_mac_eop = tx_mac_tlast;
+assign Tx_mac_BE = tx_be;
+
+assign tx_mac_tready = Tx_mac_wa;
+
+assign Rx_mac_rd = rx_rd;
+
+assign rx_mac_tdata = Rx_mac_data;
+assign rx_mac_tvalid = Rx_mac_pa;
+assign rx_mac_tlast = Rx_mac_eop;
+assign rx_mac_tkeep = rx_keep;
+assign rx_mac_tuser = Pkg_lgth_fifo_data;
+
+assign Pkg_lgth_fifo_rd = rx_rd_lgth;
+
+assign MAC_rx_add_chk_en = 1'b0;
+assign MAC_rx_add_prom_data = 'b0;
+assign MAC_rx_add_prom_add = 'b0;
+assign MAC_rx_add_prom_wr = 1'b0;
+
+assign broadcast_filter_en = 1'b0;
+assign broadcast_bucket_depth = 'b0;
+assign broadcast_bucket_interval = 'b0;
+
+assign Rx_Hwmark = 5'h1a;
+assign Rx_Lwmark = 5'h10;
+
+assign Tx_Hwmark = 5'h1e;
+assign Tx_Lwmark = 5'h19;
+
+assign MAC_tx_add_en = 1'b0;
+
+assign MAC_tx_add_prom_data = 'b0;
+assign MAC_tx_add_prom_add = 'b0;
+assign MAC_tx_add_prom_wr = 1'b0;
+
 //******************************************************************************
-//internal signals                                                              
+// internal modules
 //******************************************************************************
 MAC_rx U_MAC_rx(
 .Reset                      (Reset                      ),    
@@ -247,7 +358,7 @@ always @ (posedge Reset or posedge MAC_rx_clk_div)
     else
         rx_pkg_lgth_fifo_wr <=0; 
 
-afifo U_rx_pkg_lgth_fifo (
+afifo #(.DATA_WIDTH(16),.ADDR_WIDTH(8)) U_rx_pkg_lgth_fifo (
 .din                        (RX_APPEND_CRC?Rx_pkt_length_rmon:Rx_pkt_length_rmon-16'd4),
 .wr_en                      (rx_pkg_lgth_fifo_wr        ),
 .wr_clk                     (MAC_rx_clk_div             ),
@@ -264,6 +375,7 @@ afifo U_rx_pkg_lgth_fifo (
 .wr_ack                     (                           ));
 
 
+/*
 RMON U_RMON(
 .Clk                        (Clk_reg                    ),
 .Reset                      (Reset                      ),
@@ -283,6 +395,7 @@ RMON U_RMON(
 .CPU_rd_grant               (CPU_rd_grant               ),
 .CPU_rd_dout                (CPU_rd_dout                )
 );
+*/
 
 Phy_int U_Phy_int(
 .Reset                      (Reset                      ),
@@ -325,7 +438,7 @@ Clk_ctrl U_Clk_ctrl(
 .MAC_tx_clk_div             (MAC_tx_clk_div             ),
 .MAC_rx_clk_div             (MAC_rx_clk_div             )
 );
-
+/*
 eth_miim U_eth_miim(                                        
 .Clk                        (Clk_reg                    ),  
 .Reset                      (Reset                      ),  
@@ -412,7 +525,7 @@ Reg_int U_Reg_int(
 .RStatStart         		(RStatStart         		),
 .UpdateMIIRX_DATAReg		(UpdateMIIRX_DATAReg		)
 );
-
+*/
 endmodule
 
 
