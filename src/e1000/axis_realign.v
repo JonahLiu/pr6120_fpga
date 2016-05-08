@@ -306,7 +306,7 @@ begin
 			3:out_b4_next = in_b3;
 		endcase
 	else
-		out_b4_next = 'bx;
+		out_b4_next = out_b4;
 end
 
 always @(*)
@@ -319,7 +319,7 @@ begin
 			3:out_b5_next = in_b3;
 		endcase
 	else
-		out_b5_next = 'bx;
+		out_b5_next = out_b5;
 end
 
 always @(*)
@@ -332,7 +332,7 @@ begin
 			3:out_b6_next = in_b3;
 		endcase
 	else
-		out_b6_next = 'bx;
+		out_b6_next = out_b6;
 end
 
 always @(posedge aclk, negedge aresetn)
