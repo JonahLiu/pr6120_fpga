@@ -2,6 +2,8 @@ module e1000_top(
 	input aclk,
 	input aresetn,
 
+	input clk125,
+
 	// Register Space Access Port
 	input [31:0] axi_s_awaddr,
 	input axi_s_awvalid,
@@ -100,6 +102,7 @@ module e1000_top(
 
 parameter PHY_ADDR=5'b0;
 parameter CLK_PERIOD_NS=8;
+parameter DEBUG="TRUE";
 
 wire [31:0] mac_tx_s_tdata;
 wire [3:0] mac_tx_s_tkeep;
@@ -576,16 +579,16 @@ mac_axis mac_i(
 	.tx_mac_tkeep(mac_tx_s_tkeep),
 	.tx_mac_tlast(mac_tx_s_tlast),
 	.tx_mac_tvalid(mac_tx_s_tvalid),
-	.tx_mac_tready(mac_tx_s_tready)
+	.tx_mac_tready(mac_tx_s_tready),
 
 	.Rxd(mac_rxdat),
 	.Rx_dv(mac_rxdv),
 	.Rx_er(mac_rxer),
 	.Rx_clk(mac_rxsclk),
-	.TxD(mac_txdat),
+	.Txd(mac_txdat),
 	.Tx_en(mac_txen),
 	.Tx_er(mac_txer),
-	.Tx_Clk(mac_txsclk),
+	.Tx_clk(mac_txsclk),
 	.Gtx_clk(mac_gtxsclk),
 	.Crs(mac_crs),
 	.Col(mac_col)
@@ -703,5 +706,27 @@ ext_crossbar ext_crossbar(
 	.m0_axi_rready(axi_m_rready)
 );
 */
+
+generate
+if(DEBUG == "TRUE") begin
+ila_0 ila_mac_i0(
+	.clk(aclk), // input wire clk
+	.probe0({
+		
+		mac_rx_m_tdata,
+		mac_rx_m_tkeep,
+		mac_rx_m_tlast,
+		mac_rx_m_tvalid,
+		mac_rx_m_tready,
+
+		mac_tx_s_tdata,
+		mac_tx_s_tkeep,
+		mac_tx_s_tlast,
+		mac_tx_s_tvalid,
+		mac_tx_s_tready
+	})
+);
+end
+endgenerate
 
 endmodule

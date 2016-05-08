@@ -41,7 +41,6 @@ read_verilog ../../src/pci/pci_master.v
 read_verilog ../../src/pci/pci_master_ctrl.v
 read_verilog ../../src/pci/pci_master_rpath.v
 read_verilog ../../src/pci/pci_master_wpath.v
-read_verilog ../../src/pci/fifo_async.v
 read_verilog ../../src/e1000/config_rom.v
 read_verilog ../../src/e1000/e1000_register.v
 read_verilog ../../src/e1000/e1000_regs.v
@@ -53,9 +52,29 @@ read_verilog ../../src/e1000/intr_ctrl.v
 read_verilog ../../src/e1000/tx_path.v
 read_verilog ../../src/e1000/tx_desc_ctrl.v
 read_verilog ../../src/e1000/tx_engine.v
+read_verilog ../../src/e1000/tx_frame.v
+read_verilog ../../src/e1000/axis_realign.v
 read_verilog ../../src/e1000/axi_idma.v
+read_verilog ../../src/e1000/axi_rdma.v
 read_verilog ../../src/e1000/axi_mux.v
 read_verilog ../../src/e1000/axi_ram.v
+read_verilog ../../src/e1000/mac_axis.v
+read_verilog ../../src/mac/Clk_ctrl.v
+read_verilog ../../src/mac/Phy_int.v
+read_verilog ../../src/mac/MAC_rx.v
+read_verilog ../../src/mac/MAC_rx/CRC_chk.v
+read_verilog ../../src/mac/MAC_rx/MAC_rx_ctrl.v
+read_verilog ../../src/mac/MAC_rx/MAC_rx_FF.v
+read_verilog ../../src/mac/MAC_tx.v
+read_verilog ../../src/mac/MAC_tx/CRC_gen.v
+read_verilog ../../src/mac/MAC_tx/flow_ctrl.v
+read_verilog ../../src/mac/MAC_tx/MAC_tx_Ctrl.v
+read_verilog ../../src/mac/MAC_tx/MAC_tx_FF.v
+read_verilog ../../src/mac/MAC_tx/Ramdon_gen.v
+read_verilog ../../src/mac/TECH/duram.v
+read_verilog ../../src/mac/TECH/CLK_DIV2.v
+read_verilog ../../src/mac/TECH/CLK_SWITCH.v
+read_verilog ../../src/common/fifo_async.v
 
 ################################################################################
 # Import IP Cores
@@ -103,7 +122,7 @@ foreach ip [get_ips] {
 	generate_target -force {all} $ip
 }
 
-synth_design -top $top -part $part -flatten rebuilt
+synth_design -top $top -part $part -include_dirs {../../src/mac} -gated_clock_conversion on
 write_checkpoint -force [format "$outputDir/%s_synth" $projName]
 #report_timing_summary -file $outputDir/post_synth_timing_summary.rpt
 #report_power -file $outputDir/post_synth_power.rpt

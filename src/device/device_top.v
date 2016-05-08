@@ -469,6 +469,20 @@ assign nic_m_rlast = mst_s_rlast;
 assign nic_m_rvalid = mst_s_rvalid;
 assign mst_s_rready = nic_m_rready;
 
+/*
+ZHOLD_DELAY zhd_p0_rxd0_I(.DLYIN(p0_rxdat[0]), .DLYFABRIC(mac_rxdat[0]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd1_I(.DLYIN(p0_rxdat[1]), .DLYFABRIC(mac_rxdat[1]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd2_I(.DLYIN(p0_rxdat[2]), .DLYFABRIC(mac_rxdat[2]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd3_I(.DLYIN(p0_rxdat[3]), .DLYFABRIC(mac_rxdat[3]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd4_I(.DLYIN(p0_rxdat[4]), .DLYFABRIC(mac_rxdat[4]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd5_I(.DLYIN(p0_rxdat[5]), .DLYFABRIC(mac_rxdat[5]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd6_I(.DLYIN(p0_rxdat[6]), .DLYFABRIC(mac_rxdat[6]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd7_I(.DLYIN(p0_rxdat[7]), .DLYFABRIC(mac_rxdat[7]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxdv_I(.DLYIN(p0_rxdv), .DLYFABRIC(mac_rxdv), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxer_I(.DLYIN(p0_rxer), .DLYFABRIC(mac_rxer), .DLYIFF());
+ZHOLD_DELAY zhd_p0_crs_I(.DLYIN(p0_crs), .DLYFABRIC(mac_crs), .DLYIFF());
+ZHOLD_DELAY zhd_p0_crs_I(.DLYIN(p0_col), .DLYFABRIC(mac_col), .DLYIFF());
+*/
 assign mac_rxdat = p0_rxdat;
 assign mac_rxdv = p0_rxdv;
 assign mac_rxer = p0_rxer;
@@ -480,6 +494,8 @@ assign p0_txdat = mac_txdat;
 assign p0_txen = mac_txen;
 assign p0_txer = mac_txer;
 //assign p0_gtxsclk = mac_gtxsclk;
+
+ODDR p0_gtxsclk_oddr_i(.D1(1'b0),.D2(1'b1),.CE(1'b1),.C(mac_gtxsclk),.S(1'b0),.R(1'b0),.Q(p0_gtxsclk));
 
 assign p1_txdat = 'b0;
 assign p1_txen = 1'b0;
@@ -512,16 +528,6 @@ begin
 	else if(!nic_rst_sync[6])
 		nic_rst_sync <= nic_rst_sync+1;
 end
-
-ODDR p0_gtxsclk_oddr_i(
-	.D1(1'b0),
-	.D2(1'b1),
-	.CE(1'b1),
-	.C(mac_gtxsclk),
-	.S(1'b0),
-	.R(1'b0),
-	.Q(p0_gtxsclk)
-);
 
 nic_clk_gen nic_clk_gen_i(
 	.reset(ext_rst),
@@ -655,11 +661,13 @@ pci_axi_top #(.HARDWIRE_IDSEL(HARDWIRE_IDSEL))pci_axi_i(
 
 e1000_top #(
 	.PHY_ADDR(PHY_ADDR),
-	.CLK_PERIOD_NS(NIC_CLK_PERIOD_NS)
-
+	.CLK_PERIOD_NS(NIC_CLK_PERIOD_NS),
+	.DEBUG(DEBUG)
 ) e1000_i(
 	.aclk(nic_aclk),
 	.aresetn(nic_aresetn),
+
+	.clk125(nic_clk),
 
 	// AXI4-lite for memory mapped registers
 	.axi_s_awvalid(nic_s_awvalid),

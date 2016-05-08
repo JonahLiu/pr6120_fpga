@@ -119,8 +119,37 @@ wire [3:0] GNT_N;
 wire RST_N;
 wire PCLK;
 
+wire [7:0] p0_rxdat;
+wire p0_rxdv;
+wire p0_rxer;
+wire p0_rxsclk;
+wire [7:0] p0_txdat;
+wire p0_txen;
+wire p0_txer;
+wire p0_txsclk;
+wire p0_gtxsclk;
+wire p0_crs;
+wire p0_col;
+wire p0_mdc;
 wire p0_mdio;
+wire p0_int;
+wire p0_resetn;
+
+wire [7:0] p1_rxdat;
+wire p1_rxdv;
+wire p1_rxer;
+wire p1_rxsclk;
+wire [7:0] p1_txdat;
+wire p1_txen;
+wire p1_txer;
+wire p1_txsclk;
+wire p1_gtxsclk;
+wire p1_crs;
+wire p1_col;
+wire p1_mdc;
 wire p1_mdio;
+wire p1_int;
+wire p1_resetn;
 
 pullup (FRAME_N);
 pullup (IRDY_N);
@@ -132,9 +161,6 @@ pullup (PERR_N);
 pullup (SERR_N);
 pullup (INTA_N);
 pullup (PMEA_N);
-
-pullup (p0_mdio);
-pullup (p1_mdio);
 /*
 pullup (PAR);
 pullup pu_ad [31:0] (AD);
@@ -143,8 +169,30 @@ pullup pu_cbe [3:0] (CBE);
 pullup pu_req [3:0] (REQ_N);
 pullup pu_gnt [3:0] (GNT_N);
 
+
 assign RST_N = !rst;
 assign PCLK = clk33;
+
+
+pullup (p0_mdio);
+pulldown (p0_int);
+
+pullup (p1_mdio);
+pulldown (p1_int);
+
+assign p0_rxsclk = p0_gtxsclk;
+assign p0_rxdat = p0_txdat;
+assign p0_rxdv = p0_txen;
+assign p0_rxer = p0_txer;
+assign p0_crs = p0_txen;
+assign p0_col = 0;
+
+assign p1_rxsclk = p0_gtxsclk;
+assign p1_rxdat = p0_txdat;
+assign p1_rxdv = p0_txen;
+assign p1_rxer = p0_txer;
+assign p1_crs = p0_txen;
+assign p1_col = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Modules
@@ -171,37 +219,37 @@ device_top #(.DEBUG("FALSE")) dut_i(
 
 	.PCI_EN_N(),
 
-	.p0_rxdat(8'b0),
-	.p0_rxdv(1'b0),
-	.p0_rxer(1'b0),
-	.p0_rxsclk(1'b0),
-	.p0_txdat(),
-	.p0_txen(),
-	.p0_txer(),
-	.p0_txsclk(1'b0),
-	.p0_gtxsclk(),
-	.p0_crs(1'b0),
-	.p0_col(1'b0),
-	.p0_mdc(),
+	.p0_rxdat(p0_rxdat),
+	.p0_rxdv(p0_rxdv),
+	.p0_rxer(p0_rxer),
+	.p0_rxsclk(p0_rxsclk),
+	.p0_txdat(p0_txdat),
+	.p0_txen(p0_txen),
+	.p0_txer(p0_txer),
+	.p0_txsclk(p0_txsclk),
+	.p0_gtxsclk(p0_gtxsclk),
+	.p0_crs(p0_crs),
+	.p0_col(p0_col),
+	.p0_mdc(p0_mdc),
 	.p0_mdio(p0_mdio),
-	.p0_int(1'b0),
-	.p0_resetn(),
+	.p0_int(p0_int),
+	.p0_resetn(p0_resetn),
 
-	.p1_rxdat(8'b0),
-	.p1_rxdv(1'b0),
-	.p1_rxer(1'b0),
-	.p1_rxsclk(1'b0),
-	.p1_txdat(),
-	.p1_txen(),
-	.p1_txer(),
-	.p1_txsclk(1'b0),
-	.p1_gtxsclk(),
-	.p1_crs(1'b0),
-	.p1_col(1'b0),
-	.p1_mdc(),
+	.p1_rxdat(p1_rxdat),
+	.p1_rxdv(p1_rxdv),
+	.p1_rxer(p1_rxer),
+	.p1_rxsclk(p1_rxsclk),
+	.p1_txdat(p1_txdat),
+	.p1_txen(p1_txen),
+	.p1_txer(p1_txer),
+	.p1_txsclk(p1_txsclk),
+	.p1_gtxsclk(p1_gtxsclk),
+	.p1_crs(p1_crs),
+	.p1_col(p1_col),
+	.p1_mdc(p1_mdc),
 	.p1_mdio(p1_mdio),
-	.p1_int(1'b0),
-	.p1_resetn(),
+	.p1_int(p1_int),
+	.p1_resetn(p1_resetn),
 
 	.can0_rx(1'b1),
 	.can0_tx(),
@@ -653,8 +701,10 @@ begin
 
 	$dumpfile("test_nic_device.vcd");
 	$dumpvars(1);
-	//$dumpvars(1,dut_i);
-	$dumpvars(0,dut_i.e1000_i.tx_path_i);
+	$dumpvars(1,dut_i);
+	$dumpvars(1,dut_i.e1000_i);
+	$dumpvars(1,dut_i.e1000_i.tx_path_i);
+	$dumpvars(0,dut_i.e1000_i.tx_path_i.tx_align_i);
 	#1_000_000_000;
 	$finish;
 end

@@ -23,9 +23,10 @@ vlog $vlog_opts ../../src/pci/pci_master.v
 vlog $vlog_opts ../../src/pci/pci_master_wpath.v
 vlog $vlog_opts ../../src/pci/pci_master_rpath.v
 vlog $vlog_opts ../../src/pci/pci_master_ctrl.v
-vlog $vlog_opts ../../src/pci/fifo_async.v
 vlog $vlog_opts ../../src/pci/pci_lc.v
 vlog $vlog_opts ../../src/pci/pci32_0.v
+
+vlog $vlog_opts ../../src/common/fifo_async.v
 
 vlog $vlog_opts ../../src/e1000/e1000_top.v
 vlog $vlog_opts ../../src/e1000/e1000_regs.v
@@ -46,6 +47,23 @@ vlog $vlog_opts ../../src/e1000/tx_frame.v
 vlog $vlog_opts ../../src/e1000/tx_path.v
 vlog $vlog_opts ../../src/e1000/axis_realign.v
 vlog $vlog_opts ../../src/e1000/axi_rdma.v
+vlog $vlog_opts ../../src/e1000/mac_axis.v
+
+vlog $vlog_opts ../../src/mac/Clk_ctrl.v
+vlog $vlog_opts ../../src/mac/Phy_int.v
+vlog $vlog_opts +incdir+../../src/mac ../../src/mac/MAC_rx.v
+vlog $vlog_opts ../../src/mac/MAC_rx/CRC_chk.v
+vlog $vlog_opts ../../src/mac/MAC_rx/MAC_rx_ctrl.v
+vlog $vlog_opts +incdir+../../src/mac ../../src/mac/MAC_rx/MAC_rx_FF.v
+vlog $vlog_opts +incdir+../../src/mac ../../src/mac/MAC_tx.v
+vlog $vlog_opts ../../src/mac/MAC_tx/CRC_gen.v
+vlog $vlog_opts ../../src/mac/MAC_tx/flow_ctrl.v
+vlog $vlog_opts ../../src/mac/MAC_tx/MAC_tx_Ctrl.v
+vlog $vlog_opts +incdir+../../src/mac ../../src/mac/MAC_tx/MAC_tx_FF.v
+vlog $vlog_opts ../../src/mac/MAC_tx/Ramdon_gen.v
+vlog $vlog_opts ../../src/mac/TECH/duram.v
+vlog $vlog_opts ../../src/mac/TECH/CLK_DIV2.v
+vlog $vlog_opts ../../src/mac/TECH/CLK_SWITCH.v
 
 vlog ../../src/test/glbl.v
 
