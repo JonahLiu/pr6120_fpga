@@ -83,7 +83,29 @@ module e1000_regs(
 	output [5:0] TXDCTL_LWTHRESH,
 	output [15:0] TADV,
 	output [15:0] TSMT,
-	output [15:0] TSPBP
+	output [15:0] TSPBP,
+
+	output RCTL_EN,
+	output [1:0] RDMTS,
+	output [1:0] BSIZE,
+	output BSEX,
+	output SECRC,
+	output [63:0] RDBA,
+	output [12:0] RDLEN,
+	output [15:0] RDH,
+	output RDH_set,
+	output [15:0] RDH_fb,
+	output [15:0] RDT,
+	output RDT_set,
+	output [5:0] RXDCTL_PTHRESH,
+	output [5:0] RXDCTL_HTHRESH,
+	output [5:0] RXDCTL_WTHRESH,
+	output RXDCTL_GRAN,
+	output [7:0] PCSS,
+	output [15:0] RDTR,
+	output FPD,
+	output FPD_set,
+	output [15:0] RADV
 );
 
 reg awready_r;
@@ -95,12 +117,12 @@ reg [31:0] rdata_r;
 reg rvalid_r;
 reg [1:0] rresp_r;
 
-reg [31:0] write_addr;
+reg [15:0] write_addr;
 reg [31:0] write_data;
 reg write_enable;
 reg [3:0] write_be;
 
-reg [31:0] read_addr;
+reg [15:0] read_addr;
 reg [31:0] read_data;
 reg read_enable;
 reg read_ready;
@@ -229,967 +251,626 @@ begin
 	end
 end
 
-reg CTRL_wstb;
-reg CTRL_rstb;
-wire [31:0] CTRL_o;
-wire [31:0] CTRL_i;
-e1000_register #(.init(32'h0000_0201)) CTRL_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(CTRL_wstb), .q_o(CTRL_o)
+wire [31:0] CTRL, CTRL_Q, CTRL_B;
+wire CTRL_get, CTRL_set;
+e1000_register #(.INIT(32'h0000_0201),.ADDR(16'h0000),.BMSK(32'h0000_0000)) CTRL_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(CTRL),.Q(CTRL_Q),.B(CTRL_B),.S(CTRL_set),.G(CTRL_get)
 );
-assign CTRL_i = CTRL_o;
-assign CTRL_RST = CTRL_o[26];
-assign CTRL_PHY_RST = CTRL_o[31];
+assign CTRL_B = CTRL;
+assign CTRL_RST = CTRL[26];
+assign CTRL_PHY_RST = CTRL[31];
 
-reg STATUS_wstb;
-reg STATUS_rstb;
-wire [31:0] STATUS_i;
-assign STATUS_i = 'b0; // FIXIT: actual value
-
-reg EECD_wstb;
-reg EECD_rstb;
-wire [31:0] EECD_o;
-wire [31:0] EECD_i;
-e1000_register #(.init(32'h0000_0110)) EECD_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(EECD_wstb), .q_o(EECD_o)
+wire [31:0] STATUS, STATUS_Q, STATUS_B;
+wire STATUS_get, STATUS_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0008),.BMSK(32'hFFFF_FFFF)) STATUS_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(STATUS),.Q(STATUS_Q),.B(STATUS_B),.S(STATUS_set),.G(STATUS_get)
 );
-assign EECD = EECD_o;
-assign EECD_i = {24'h0000_07,EECD_GNT_i,EECD_o[6:4],EECD_DO_i,EECD[2:0]};
+assign STATUS_B=STATUS; // FIXME: Actual value
 
-reg EERD_wstb;
-reg EERD_rstb;
-wire [31:0] EERD_o;
-wire [31:0] EERD_i;
-e1000_register #(.init(32'h0)) EERD_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(EERD_wstb), .q_o(EERD_o)
+wire [31:0] EECD_Q, EECD_B;
+wire EECD_get, EECD_set;
+e1000_register #(.INIT(32'h0000_0110),.ADDR(16'h0010),.BMSK(32'hFFFF_FF88)) EECD_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(EECD),.Q(EECD_Q),.B(EECD_B),.S(EECD_set),.G(EECD_get)
 );
-assign EERD = EERD_o;
-assign EERD_i = {EERD_DATA_i,EERD_o[15:8],3'b0,EERD_DONE_i,4'b0};
-reg EERD_wstb_0;
-always @(posedge aclk) EERD_wstb_0 <= EERD_wstb;
-assign EERD_START = EERD_o[0]&EERD_wstb_0;
+assign EECD_B = {24'h0000_07,EECD_GNT_i,EECD[6:4],EECD_DO_i,EECD[2:0]};
 
-
-// FLA is ignored
-reg FLA_wstb;
-reg FLA_rstb;
-wire [31:0] FLA_i;
-assign FLA_i = 'b0;
-
-reg CTRL_EXT_wstb;
-reg CTRL_EXT_rstb;
-wire [31:0] CTRL_EXT_o;
-wire [31:0] CTRL_EXT_i;
-e1000_register #(.init(32'h0)) CTRL_EXT_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(CTRL_EXT_wstb), .q_o(CTRL_EXT_o)
+wire [31:0] EERD_Q, EERD_B;
+wire EERD_get, EERD_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0014),.BMSK(32'hFFFF_00FF)) EERD_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(EERD),.Q(EERD_Q),.B(EERD_B),.S(EERD_set),.G(EERD_get)
 );
-assign CTRL_EXT_i = CTRL_EXT_o;
+assign EERD_B = {EERD_DATA_i,EERD[15:8],3'b0,EERD_DONE_i,4'b0};
+assign EERD_START = EERD[0]&EERD_set;
 
-reg MDIC_wstb;
-reg MDIC_rstb;
-wire [31:0] MDIC_o;
-wire [31:0] MDIC_i;
-e1000_register #(.init(32'h0)) MDIC_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(MDIC_wstb), .q_o(MDIC_o)
+wire [31:0] FLA, FLA_Q, FLA_B;
+wire FLA_get, FLA_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h001C),.BMSK(32'h0000_0000)) FLA_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(FLA),.Q(FLA_Q),.B(FLA_B),.S(FLA_set),.G(FLA_get)
 );
-assign MDIC = MDIC_o;
-assign MDIC_i = {2'b0,MDIC_o[29],MDIC_R_i,MDIC_o[27:16],MDIC_DATA_i};
-reg MDIC_wstb_0;
-always @(posedge aclk) MDIC_wstb_0 <= MDIC_wstb;
-assign MDIC_start = MDIC_wstb_0;
+assign FLA_B = FLA; // FLA is ignored
 
-reg FCAL_wstb;
-reg FCAL_rstb;
-wire [31:0] FCAL_o;
-wire [31:0] FCAL_i;
-e1000_register #(.init(32'h00C2_8001)) FCAL_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(FCAL_wstb), .q_o(FCAL_o)
+wire [31:0] CTRL_EXT, CTRL_EXT_Q, CTRL_EXT_B;
+wire CTRL_EXT_get, CTRL_EXT_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0018),.BMSK(32'h0000_0000)) CTRL_EXT_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(CTRL_EXT),.Q(CTRL_EXT_Q),.B(CTRL_EXT_B),.S(CTRL_EXT_set),.G(CTRL_EXT_get)
 );
-assign FCAL_i = FCAL_o;
+assign CTRL_EXT_B = CTRL_EXT; // CTRL_EXT is ignored
 
-reg FCAH_wstb;
-reg FCAH_rstb;
-wire [31:0] FCAH_o;
-wire [31:0] FCAH_i;
-e1000_register #(.init(32'h0000_0100)) FCAH_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(FCAH_wstb), .q_o(FCAH_o)
+wire [31:0] MDIC_Q, MDIC_B;
+wire MDIC_get, MDIC_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0020),.BMSK(32'hD000_FFFF)) MDIC_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(MDIC),.Q(MDIC_Q),.B(MDIC_B),.S(MDIC_set),.G(MDIC_get)
 );
-assign FCAH_i = {16'b0,FCAH_o[15:0]};
+assign MDIC_B = {2'b0,MDIC[29],MDIC_R_i,MDIC[27:16],MDIC_DATA_i};
+assign MDIC_start = MDIC_set;
 
-reg FCT_wstb;
-reg FCT_rstb;
-wire [31:0] FCT_o;
-wire [31:0] FCT_i;
-e1000_register #(.init(32'h0000_8808)) FCT_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(FCT_wstb), .q_o(FCT_o)
+wire [31:0] FCAL, FCAL_Q, FCAL_B;
+wire FCAL_get, FCAL_set;
+e1000_register #(.INIT(32'h00C2_8001),.ADDR(16'h0028),.BMSK(32'h0000_0000)) FCAL_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(FCAL),.Q(FCAL_Q),.B(FCAL_B),.S(FCAL_set),.G(FCAL_get)
 );
-assign FCT_i = {16'b0,FCT_o[15:0]};
+assign FCAL_B = FCAL; // FCAL is ignored
 
-reg VET_wstb;
-reg VET_rstb;
-wire [31:0] VET_o;
-wire [31:0] VET_i;
-e1000_register #(.init(32'h0000_8100)) VET_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(VET_wstb), .q_o(VET_o)
+wire [31:0] FCAH, FCAH_Q, FCAH_B;
+wire FCAH_get, FCAH_set;
+e1000_register #(.INIT(32'h0000_0100),.ADDR(16'h002C),.BMSK(32'hFFFF_0000)) FCAH_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(FCAH),.Q(FCAH_Q),.B(FCAH_B),.S(FCAH_set),.G(FCAH_get)
 );
-assign VET_i = {16'b0,VET_o[15:0]};
+assign FCAH_B = {16'b0,FCAH[15:0]};
 
-reg FCTTV_wstb;
-reg FCTTV_rstb;
-wire [31:0] FCTTV_o;
-wire [31:0] FCTTV_i;
-e1000_register #(.init(32'h0000_8100)) FCTTV_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(FCTTV_wstb), .q_o(FCTTV_o)
+wire [31:0] FCT, FCT_Q, FCT_B;
+wire FCT_get, FCT_set;
+e1000_register #(.INIT(32'h0000_8808),.ADDR(16'h0030),.BMSK(32'hFFFF_0000)) FCT_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(FCT),.Q(FCT_Q),.B(FCT_B),.S(FCT_set),.G(FCT_get)
 );
-assign FCTTV_i = {16'b0,FCTTV_o[15:0]};
+assign FCT_B = {16'b0,FCT[15:0]};
 
-// TXCW is ignored
-reg TXCW_wstb;
-reg TXCW_rstb;
-wire [31:0] TXCW_i;
-assign TXCW_i = 'b0;
-
-// RXCW is ignored
-reg RXCW_wstb;
-reg RXCW_rstb;
-wire [31:0] RXCW_i;
-assign RXCW_i = 'b0;
-
-reg LEDCTL_wstb;
-reg LEDCTL_rstb;
-wire [31:0] LEDCTL_o;
-wire [31:0] LEDCTL_i;
-e1000_register #(.init(32'h0706_8302)) LEDCTL_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(LEDCTL_wstb), .q_o(LEDCTL_o)
+wire [31:0] VET, VET_Q, VET_B;
+wire VET_get, VET_set;
+e1000_register #(.INIT(32'h0000_8100),.ADDR(16'h0038),.BMSK(32'hFFFF_0000)) VET_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(VET),.Q(VET_Q),.B(VET_B),.S(VET_set),.G(VET_get)
 );
-assign LEDCTL_i = LEDCTL_o;
+assign VET_B = {16'b0,VET[15:0]};
 
-reg PBA_wstb;
-reg PBA_rstb;
-wire [31:0] PBA_o;
-wire [31:0] PBA_i;
-e1000_register #(.init(32'h0010_0030)) PBA_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(PBA_wstb), .q_o(PBA_o)
+wire [31:0] FCTTV, FCTTV_Q, FCTTV_B;
+wire FCTTV_get, FCTTV_set;
+e1000_register #(.INIT(32'h0000_8100),.ADDR(16'h0170),.BMSK(32'hFFFF_0000)) FCTTV_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(FCTTV),.Q(FCTTV_Q),.B(FCTTV_B),.S(FCTTV_set),.G(FCTTV_get)
 );
-assign PBA_i = PBA_o;
+assign FCTTV_B = {16'b0,FCTTV[15:0]};
 
-//FIXIT: ICR is R-C, W1-C
-reg ICR_wstb;
-reg ICR_rstb;
-wire [31:0] ICR_o;
-wire [31:0] ICR_i;
-e1000_register #(.init(32'h0)) ICR_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(ICR_wstb), .q_o(ICR_o)
+wire [31:0] TXCW, TXCW_Q, TXCW_B;
+wire TXCW_get, TXCW_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0178),.BMSK(32'h0000_0000)) TXCW_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(TXCW),.Q(TXCW_Q),.B(TXCW_B),.S(TXCW_set),.G(TXCW_get)
 );
-reg ICR_wstb_0;
-always @(posedge aclk) ICR_wstb_0 <= ICR_wstb;
-assign ICR_set = ICR_wstb_0;
-reg ICR_rstb_0;
-always @(posedge aclk) ICR_rstb_0 <= ICR_rstb;
-assign ICR_get = ICR_rstb_0;
-assign ICR_i = ICR_fb_i;
-assign ICR = ICR_o;
+assign TXCW_B = TXCW;
 
-reg ITR_wstb;
-reg ITR_rstb;
-wire [31:0] ITR_o;
-wire [31:0] ITR_i;
-e1000_register #(.init(32'h0)) ITR_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(ITR_wstb), .q_o(ITR_o)
+wire [31:0] RXCW, RXCW_Q, RXCW_B;
+wire RXCW_get, RXCW_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0180),.BMSK(32'h0000_0000)) RXCW_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(RXCW),.Q(RXCW_Q),.B(RXCW_B),.S(RXCW_set),.G(RXCW_get)
 );
-assign ITR_i = {16'b0,ITR_o[15:0]};
-reg ITR_wstb_0;
-always @(posedge aclk) ITR_wstb_0 <= ITR_wstb;
-assign ITR_set = ITR_wstb_0;
-assign ITR = ITR_o;
+assign RXCW_B = RXCW;
 
-reg ICS_wstb;
-reg ICS_rstb;
-wire [31:0] ICS_o;
-wire [31:0] ICS_i;
-e1000_register #(.init(32'h0)) ICS_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(ICS_wstb), .q_o(ICS_o)
+wire [31:0] LEDCTL, LEDCTL_Q, LEDCTL_B;
+wire LEDCTL_get, LEDCTL_set;
+e1000_register #(.INIT(32'h0706_8302),.ADDR(16'h0E00),.BMSK(32'h0000_0000)) LEDCTL_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(LEDCTL),.Q(LEDCTL_Q),.B(LEDCTL_B),.S(LEDCTL_set),.G(LEDCTL_get)
 );
-assign ICS_i = {16'b0,ICS_o[15:0]};
-reg ICS_wstb_0;
-always @(posedge aclk) ICS_wstb_0 <= ICS_wstb;
-assign ICS_set = ICS_wstb_0;
-assign ICS = ICS_o;
+assign LEDCTL_B = LEDCTL;
 
-reg IMS_wstb;
-reg IMS_rstb;
-wire [31:0] IMS_o;
-wire [31:0] IMS_i;
-e1000_register #(.init(32'h0)) IMS_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(IMS_wstb), .q_o(IMS_o)
+wire [31:0] PBA, PBA_Q, PBA_B;
+wire PBA_get, PBA_set;
+e1000_register #(.INIT(32'h0010_0030),.ADDR(16'h1000),.BMSK(32'h0000_0000)) PBA_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(PBA),.Q(PBA_Q),.B(PBA_B),.S(PBA_set),.G(PBA_get)
 );
-assign IMS_i = {15'b0,IMS_o[16:0]};
-reg IMS_wstb_0;
-always @(posedge aclk) IMS_wstb_0 <= IMS_wstb;
-assign IMS_set = IMS_wstb_0;
-assign IMS = IMS_o;
+assign PBA_B = PBA;
 
-reg IMC_wstb;
-reg IMC_rstb;
-wire [31:0] IMC_o;
-wire [31:0] IMC_i;
-e1000_register #(.init(32'h0)) IMC_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(IMC_wstb), .q_o(IMC_o)
+// ICR is R-C, W1-C
+wire [31:0] ICR_Q, ICR_B;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h00C0),.BMSK(32'hFFFF_FFFF)) ICR_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(ICR),.Q(ICR_Q),.B(ICR_B),.S(ICR_set),.G(ICR_get)
 );
-assign IMC_i = {15'b0,IMC_o[16:0]};
-reg IMC_wstb_0;
-always @(posedge aclk) IMC_wstb_0 <= IMC_wstb;
-assign IMC_set = IMC_wstb_0;
-assign IMC = IMC_o;
+assign ICR_B = ICR_fb_i;
 
-reg RCTL_wstb;
-reg RCTL_rstb;
-wire [31:0] RCTL_o;
-wire [31:0] RCTL_i;
-e1000_register #(.init(32'h0)) RCTL_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(RCTL_wstb), .q_o(RCTL_o)
+wire [31:0] ITR_Q, ITR_B;
+wire ITR_get;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h00C4),.BMSK(32'hFFFF_0000)) ITR_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(ITR),.Q(ITR_Q),.B(ITR_B),.S(ITR_set),.G(ITR_get)
 );
-assign RCTL_i = {5'b0,RCTL_o[26:0]};
+assign ITR_B = {16'b0,ITR[15:0]};
 
-reg FCRTL_wstb;
-reg FCRTL_rstb;
-wire [31:0] FCRTL_o;
-wire [31:0] FCRTL_i;
-e1000_register #(.init(32'h0)) FCRTL_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(FCRTL_wstb), .q_o(FCRTL_o)
+wire [31:0] ICS_Q, ICS_B;
+wire ICS_get;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h00C8),.BMSK(32'hFFFF_0000)) ICS_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(ICS),.Q(ICS_Q),.B(ICS_B),.S(ICS_set),.G(ICS_get)
 );
-assign FCRTL_i = {FCRTL_o[31],15'b0,FCRTL_o[15:3],3'b0};
+assign ICS_B = {16'b0,ICS[15:0]};
 
-reg FCRTH_wstb;
-reg FCRTH_rstb;
-wire [31:0] FCRTH_o;
-wire [31:0] FCRTH_i;
-e1000_register #(.init(32'h0)) FCRTH_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(FCRTH_wstb), .q_o(FCRTH_o)
+wire [31:0] IMS_Q, IMS_B;
+wire IMS_get;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h00D0),.BMSK(32'hFFFF_0000)) IMS_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(IMS),.Q(IMS_Q),.B(IMS_B),.S(IMS_set),.G(IMS_get)
 );
-assign FCRTH_i = {FCRTH_o[31],15'b0,FCRTH_o[15:3],3'b0};
+assign IMS_B = {16'b0,IMS[15:0]};
 
-reg RDBAL_wstb;
-reg RDBAL_rstb;
-wire [31:0] RDBAL_o;
-wire [31:0] RDBAL_i;
-e1000_register #(.init(32'h0)) RDBAL_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(RDBAL_wstb), .q_o(RDBAL_o)
+wire [31:0] IMC_Q, IMC_B;
+wire IMC_get;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h00D8),.BMSK(32'hFFFF_0000)) IMC_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(IMC),.Q(IMC_Q),.B(IMC_B),.S(IMC_set),.G(IMC_get)
 );
-assign RDBAL_i = {RDBAL_o[31:4],4'b0};
+assign IMC_B = {16'b0,IMC[15:0]};
 
-reg RDBAH_wstb;
-reg RDBAH_rstb;
-wire [31:0] RDBAH_o;
-wire [31:0] RDBAH_i;
-e1000_register #(.init(32'h0)) RDBAH_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(RDBAH_wstb), .q_o(RDBAH_o)
+wire [31:0] RCTL, RCTL_Q, RCTL_B;
+wire RCTL_get, RCTL_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0100),.BMSK(32'hF800_0000)) RCTL_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(RCTL),.Q(RCTL_Q),.B(RCTL_B),.S(RCTL_set),.G(RCTL_get)
 );
-assign RDBAH_i = RDBAH_o;
+assign RCTL_B = {5'b0,RCTL[26:0]};
+assign RCTL_EN = RCTL[1];
+assign RDMTS = RCTL[9:8];
+assign BSIZE = RCTL[17:16];
+assign BSEX = RCTL[25];
+assign SECRC = RCTL[26];
 
-reg RDLEN_wstb;
-reg RDLEN_rstb;
-wire [31:0] RDLEN_o;
-wire [31:0] RDLEN_i;
-e1000_register #(.init(32'h0)) RDLEN_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(RDLEN_wstb), .q_o(RDLEN_o)
+wire [31:0] FCRTL, FCRTL_Q, FCRTL_B;
+wire FCRTL_get, FCRTL_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h2160),.BMSK(32'h7FFF_0007)) FCRTL_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(FCRTL),.Q(FCRTL_Q),.B(FCRTL_B),.S(FCRTL_set),.G(FCRTL_get)
 );
-assign RDLEN_i = {12'b0,RDLEN_o[19:7],7'b0};
+assign FCRTL_B = {FCRTL[31],15'b0,FCRTL[15:3],3'b0};
 
-reg RDH_wstb;
-reg RDH_rstb;
-wire [31:0] RDH_o;
-wire [31:0] RDH_i;
-e1000_register #(.init(32'h0)) RDH_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(RDH_wstb), .q_o(RDH_o)
+wire [31:0] FCRTH, FCRTH_Q, FCRTH_B;
+wire FCRTH_get, FCRTH_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h2168),.BMSK(32'h7FFF_0007)) FCRTH_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(FCRTH),.Q(FCRTH_Q),.B(FCRTH_B),.S(FCRTH_set),.G(FCRTH_get)
 );
-assign RDH_i = {16'b0,RDH_o[15:0]};
+assign FCRTH_B = {FCRTH[31],15'b0,FCRTH[15:3],3'b0};
 
-reg RDT_wstb;
-reg RDT_rstb;
-wire [31:0] RDT_o;
-wire [31:0] RDT_i;
-e1000_register #(.init(32'h0)) RDT_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(RDT_wstb), .q_o(RDT_o)
+wire [31:0] RDBAL, RDBAL_Q, RDBAL_B;
+wire RDBAL_get, RDBAL_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h2800),.BMSK(32'h0000_000F)) RDBAL_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(RDBAL),.Q(RDBAL_Q),.B(RDBAL_B),.S(RDBAL_set),.G(RDBAL_get)
 );
-assign RDT_i = {16'b0,RDT_o[15:0]};
+assign RDBAL_B = {RDBAL[31:4],4'b0};
 
-reg RDTR_wstb;
-reg RDTR_rstb;
-wire [31:0] RDTR_o;
-wire [31:0] RDTR_i;
-e1000_register #(.init(32'h0)) RDTR_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(RDTR_wstb), .q_o(RDTR_o)
+wire [31:0] RDBAH, RDBAH_Q, RDBAH_B;
+wire RDBAH_get, RDBAH_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h2804),.BMSK(32'h0000_0000)) RDBAH_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(RDBAH),.Q(RDBAH_Q),.B(RDBAH_B),.S(RDBAH_set),.G(RDBAH_get)
 );
-assign RDTR_i = {RDTR_o[31],15'b0,RDTR_o[15:0]};
+assign RDBAH_B = RDBAH;
 
-reg RADV_wstb;
-reg RADV_rstb;
-wire [31:0] RADV_o;
-wire [31:0] RADV_i;
-e1000_register #(.init(32'h0)) RADV_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(RADV_wstb), .q_o(RADV_o)
-);
-assign RADV_i = {RADV_o[31],15'b0,RADV_o[15:0]};
+assign RDBA = {RDBAH, RDBAL[31:4], 4'b0};
 
-reg RSRPD_wstb;
-reg RSRPD_rstb;
-wire [31:0] RSRPD_o;
-wire [31:0] RSRPD_i;
-e1000_register #(.init(32'h0)) RSRPD_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(RSRPD_wstb), .q_o(RSRPD_o)
+wire [31:0] RDLEN_O, RDLEN_Q, RDLEN_B;
+wire RDLEN_get, RDLEN_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h2808),.BMSK(32'hFFF0_007F)) RDLEN_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(RDLEN_O),.Q(RDLEN_Q),.B(RDLEN_B),.S(RDLEN_set),.G(RDLEN_get)
 );
-assign RSRPD_i = {20'b0,RSRPD_o[11:0]};
+assign RDLEN_B = {12'b0,RDLEN_O[19:7],7'b0};
+assign RDLEN = RDLEN_O[19:7];
 
-reg TCTL_wstb;
-reg TCTL_rstb;
-wire [31:0] TCTL_o;
-wire [31:0] TCTL_i;
-e1000_register #(.init(32'h0)) TCTL_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(TCTL_wstb), .q_o(TCTL_o)
+wire [31:0] RDH_O, RDH_Q, RDH_B;
+wire RDH_get;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h2810),.BMSK(32'hFFFF_FFFF)) RDH_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(RDH_O),.Q(RDH_Q),.B(RDH_B),.S(RDH_set),.G(RDH_get)
 );
-assign TCTL_i = TCTL_o;
-assign TCTL_EN = TCTL_o[1];
-assign TCTL_PSP = TCTL_o[3];
+assign RDH_B = {16'b0,RDH_fb};
+assign RDH = RDH_O[15:0];
 
-reg TIPG_wstb;
-reg TIPG_rstb;
-wire [31:0] TIPG_o;
-wire [31:0] TIPG_i;
-e1000_register #(.init(32'h0)) TIPG_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(TIPG_wstb), .q_o(TIPG_o)
+wire [31:0] RDT_O, RDT_Q, RDT_B;
+wire RDT_get;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h2818),.BMSK(32'hFFFF_0000)) RDT_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(RDT_O),.Q(RDT_Q),.B(RDT_B),.S(RDT_set),.G(RDT_get)
 );
-assign TIPG_i = {2'b0,TIPG_o[29:0]};
+assign RDT_B = {16'b0,RDT_O[15:0]};
+assign RDT = RDT_O[15:0];
+
+wire [31:0] RDTR_O, RDTR_Q, RDTR_B;
+wire RDTR_get, RDTR_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h2820),.BMSK(32'h7FFF_0000)) RDTR_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(RDTR_O),.Q(RDTR_Q),.B(RDTR_B),.S(RDTR_set),.G(RDTR_get)
+);
+assign RDTR_B = {RDTR_O[31],15'b0,RDTR_O[15:0]};
+assign RDTR = RDTR_O[15:0];
+assign FPD = RDTR_O[31];
+assign FPD_set = RDTR_set;
+
+wire [31:0] RADV_O, RADV_Q, RADV_B;
+wire RADV_get, RADV_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h282C),.BMSK(32'hFFFF_0000)) RADV_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(RADV_O),.Q(RADV_Q),.B(RADV_B),.S(RADV_set),.G(RADV_get)
+);
+assign RADV_B = {16'b0,RADV_O[15:0]};
+assign RADV = RADV_O[15:0];
+
+wire [31:0] RSRPD, RSRPD_Q, RSRPD_B;
+wire RSRPD_get, RSRPD_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h2C00),.BMSK(32'hFFFF_F000)) RSRPD_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(RSRPD),.Q(RSRPD_Q),.B(RSRPD_B),.S(RSRPD_set),.G(RSRPD_get)
+);
+assign RSRPD_B = {20'b0,RSRPD[11:0]};
+
+wire [31:0] TCTL, TCTL_Q, TCTL_B;
+wire TCTL_get, TCTL_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0400),.BMSK(32'h0000_0000)) TCTL_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(TCTL),.Q(TCTL_Q),.B(TCTL_B),.S(TCTL_set),.G(TCTL_get)
+);
+assign TCTL_B = TCTL;
+assign TCTL_EN = TCTL[1];
+assign TCTL_PSP = TCTL[3];
+
+wire [31:0] TIPG, TIPG_Q, TIPG_B;
+wire TIPG_get, TIPG_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0410),.BMSK(32'hC000_0000)) TIPG_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(TIPG),.Q(TIPG_Q),.B(TIPG_B),.S(TIPG_set),.G(TIPG_get)
+);
+assign TIPG_B = {2'b0,TIPG[29:0]};
 
 // Should be ignored
-reg AIFS_wstb;
-reg AIFS_rstb;
-wire [31:0] AIFS_o;
-wire [31:0] AIFS_i;
-e1000_register #(.init(32'h0)) AIFS_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(AIFS_wstb), .q_o(AIFS_o)
+wire [31:0] AIFS, AIFS_Q, AIFS_B;
+wire AIFS_get, AIFS_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0458),.BMSK(32'hFFFF_0000)) AIFS_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(AIFS),.Q(AIFS_Q),.B(AIFS_B),.S(AIFS_set),.G(AIFS_get)
 );
-assign AIFS_i = {16'b0,AIFS_o[15:0]};
+assign AIFS_B = {16'b0,AIFS[15:0]};
 
-reg TDBAL_wstb;
-reg TDBAL_rstb;
-wire [31:0] TDBAL_o;
-wire [31:0] TDBAL_i;
-e1000_register #(.init(32'h0)) TDBAL_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(TDBAL_wstb), .q_o(TDBAL_o)
+wire [31:0] TDBAL, TDBAL_Q, TDBAL_B;
+wire TDBAL_get, TDBAL_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h3800),.BMSK(32'h0000_000F)) TDBAL_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(TDBAL),.Q(TDBAL_Q),.B(TDBAL_B),.S(TDBAL_set),.G(TDBAL_get)
 );
-assign TDBAL_i = {TDBAL_o[31:4],4'b0};
+assign TDBAL_B = {TDBAL[31:4],4'b0};
 
-reg TDBAH_wstb;
-reg TDBAH_rstb;
-wire [31:0] TDBAH_o;
-wire [31:0] TDBAH_i;
-e1000_register #(.init(32'h0)) TDBAH_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(TDBAH_wstb), .q_o(TDBAH_o)
+wire [31:0] TDBAH, TDBAH_Q, TDBAH_B;
+wire TDBAH_get, TDBAH_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h3804),.BMSK(32'h0000_0000)) TDBAH_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(TDBAH),.Q(TDBAH_Q),.B(TDBAH_B),.S(TDBAH_set),.G(TDBAH_get)
 );
-assign TDBAH_i = TDBAH_o;
+assign TDBAH_B = TDBAH;
 
-assign TDBA = {TDBAH_o,TDBAL_o};
+assign TDBA = {TDBAH,TDBAL[31:4],4'b0};
 
-reg TDLEN_wstb;
-reg TDLEN_rstb;
-wire [31:0] TDLEN_o;
-wire [31:0] TDLEN_i;
-e1000_register #(.init(32'h0)) TDLEN_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(TDLEN_wstb), .q_o(TDLEN_o)
+wire [31:0] TDLEN_O, TDLEN_Q, TDLEN_B;
+wire TDLEN_get, TDLEN_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h3808),.BMSK(32'hFFF0_007F)) TDLEN_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(TDLEN_O),.Q(TDLEN_Q),.B(TDLEN_B),.S(TDLEN_set),.G(TDLEN_get)
 );
-assign TDLEN_i = {12'b0,TDLEN_o[19:7],7'b0};
-assign TDLEN = TDLEN_o[19:7];
+assign TDLEN_B = {12'b0,TDLEN_O[19:7],7'b0};
+assign TDLEN = TDLEN_O[19:7];
 
-reg TDH_wstb;
-reg TDH_rstb;
-wire [31:0] TDH_o;
-wire [31:0] TDH_i;
-e1000_register #(.init(32'h0)) TDH_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(TDH_wstb), .q_o(TDH_o)
+wire [31:0] TDH_O,TDH_Q, TDH_B;
+wire TDH_get;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h3810),.BMSK(32'hFFFF_FFFF)) TDH_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(TDH_O),.Q(TDH_Q),.B(TDH_B),.S(TDH_set),.G(TDH_get)
 );
-assign TDH_i = {16'b0,TDH_fb};
-assign TDH = TDH_o[15:0];
-reg TDH_wstb_0;
-always @(posedge aclk) TDH_wstb_0 <= TDH_wstb;
-assign TDH_set = TDH_wstb_0;
+assign TDH_B = {16'b0,TDH_fb};
+assign TDH = TDH_O[15:0];
 
-reg TDT_wstb;
-reg TDT_rstb;
-wire [31:0] TDT_o;
-wire [31:0] TDT_i;
-e1000_register #(.init(32'h0)) TDT_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(TDT_wstb), .q_o(TDT_o)
+wire [31:0] TDT_O, TDT_Q, TDT_B;
+wire TDT_get;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h3818),.BMSK(32'hFFFF_0000)) TDT_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(TDT_O),.Q(TDT_Q),.B(TDT_B),.S(TDT_set),.G(TDT_get)
 );
-assign TDT_i = {16'b0,TDT_o[15:0]};
-assign TDT = TDT_o[15:0];
-reg TDT_wstb_0;
-always @(posedge aclk) TDT_wstb_0 <= TDT_wstb;
-assign TDT_set = TDT_wstb_0;
+assign TDT_i = {16'b0,TDT_O[15:0]};
+assign TDT = TDT_O[15:0];
 
-reg TIDV_wstb;
-reg TIDV_rstb;
-wire [31:0] TIDV_o;
-wire [31:0] TIDV_i;
-e1000_register #(.init(32'h0)) TIDV_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(TIDV_wstb), .q_o(TIDV_o)
+wire [31:0] TIDV_O, TIDV_Q, TIDV_B;
+wire TIDV_get, TIDV_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h3820),.BMSK(32'hFFFF_0000)) TIDV_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(TIDV_O),.Q(TIDV_Q),.B(TIDV_B),.S(TIDV_set),.G(TIDV_get)
 );
-assign TIDV_i = {16'b0,TIDV_o[15:0]};
-assign TIDV = TIDV_o[15:0];
+assign TIDV_i = {16'b0,TIDV_O[15:0]};
+assign TIDV = TIDV_O[15:0];
 
-reg TXDMAC_wstb;
-reg TXDMAC_rstb;
-wire [31:0] TXDMAC_o;
-wire [31:0] TXDMAC_i;
-e1000_register #(.init(32'h0000_0001)) TXDMAC_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(TXDMAC_wstb), .q_o(TXDMAC_o)
+wire [31:0] TXDMAC, TXDMAC_Q, TXDMAC_B;
+wire TXDMAC_get, TXDMAC_set;
+e1000_register #(.INIT(32'h0000_0001),.ADDR(16'h3000),.BMSK(32'hFFFF_FFFE)) TXDMAC_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(TXDMAC),.Q(TXDMAC_Q),.B(TXDMAC_B),.S(TXDMAC_set),.G(TXDMAC_get)
 );
-assign TXDMAC_i = {31'b0,TXDMAC_o[0]};
-assign DPP = TXDMAC_o[0];
+assign TXDMAC_B = {31'b0,TXDMAC[0]};
+assign DPP = TXDMAC[0];
 
-reg TXDCTL_wstb;
-reg TXDCTL_rstb;
-wire [31:0] TXDCTL_o;
-wire [31:0] TXDCTL_i;
-e1000_register #(.init(32'h0)) TXDCTL_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(TXDCTL_wstb), .q_o(TXDCTL_o)
+wire [31:0] TXDCTL, TXDCTL_Q, TXDCTL_B;
+wire TXDCTL_get, TXDCTL_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h3828),.BMSK(32'h0000_0000)) TXDCTL_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(TXDCTL),.Q(TXDCTL_Q),.B(TXDCTL_B),.S(TXDCTL_set),.G(TXDCTL_get)
 );
-assign TXDCTL_i = TXDCTL_o;
+assign TXDCTL_B = TXDCTL;
+assign TXDCTL_PTHRESH = TXDCTL[5:0];
+assign TXDCTL_HTHRESH = TXDCTL[13:8];
+assign TXDCTL_WTHRESH = TXDCTL[21:16];
+assign TXDCTL_GRAN = TXDCTL[24];
+assign TXDCTL_LWTHRESH = TXDCTL[31:25];
 
-assign TXDCTL_PTHRESH = TXDCTL_o[5:0];
-assign TXDCTL_HTHRESH = TXDCTL_o[15:8];
-assign TXDCTL_WTHRESH = TXDCTL_o[21:16];
-assign TXDCTL_GRAN = TXDCTL_o[24];
-assign TXDCTL_LWTHRESH = TXDCTL_o[31:25];
-
-reg TADV_wstb;
-reg TADV_rstb;
-wire [31:0] TADV_o;
-wire [31:0] TADV_i;
-e1000_register #(.init(32'h0)) TADV_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(TADV_wstb), .q_o(TADV_o)
+wire [31:0] TADV_O, TADV_Q, TADV_B;
+wire TADV_get, TADV_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h382C),.BMSK(32'hFFFF_0000)) TADV_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(TADV_O),.Q(TADV_Q),.B(TADV_B),.S(TADV_set),.G(TADV_get)
 );
-assign TADV_i = {16'b0,TADV_o[15:0]};
-assign TADV = TADV_o[15:0];
+assign TADV_B = {16'b0,TADV_O[15:0]};
+assign TADV = TADV_O[15:0];
 
-reg TSPMT_wstb;
-reg TSPMT_rstb;
-wire [31:0] TSPMT_o;
-wire [31:0] TSPMT_i;
-e1000_register #(.init(32'h0100_0400)) TSPMT_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(TSPMT_wstb), .q_o(TSPMT_o)
+wire [31:0] TSPMT, TSPMT_Q, TSPMT_B;
+wire TSPMT_get, TSPMT_set;
+e1000_register #(.INIT(32'h0100_0400),.ADDR(16'h3830),.BMSK(32'h0000_0000)) TSPMT_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(TSPMT),.Q(TSPMT_Q),.B(TSPMT_B),.S(TSPMT_set),.G(TSPMT_get)
 );
-assign TSPMT_i = TSPMT_o;
-assign TSMT = TSPMT_o[15:0];
-assign TSPBP = TSPMT_o[31:16];
+assign TSPMT_B = TSPMT;
+assign TSPBP = TSPMT[31:16];
+assign TSMT = TSPMT[15:0];
 
-reg RXDCTL_wstb;
-reg RXDCTL_rstb;
-wire [31:0] RXDCTL_o;
-wire [31:0] RXDCTL_i;
-e1000_register #(.init(32'h0101_0000)) RXDCTL_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(RXDCTL_wstb), .q_o(RXDCTL_o)
+wire [31:0] RXDCTL, RXDCTL_Q, RXDCTL_B;
+wire RXDCTL_get, RXDCTL_set;
+e1000_register #(.INIT(32'h0101_0000),.ADDR(16'h2828),.BMSK(32'h0000_0000)) RXDCTL_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(RXDCTL),.Q(RXDCTL_Q),.B(RXDCTL_B),.S(RXDCTL_set),.G(RXDCTL_get)
 );
-assign RXDCTL_i = RXDCTL_o;
+assign RXDCTL_B = RXDCTL;
+assign RXDCTL_PTHRESH = RXDCTL[5:0];
+assign RXDCTL_HTHRESH = RXDCTL[13:8];
+assign RXDCTL_WTHRESH = RXDCTL[21:16];
+assign RXDCTL_GRAN = RXDCTL[24];
 
-reg RXCSUM_wstb;
-reg RXCSUM_rstb;
-wire [31:0] RXCSUM_o;
-wire [31:0] RXCSUM_i;
-e1000_register #(.init(32'h0)) RXCSUM_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(RXCSUM_wstb), .q_o(RXCSUM_o)
+wire [31:0] RXCSUM, RXCSUM_Q, RXCSUM_B;
+wire RXCSUM_get, RXCSUM_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h5000),.BMSK(32'h0000_0000)) RXCSUM_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(RXCSUM),.Q(RXCSUM_Q),.B(RXCSUM_B),.S(RXCSUM_set),.G(RXCSUM_get)
 );
-assign RXCSUM_i = RXCSUM_o;
+assign RXCSUM_B = RXCSUM;
+assign PCSS = RXCSUM[7:0];
 
-reg MTA_wstb;
-reg MTA_rstb;
-wire [31:0] MTA_o;
-wire [31:0] MTA_i;
-assign MTA_o = write_data;
-assign MTA_i = 'b0; // FIXIT: connect to RAM
-
-reg RA_wstb;
-reg RA_rstb;
-wire [31:0] RA_o;
-wire [31:0] RA_i;
-assign RA_o = write_data;
-assign RA_i = 'b0; // FIXIT: connect to RAM
-
-reg VFTA_wstb;
-reg VFTA_rstb;
-wire [31:0] VFTA_o;
-wire [31:0] VFTA_i;
-assign VFTA_o = write_data;
-assign VFTA_i = 'b0; // FIXIT: connect to RAM
-
-reg WUC_wstb;
-reg WUC_rstb;
-wire [31:0] WUC_o;
-wire [31:0] WUC_i;
-e1000_register #(.init(32'h0)) WUC_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(WUC_wstb), .q_o(WUC_o)
+wire [31:0] MTA, MTA_Q, MTA_B;
+wire MTA_get, MTA_set;
+/*
+e1000_map #(.BASE(16'b0101_0010_0000_0000),.AW(9)) MTA_map_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(MTA),.Q(MTA_Q),.B(MTA_B),.S(MTA_set),.G(MTA_get)
 );
-assign WUC_i = {28'b0,WUC_o[3:0]};
+assign MTA_B = MTA_fb;
+*/
 
-reg WUFC_wstb;
-reg WUFC_rstb;
-wire [31:0] WUFC_o;
-wire [31:0] WUFC_i;
-e1000_register #(.init(32'h0)) WUFC_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(WUFC_wstb), .q_o(WUFC_o)
+wire [31:0] RA, RA_Q, RA_B;
+wire RA_get, RA_set;
+/*
+e1000_map #(.BASE(16'b0101_0100_0000_0000),.AW(7)) RA_map_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(RA),.Q(RA_Q),.B(RA_B),.S(RA_set),.G(RA_get)
 );
-assign WUFC_i = {12'b0,WUFC_o[19:0]};
+assign RA_B = RA_fb;
+*/
 
-reg WUS_wstb;
-reg WUS_rstb;
-wire [31:0] WUS_o;
-wire [31:0] WUS_i;
-assign WUS_i = 'b0; // FIXIT: 
-
-reg IPAV_wstb;
-reg IPAV_rstb;
-wire [31:0] IPAV_o;
-wire [31:0] IPAV_i;
-e1000_register #(.init(32'h0)) IPAV_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(IPAV_wstb), .q_o(IPAV_o)
+wire [31:0] VFTA, VFTA_Q, VFTA_B;
+wire VFTA_get, VFTA_set;
+/*
+e1000_map #(.BASE(16'b0101_0110_0000_0000),.AW(9)) VFTA_map_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(VFTA),.Q(VFTA_Q),.B(VFTA_B),.S(VFTA_set),.G(VFTA_get)
 );
-assign IPAV_i = {15'b0,IPAV_o[16],12'b0,IPAV_o[3:0]};
+assign VFTA_B = VFTA_fb;
+*/
 
-reg IP4AT_wstb;
-reg IP4AT_rstb;
-wire [31:0] IP4AT_o;
-wire [31:0] IP4AT_i;
-assign IP4AT_o = write_data;
-assign IP4AT_i = 'b0; // FIXIT: connect to RAM
-
-reg IP6AT_wstb;
-reg IP6AT_rstb;
-wire [31:0] IP6AT_o;
-wire [31:0] IP6AT_i;
-assign IP6AT_o = write_data;
-assign IP6AT_i = 'b0; // FIXIT: connect to RAM
-
-reg WUPL_wstb;
-reg WUPL_rstb;
-wire [31:0] WUPL_o;
-wire [31:0] WUPL_i;
-e1000_register #(.init(32'h0)) WUPL_reg_i( 
-	.clk_i(aclk), .arst_i(reset), 
-	.wbe_i(write_be), .d_i(write_data), 
-	.srst_i(1'b0), .wen_i(WUPL_wstb), .q_o(WUPL_o)
+wire [31:0] WUC, WUC_Q, WUC_B;
+wire WUC_get, WUC_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h5800),.BMSK(32'hFFFF_FFF0)) WUC_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(WUC),.Q(WUC_Q),.B(WUC_B),.S(WUC_set),.G(WUC_get)
 );
-assign WUPL_i = {20'b0,WUPL_o[11:0]};
-
-reg WUPM_wstb;
-reg WUPM_rstb;
-wire [31:0] WUPM_o;
-wire [31:0] WUPM_i;
-assign WUPM_o = write_data;
-assign WUPM_i = 'b0; 
-
-reg FFLT_wstb;
-reg FFLT_rstb;
-wire [31:0] FFLT_o;
-wire [31:0] FFLT_i;
-assign FFLT_o = write_data;
-assign FFLT_i = 'b0; 
-
-reg FFMT_wstb;
-reg FFMT_rstb;
-wire [31:0] FFMT_o;
-wire [31:0] FFMT_i;
-assign FFMT_o = write_data;
-assign FFMT_i = 'b0; 
-
-reg FFVT_wstb;
-reg FFVT_rstb;
-wire [31:0] FFVT_o;
-wire [31:0] FFVT_i;
-assign FFVT_o = write_data;
-assign FFVT_i = 'b0; 
-
-reg CRCERRS_wstb;
-reg CRCERRS_rstb;
-wire [31:0] CRCERRS_i;
-assign CRCERRS_i = 'b0; 
-
-reg ALGNERRC_wstb;
-reg ALGNERRC_rstb;
-wire [31:0] ALGNERRC_i;
-assign ALGNERRC_i = 'b0; 
-
-reg SYMERRS_wstb;
-reg SYMERRS_rstb;
-wire [31:0] SYMERRS_i;
-assign SYMERRS_i = 'b0; 
-
-reg RXERRC_wstb;
-reg RXERRC_rstb;
-wire [31:0] RXERRC_i;
-assign RXERRC_i = 'b0; 
-
-reg MPC_wstb;
-reg MPC_rstb;
-wire [31:0] MPC_i;
-assign MPC_i = 'b0; 
-
-reg SCC_wstb;
-reg SCC_rstb;
-wire [31:0] SCC_i;
-assign SCC_i = 'b0; 
-
-reg ECOL_wstb;
-reg ECOL_rstb;
-wire [31:0] ECOL_i;
-assign ECOL_i = 'b0; 
-
-reg MCC_wstb;
-reg MCC_rstb;
-wire [31:0] MCC_i;
-assign MCC_i = 'b0; 
-
-reg LATECOL_wstb;
-reg LATECOL_rstb;
-wire [31:0] LATECOL_i;
-assign LATECOL_i = 'b0; 
-
-reg COLC_wstb;
-reg COLC_rstb;
-wire [31:0] COLC_i;
-assign COLC_i = 'b0; 
-
-reg DC_wstb;
-reg DC_rstb;
-wire [31:0] DC_i;
-assign DC_i = 'b0; 
-
-reg TNCRS_wstb;
-reg TNCRS_rstb;
-wire [31:0] TNCRS_i;
-assign TNCRS_i = 'b0; 
-
-reg SEC_wstb;
-reg SEC_rstb;
-wire [31:0] SEC_i;
-assign SEC_i = 'b0; 
-
-reg CEXTERR_wstb;
-reg CEXTERR_rstb;
-wire [31:0] CEXTERR_i;
-assign CEXTERR_i = 'b0; 
-
-reg RLEC_wstb;
-reg RLEC_rstb;
-wire [31:0] RLEC_i;
-assign RLEC_i = 'b0; 
-
-reg XONRXC_wstb;
-reg XONRXC_rstb;
-wire [31:0] XONRXC_i;
-assign XONRXC_i = 'b0; 
-
-reg XONTXC_wstb;
-reg XONTXC_rstb;
-wire [31:0] XONTXC_i;
-assign XONTXC_i = 'b0; 
-
-reg XOFFRXC_wstb;
-reg XOFFRXC_rstb;
-wire [31:0] XOFFRXC_i;
-assign XOFFRXC_i = 'b0; 
-
-reg XOFFTXC_wstb;
-reg XOFFTXC_rstb;
-wire [31:0] XOFFTXC_i;
-assign XOFFTXC_i = 'b0; 
-
-reg FCRUC_wstb;
-reg FCRUC_rstb;
-wire [31:0] FCRUC_i;
-assign FCRUC_i = 'b0; 
-
-reg PRC64_wstb;
-reg PRC64_rstb;
-wire [31:0] PRC64_i;
-assign PRC64_i = 'b0; 
-
-reg PRC127_wstb;
-reg PRC127_rstb;
-wire [31:0] PRC127_i;
-assign PRC127_i = 'b0; 
-
-reg PRC255_wstb;
-reg PRC255_rstb;
-wire [31:0] PRC255_i;
-assign PRC255_i = 'b0; 
-
-reg PRC511_wstb;
-reg PRC511_rstb;
-wire [31:0] PRC511_i;
-assign PRC511_i = 'b0; 
-
-reg PRC1023_wstb;
-reg PRC1023_rstb;
-wire [31:0] PRC1023_i;
-assign PRC1023_i = 'b0; 
-
-reg PRC1522_wstb;
-reg PRC1522_rstb;
-wire [31:0] PRC1522_i;
-assign PRC1522_i = 'b0; 
-
-reg GPRC_wstb;
-reg GPRC_rstb;
-wire [31:0] GPRC_i;
-assign GPRC_i = 'b0; 
-
-reg BPRC_wstb;
-reg BPRC_rstb;
-wire [31:0] BPRC_i;
-assign BPRC_i = 'b0; 
-
-reg MPRC_wstb;
-reg MPRC_rstb;
-wire [31:0] MPRC_i;
-assign MPRC_i = 'b0; 
-
-reg GPTC_wstb;
-reg GPTC_rstb;
-wire [31:0] GPTC_i;
-assign GPTC_i = 'b0; 
-
-reg GORCL_wstb;
-reg GORCL_rstb;
-wire [31:0] GORCL_i;
-assign GORCL_i = 'b0; 
-
-reg GORCH_wstb;
-reg GORCH_rstb;
-wire [31:0] GORCH_i;
-assign GORCH_i = 'b0; 
-
-reg GOTCL_wstb;
-reg GOTCL_rstb;
-wire [31:0] GOTCL_i;
-assign GOTCL_i = 'b0; 
-
-reg GOTCH_wstb;
-reg GOTCH_rstb;
-wire [31:0] GOTCH_i;
-assign GOTCH_i = 'b0; 
-
-reg RNBC_wstb;
-reg RNBC_rstb;
-wire [31:0] RNBC_i;
-assign RNBC_i = 'b0; 
-
-reg RUC_wstb;
-reg RUC_rstb;
-wire [31:0] RUC_i;
-assign RUC_i = 'b0; 
-
-reg RFC_wstb;
-reg RFC_rstb;
-wire [31:0] RFC_i;
-assign RFC_i = 'b0; 
-
-reg ROC_wstb;
-reg ROC_rstb;
-wire [31:0] ROC_i;
-assign ROC_i = 'b0; 
-
-reg RJC_wstb;
-reg RJC_rstb;
-wire [31:0] RJC_i;
-assign RJC_i = 'b0; 
-
-reg MGTPRC_wstb;
-reg MGTPRC_rstb;
-wire [31:0] MGTPRC_i;
-assign MGTPRC_i = 'b0; 
-
-reg MGTPDC_wstb;
-reg MGTPDC_rstb;
-wire [31:0] MGTPDC_i;
-assign MGTPDC_i = 'b0; 
-
-reg MGTPTC_wstb;
-reg MGTPTC_rstb;
-wire [31:0] MGTPTC_i;
-assign MGTPTC_i = 'b0; 
-
-reg TORL_wstb;
-reg TORL_rstb;
-wire [31:0] TORL_i;
-assign TORL_i = 'b0; 
-
-reg TORH_wstb;
-reg TORH_rstb;
-wire [31:0] TORH_i;
-assign TORH_i = 'b0; 
-
-reg TOTL_wstb;
-reg TOTL_rstb;
-wire [31:0] TOTL_i;
-assign TOTL_i = 'b0; 
-
-reg TOTH_wstb;
-reg TOTH_rstb;
-wire [31:0] TOTH_i;
-assign TOTH_i = 'b0; 
-
-reg TPR_wstb;
-reg TPR_rstb;
-wire [31:0] TPR_i;
-assign TPR_i = 'b0; 
-
-reg TPT_wstb;
-reg TPT_rstb;
-wire [31:0] TPT_i;
-assign TPT_i = 'b0; 
-
-reg PTC64_wstb;
-reg PTC64_rstb;
-wire [31:0] PTC64_i;
-assign PTC64_i = 'b0; 
-
-reg PTC127_wstb;
-reg PTC127_rstb;
-wire [31:0] PTC127_i;
-assign PTC127_i = 'b0; 
-
-reg PTC255_wstb;
-reg PTC255_rstb;
-wire [31:0] PTC255_i;
-assign PTC255_i = 'b0; 
-
-reg PTC511_wstb;
-reg PTC511_rstb;
-wire [31:0] PTC511_i;
-assign PTC511_i = 'b0; 
-
-reg PTC1023_wstb;
-reg PTC1023_rstb;
-wire [31:0] PTC1023_i;
-assign PTC1023_i = 'b0; 
-
-reg PTC1522_wstb;
-reg PTC1522_rstb;
-wire [31:0] PTC1522_i;
-assign PTC1522_i = 'b0; 
-
-reg MPTC_wstb;
-reg MPTC_rstb;
-wire [31:0] MPTC_i;
-assign MPTC_i = 'b0; 
-
-reg BPTC_wstb;
-reg BPTC_rstb;
-wire [31:0] BPTC_i;
-assign BPTC_i = 'b0; 
-
-reg TSCTC_wstb;
-reg TSCTC_rstb;
-wire [31:0] TSCTC_i;
-assign TSCTC_i = 'b0; 
-
-reg TSCTFC_wstb;
-reg TSCTFC_rstb;
-wire [31:0] TSCTFC_i;
-assign TSCTFC_i = 'b0; 
-
-
+assign WUC_B = {28'b0,WUC[3:0]};
+
+wire [31:0] WUFC, WUFC_Q, WUFC_B;
+wire WUFC_get, WUFC_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h5808),.BMSK(32'hFFF0_0000)) WUFC_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(WUFC),.Q(WUFC_Q),.B(WUFC_B),.S(WUFC_set),.G(WUFC_get)
+);
+assign WUFC_B = {12'b0,WUFC[19:0]};
+
+wire [31:0] WUS, WUS_Q, WUS_B;
+wire WUS_get, WUS_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h5810),.BMSK(32'h0000_0000)) WUS_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(WUS),.Q(WUS_Q),.B(WUS_B),.S(WUS_set),.G(WUS_get)
+);
+assign WUS_B = WUS; //FIXME
+
+wire [31:0] IPAV, IPAV_Q, IPAV_B;
+wire IPAV_get, IPAV_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h5838),.BMSK(32'hFFFE_FFF0)) IPAV_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(IPAV),.Q(IPAV_Q),.B(IPAV_B),.S(IPAV_set),.G(IPAV_get)
+);
+assign IPAV_B = {15'b0,IPAV[16],12'b0,IPAV[3:0]};
+
+wire [31:0] IP4AT, IP4AT_Q, IP4AT_B;
+wire IP4AT_get, IP4AT_set;
+/*
+e1000_map #(.BASE(16'b0101_1000_0100_0000),.AW(5)) IP4AT_map_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(IP4AT),.Q(IP4AT_Q),.B(IP4AT_B),.S(IP4AT_set),.G(IP4AT_get)
+);
+assign IP4AT_B = IP4AT_fb;
+*/
+
+wire [31:0] IP6AT, IP6AT_Q, IP6AT_B;
+wire IP6AT_get, IP6AT_set;
+/*
+e1000_map #(.BASE(16'b0101_1000_1000_0000),.AW(4)) IP6AT_map_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(IP6AT),.Q(IP6AT_Q),.B(IP6AT_B),.S(IP6AT_set),.G(IP6AT_get)
+);
+assign IP6AT_B = IP6AT_fb;
+*/
+
+wire [31:0] WUPL, WUPL_Q, WUPL_B;
+wire WUPL_get, WUPL_set;
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h5900),.BMSK(32'hFFFF_F000)) WUPL_reg_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(WUPL),.Q(WUPL_Q),.B(WUPL_B),.S(WUPL_set),.G(WUPL_get)
+);
+assign WUPL_B = {20'b0,WUPL[11:0]};
+
+wire [31:0] WUPM, WUPM_Q, WUPM_B;
+wire WUPM_get, WUPM_set;
+/*
+e1000_map #(.BASE(16'b0101_1010_0000_0000),.AW(7)) WUPM_map_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(WUPM),.Q(WUPM_Q),.B(WUPM_B),.S(WUPM_set),.G(WUPM_get)
+);
+assign WUPM_B = WUPM_fb;
+*/
+
+wire [31:0] FFLT, FFLT_Q, FFLT_B;
+wire FFLT_get, FFLT_set;
+/*
+e1000_map #(.BASE(16'b0101_1111_0000_0000),.AW(5)) FFLT_map_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(FFLT),.Q(FFLT_Q),.B(FFLT_B),.S(FFLT_set),.G(FFLT_get)
+);
+assign FFLT_B = FFLT_fb;
+*/
+
+wire [31:0] FFMT, FFMT_Q, FFMT_B;
+wire FFMT_get, FFMT_set;
+/*
+e1000_map #(.BASE(16'b1001_1100_0000_0000),.AW(10)) FFMT_map_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(FFMT),.Q(FFMT_Q),.B(FFMT_B),.S(FFMT_set),.G(FFMT_get)
+);
+assign FFMT_B = FFMT_fb;
+*/
+
+wire [31:0] FFVT, FFVT_Q, FFVT_B;
+wire FFVT_get, FFVT_set;
+/*
+e1000_map #(.BASE(16'b1001_1000_0000_0000),.AW(10)) FFVT_map_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(FFVT),.Q(FFVT_Q),.B(FFVT_B),.S(FFVT_set),.G(FFVT_get)
+);
+assign FFVT_B = FFVT_fb;
+*/
+
+wire [31:0] STATISTIC, STATISTIC_Q, STATISTIC_B;
+wire STATISTIC_get, STATISTIC_set;
+/*
+e1000_map #(.BASE(16'b0100_0000_0000_0000),.AW(8)) STATISTIC_map_i(
+	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
+	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
+	.O(STATISTIC),.Q(STATISTIC_Q),.B(STATISTIC_B),.S(STATISTIC_set),.G(STATISTIC_get)
+);
+assign STATISTIC_B = STATISTIC_fb;
+*/
+
+/*
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
@@ -1314,7 +995,7 @@ begin
 		TSCTFC_wstb <= 1'b0;
 	end
 	else if(write_enable) begin
-		casex({write_addr[15:2],2'b0}) /* synthesis parallel_case */
+		casex({write_addr[15:2],2'b0}) // synthesis parallel_case 
 			16'h0000: CTRL_wstb <= 1'b1;
 			16'h0008: STATUS_wstb <= 1'b1;
 			16'h0010: EECD_wstb <= 1'b1;
@@ -1684,7 +1365,7 @@ begin
 		TSCTFC_rstb <= 1'b0;
 	end
 	else if(read_enable) begin
-		casex({read_addr[15:2],2'b0}) /* synthesis parallel_case */
+		casex({read_addr[15:2],2'b0}) // synthesis parallel_case 
 			16'h0000: CTRL_rstb <= 1'b1;
 			16'h0008: STATUS_rstb <= 1'b1;
 			16'h0010: EECD_rstb <= 1'b1;
@@ -1929,72 +1610,75 @@ begin
 		TSCTFC_rstb <= 1'b0;
 	end
 end
+*/
 
 always @(posedge aclk)
 begin
 	if(read_enable) begin
 		casex({read_addr[15:2],2'b0}) 
-			16'h0000: read_data <= CTRL_i;
-			16'h0008: read_data <= STATUS_i;
-			16'h0010: read_data <= EECD_i;
-			16'h0014: read_data <= EERD_i;
-			16'h001C: read_data <= FLA_i;
-			16'h0018: read_data <= CTRL_EXT_i;
-			16'h0020: read_data <= MDIC_i;
-			16'h0028: read_data <= FCAL_i;
-			16'h002C: read_data <= FCAH_i;
-			16'h0030: read_data <= FCT_i;
-			16'h0038: read_data <= VET_i;
-			16'h0170: read_data <= FCTTV_i;
-			16'h0178: read_data <= TXCW_i;
-			16'h0180: read_data <= RXCW_i;
-			16'h0E00: read_data <= LEDCTL_i;
-			16'h1000: read_data <= PBA_i;
-			16'h00C0: read_data <= ICR_i;
-			16'h00C4: read_data <= ITR_i;
-			16'h00C8: read_data <= ICS_i;
-			16'h00D0: read_data <= IMS_i;
-			16'h00D8: read_data <= IMC_i;
-			16'h0100: read_data <= RCTL_i;
-			16'h2160: read_data <= FCRTL_i;
-			16'h2168: read_data <= FCRTH_i;
-			16'h2800: read_data <= RDBAL_i;
-			16'h2804: read_data <= RDBAH_i;
-			16'h2808: read_data <= RDLEN_i;
-			16'h2810: read_data <= RDH_i;
-			16'h2818: read_data <= RDT_i;
-			16'h2820: read_data <= RDTR_i;
-			16'h282C: read_data <= RADV_i;
-			16'h2C00: read_data <= RSRPD_i;
-			16'h0400: read_data <= TCTL_i;
-			16'h0410: read_data <= TIPG_i;
-			16'h0458: read_data <= AIFS_i;
-			16'h3800: read_data <= TDBAL_i;
-			16'h3804: read_data <= TDBAH_i;
-			16'h3808: read_data <= TDLEN_i;
-			16'h3810: read_data <= TDH_i;
-			16'h3818: read_data <= TDT_i;
-			16'h3820: read_data <= TIDV_i;
-			16'h3000: read_data <= TXDMAC_i;
-			16'h3828: read_data <= TXDCTL_i;
-			16'h382C: read_data <= TADV_i;
-			16'h3830: read_data <= TSPMT_i;
-			16'h2828: read_data <= RXDCTL_i;
-			16'h5000: read_data <= RXCSUM_i;
-			16'b0101_001x_xxxx_xxxx: read_data <= MTA_i;
-			16'b0101_0100_0xxx_xxxx: read_data <= RA_i;
-			16'b0101_011x_xxxx_xxxx: read_data <= VFTA_i;
-			16'h5800: read_data <= WUC_i;
-			16'h5808: read_data <= WUFC_i;
-			16'h5810: read_data <= WUS_i;
-			16'h5838: read_data <= IPAV_i;
-			16'b0101_1000_010x_xxxx: read_data <= IP4AT_i;
-			16'b0101_1000_1000_xxxx: read_data <= IP6AT_i;
-			16'h5900: read_data <= WUPL_i;
-			16'b0101_1010_0xxx_xxxx: read_data <= WUPM_i;
-			16'b0101_1111_000x_xxxx: read_data <= FFLT_i;
-			16'b1001_11xx_xxxx_xxxx: read_data <= FFMT_i;
-			16'b1001_10xx_xxxx_xxxx: read_data <= FFVT_i;
+			16'h0000: read_data <= CTRL_Q;
+			16'h0008: read_data <= STATUS_Q;
+			16'h0010: read_data <= EECD_Q;
+			16'h0014: read_data <= EERD_Q;
+			16'h001C: read_data <= FLA_Q;
+			16'h0018: read_data <= CTRL_EXT_Q;
+			16'h0020: read_data <= MDIC_Q;
+			16'h0028: read_data <= FCAL_Q;
+			16'h002C: read_data <= FCAH_Q;
+			16'h0030: read_data <= FCT_Q;
+			16'h0038: read_data <= VET_Q;
+			16'h0170: read_data <= FCTTV_Q;
+			16'h0178: read_data <= TXCW_Q;
+			16'h0180: read_data <= RXCW_Q;
+			16'h0E00: read_data <= LEDCTL_Q;
+			16'h1000: read_data <= PBA_Q;
+			16'h00C0: read_data <= ICR_Q;
+			16'h00C4: read_data <= ITR_Q;
+			16'h00C8: read_data <= ICS_Q;
+			16'h00D0: read_data <= IMS_Q;
+			16'h00D8: read_data <= IMC_Q;
+			16'h0100: read_data <= RCTL_Q;
+			16'h2160: read_data <= FCRTL_Q;
+			16'h2168: read_data <= FCRTH_Q;
+			16'h2800: read_data <= RDBAL_Q;
+			16'h2804: read_data <= RDBAH_Q;
+			16'h2808: read_data <= RDLEN_Q;
+			16'h2810: read_data <= RDH_Q;
+			16'h2818: read_data <= RDT_Q;
+			16'h2820: read_data <= RDTR_Q;
+			16'h282C: read_data <= RADV_Q;
+			16'h2C00: read_data <= RSRPD_Q;
+			16'h0400: read_data <= TCTL_Q;
+			16'h0410: read_data <= TIPG_Q;
+			16'h0458: read_data <= AIFS_Q;
+			16'h3800: read_data <= TDBAL_Q;
+			16'h3804: read_data <= TDBAH_Q;
+			16'h3808: read_data <= TDLEN_Q;
+			16'h3810: read_data <= TDH_Q;
+			16'h3818: read_data <= TDT_Q;
+			16'h3820: read_data <= TIDV_Q;
+			16'h3000: read_data <= TXDMAC_Q;
+			16'h3828: read_data <= TXDCTL_Q;
+			16'h382C: read_data <= TADV_Q;
+			16'h3830: read_data <= TSPMT_Q;
+			16'h2828: read_data <= RXDCTL_Q;
+			16'h5000: read_data <= RXCSUM_Q;
+			16'b0101_001x_xxxx_xxxx: read_data <= MTA_Q;
+			16'b0101_0100_0xxx_xxxx: read_data <= RA_Q;
+			16'b0101_011x_xxxx_xxxx: read_data <= VFTA_Q;
+			16'h5800: read_data <= WUC_Q;
+			16'h5808: read_data <= WUFC_Q;
+			16'h5810: read_data <= WUS_Q;
+			16'h5838: read_data <= IPAV_Q;
+			16'b0101_1000_010x_xxxx: read_data <= IP4AT_Q;
+			16'b0101_1000_1000_xxxx: read_data <= IP6AT_Q;
+			16'h5900: read_data <= WUPL_Q;
+			16'b0101_1010_0xxx_xxxx: read_data <= WUPM_Q;
+			16'b0101_1111_000x_xxxx: read_data <= FFLT_Q;
+			16'b1001_11xx_xxxx_xxxx: read_data <= FFMT_Q;
+			16'b1001_10xx_xxxx_xxxx: read_data <= FFVT_Q;
+			16'b0100_0000_xxxx_xxxx: read_data <= STATISTIC_Q;
+			/*
 			16'h4000: read_data <= CRCERRS_i;
 			16'h4004: read_data <= ALGNERRC_i;
 			16'h4008: read_data <= SYMERRS_i;
@@ -2053,6 +1737,7 @@ begin
 			16'h40F4: read_data <= BPTC_i;
 			16'h40F8: read_data <= TSCTC_i;
 			16'h40FC: read_data <= TSCTFC_i;
+			*/
 			default: read_data <= 'bx;
 		endcase
 	end

@@ -25,6 +25,9 @@ wire axi_s_rready;
 wire [31:0] axi_s_rdata;
 wire [1:0] axi_s_rresp;
 
+wire CTRL_RST; // Device Reset
+wire CTRL_PHY_RST; // PHY Reset
+
 wire [31:0] EECD;
 wire [31:0] EERD;
 wire EERD_START;
@@ -58,6 +61,66 @@ wire [15:0] me_rdata;
 wire [4:0] me_waddr;
 wire [15:0] me_wdata;
 wire me_wen;
+
+wire [31:0] ICR;
+wire [31:0] ICR_fb;
+wire ICR_set;
+wire ICR_get;
+
+wire [31:0] ITR;
+wire ITR_set;
+
+wire [31:0] ICS;
+wire ICS_set;
+
+wire [31:0] IMS;
+wire IMS_set;
+
+wire [31:0] IMC;
+wire IMC_set;
+
+wire TCTL_EN;
+wire TCTL_PSP;
+wire [63:0] TDBA;
+wire [12:0] TDLEN;
+wire [15:0] TDH;
+wire TDH_set;
+wire [15:0] TDH_fb;
+wire [15:0] TDT;
+wire TDT_set;
+wire [15:0] TIDV;
+wire DPP;
+wire [5:0] TXDCTL_PTHRESH;
+wire [5:0] TXDCTL_HTHRESH;
+wire [5:0] TXDCTL_WTHRESH;
+wire TXDCTL_GRAN;
+wire [5:0] TXDCTL_LWTHRESH;
+wire [15:0] TADV;
+wire [15:0] TSMT;
+wire [15:0] TSPBP;
+
+wire RCTL_EN; // Receive Enable
+wire [1:0] RDMTS; // Rx Desc Minimum Threshold
+wire [1:0] BSIZE; // Rx Buffer Size
+wire BSEX; // Buffer Sizse Extension
+wire SECRC; // Strip CRC
+
+wire [63:0] RDBA;
+wire [12:0] RDLEN;
+wire [15:0] RDH;
+wire RDH_set;
+wire [15:0] RDH_fb;
+wire [15:0] RDT;
+wire RDT_set;
+wire [15:0] RDTR;
+wire [15:0] RADV;
+wire [5:0] RXDCTL_PTHRESH;
+wire [5:0] RXDCTL_HTHRESH;
+wire [5:0] RXDCTL_WTHRESH;
+wire RXDCTL_GRAN;
+wire FPD;
+wire FPD_set;
+wire [7:0] PCSS; // Packet Checksum Start
 
 always @(*)
 begin
@@ -97,6 +160,9 @@ e1000_regs dut(
 	.axi_s_rdata(axi_s_rdata),
 	.axi_s_rresp(axi_s_rresp),
 
+	.CTRL_RST(CTRL_RST),
+	.CTRL_PHY_RST(CTRL_PHY_RST),
+
 	.EECD(EECD),
 	.EECD_DO_i(eedo),
 	.EECD_GNT_i(!ee_busy),
@@ -109,7 +175,72 @@ e1000_regs dut(
 	.MDIC(MDIC),
 	.MDIC_start(MDIC_start),
 	.MDIC_R_i(mm_rd_doneo&&mm_wr_doneo),
-	.MDIC_DATA_i(mm_rdatao)
+	.MDIC_DATA_i(mm_rdatao),
+
+	.ICR(ICR),
+	.ICR_fb_i(ICR),
+	.ICR_set(ICR_set),
+	.ICR_get(ICR_get),
+
+	.ITR(ITR),
+	.ITR_set(ITR_set),
+	
+	.ICS(ICS),
+	.ICS_set(ICS_set),
+	
+	.IMS(IMS),
+	.IMS_set(IMS_set),
+	
+	.IMC(IMC),
+	.IMC_set(IMC_set),
+	
+	.TCTL_EN(TCTL_EN),
+	.TCTL_PSP(TCTL_PSP),
+
+	.TDBA(TDBA),
+	.TDLEN(TDLEN),
+	
+	.TDH(TDH),
+	.TDH_set(TDH_set),
+	.TDH_fb(TDH_fb),
+
+	.TDT(TDT),
+	.TDT_set(TDT_set),
+
+	.TIDV(TIDV),
+
+	.DPP(DPP),
+
+	.TXDCTL_PTHRESH(TXDCTL_PTHRESH),
+	.TXDCTL_HTHRESH(TXDCTL_HTHRESH),
+	.TXDCTL_WTHRESH(TXDCTL_WTHRESH),
+	.TXDCTL_GRAN(TXDCTL_GRAN),
+	.TXDCTL_LWTHRESH(TXDCTL_LWTHRESH),
+	.TADV(TADV),
+	.TSMT(TSMT),
+	.TSPBP(TSPBP),
+
+	.RCTL_EN(RCTL_EN),
+	.RDMTS(RDMTS),
+	.BSIZE(BSIZE),
+	.BSEX(BSEX),
+	.SECRC(SECRC),
+	.RDBA(RDBA),
+	.RDLEN(RDLEN),
+	.RDH(RDH),
+	.RDH_set(RDH_set),
+	.RDH_fb(RDH_fb),
+	.RDT(RDT),
+	.RDT_set(RDT_set),
+	.RXDCTL_PTHRESH(RXDCTL_PTHRESH),
+	.RXDCTL_HTHRESH(RXDCTL_HTHRESH),
+	.RXDCTL_WTHRESH(RXDCTL_WTHRESH),
+	.RXDCTL_GRAN(RXDCTL_GRAN),
+	.PCSS(PCSS),
+	.RDTR(RDTR),
+	.FPD(FPD),
+	.FPD_set(FPD_set),
+	.RADV(RADV)
 );
 
 axi_lite_model master(

@@ -117,8 +117,86 @@ wire mac_rx_m_tvalid;
 wire mac_rx_m_tlast;
 wire mac_rx_m_tready;
 
-wire CTRL_RST;
-wire CTRL_PHY_RST;
+wire [3:0] rx_m_awid;
+wire [63:0] rx_m_awaddr;
+wire [7:0] rx_m_awlen;
+wire [2:0] rx_m_awsize;
+wire [1:0] rx_m_awburst;
+wire [3:0] rx_m_awcache;
+wire rx_m_awvalid;
+wire rx_m_awready;
+wire [3:0] rx_m_wid;
+wire [31:0] rx_m_wdata;
+wire [3:0] rx_m_wstrb;
+wire rx_m_wlast;
+wire rx_m_wvalid;
+wire rx_m_wready;
+wire [3:0] rx_m_bid;
+wire [1:0] rx_m_bresp;
+wire rx_m_bvalid;
+wire rx_m_bready;
+wire [3:0] rx_m_arid;
+wire [63:0] rx_m_araddr;
+wire [7:0] rx_m_arlen;
+wire [2:0] rx_m_arsize;
+wire [1:0] rx_m_arburst;
+wire [3:0] rx_m_arcache;
+wire rx_m_arvalid;
+wire rx_m_arready;
+wire [3:0] rx_m_rid;
+wire [31:0] rx_m_rdata;
+wire [1:0] rx_m_rresp;
+wire rx_m_rlast;
+wire rx_m_rvalid;
+wire rx_m_rready;
+
+wire [3:0] tx_m_awid;
+wire [63:0] tx_m_awaddr;
+wire [7:0] tx_m_awlen;
+wire [2:0] tx_m_awsize;
+wire [1:0] tx_m_awburst;
+wire [3:0] tx_m_awcache;
+wire tx_m_awvalid;
+wire tx_m_awready;
+wire [3:0] tx_m_wid;
+wire [31:0] tx_m_wdata;
+wire [3:0] tx_m_wstrb;
+wire tx_m_wlast;
+wire tx_m_wvalid;
+wire tx_m_wready;
+wire [3:0] tx_m_bid;
+wire [1:0] tx_m_bresp;
+wire tx_m_bvalid;
+wire tx_m_bready;
+wire [3:0] tx_m_arid;
+wire [63:0] tx_m_araddr;
+wire [7:0] tx_m_arlen;
+wire [2:0] tx_m_arsize;
+wire [1:0] tx_m_arburst;
+wire [3:0] tx_m_arcache;
+wire tx_m_arvalid;
+wire tx_m_arready;
+wire [3:0] tx_m_rid;
+wire [31:0] tx_m_rdata;
+wire [1:0] tx_m_rresp;
+wire tx_m_rlast;
+wire tx_m_rvalid;
+wire tx_m_rready;
+
+wire CTRL_FD; // Full-Duplex;
+wire [1:0] CTRL_SPEED; // Speed
+wire CTRL_FRCSPD; // Force Speed
+wire CTRL_FRCDPLX; // Force Duplex
+wire CTRL_RST; // Device Reset
+wire CTRL_RFCE; // Receive Flow Control Enable
+wire CTRL_TFCE; // Transmit Flow Control Enable
+wire CTRL_VME; // VLAN Mode Enable
+wire CTRL_PHY_RST; // PHY Reset
+
+
+wire STAT_FD_fb;
+wire STAT_SPEED_fb;
+wire STAT_ASDV_fb;
 
 wire [31:0] EECD;
 wire [31:0] EERD;
@@ -172,6 +250,34 @@ wire [15:0] TSPBP;
 wire TXDW_req;
 wire TXQE_req;
 wire TXD_LOW_req;
+
+wire RCTL_EN; // Receive Enable
+//wire LPE; // Long Packet Reciption Enable
+//wire LBM; // Loopback mode
+wire [1:0] RDMTS; // Rx Desc Minimum Threshold
+wire [1:0] BSIZE; // Rx Buffer Size
+wire BSEX; // Buffer Sizse Extension
+wire SECRC; // Strip CRC
+
+wire [63:0] RDBA;
+wire [12:0] RDLEN;
+wire [15:0] RDH;
+wire RDH_set;
+wire [15:0] RDH_fb;
+wire [15:0] RDT;
+wire RDT_set;
+wire [15:0] RDTR;
+wire [15:0] RADV;
+wire [5:0] RXDCTL_PTHRESH;
+wire [5:0] RXDCTL_HTHRESH;
+wire [5:0] RXDCTL_WTHRESH;
+wire RXDCTL_GRAN;
+wire FPD;
+wire FPD_set;
+wire [7:0] PCSS; // Packet Checksum Start
+wire RXDMT0_req;
+wire RXO_req;
+wire RXT0_req;
 
 wire PHYINT_req;
 
@@ -274,7 +380,29 @@ e1000_regs cmd_i(
 	.TXDCTL_LWTHRESH(TXDCTL_LWTHRESH),
 	.TADV(TADV),
 	.TSMT(TSMT),
-	.TSPBP(TSPBP)
+	.TSPBP(TSPBP),
+
+	.RCTL_EN(RCTL_EN),
+	.RDMTS(RDMTS),
+	.BSIZE(BSIZE),
+	.BSEX(BSEX),
+	.SECRC(SECRC),
+	.RDBA(RDBA),
+	.RDLEN(RDLEN),
+	.RDH(RDH),
+	.RDH_set(RDH_set),
+	.RDH_fb(RDH_fb),
+	.RDT(RDT),
+	.RDT_set(RDT_set),
+	.RXDCTL_PTHRESH(RXDCTL_PTHRESH),
+	.RXDCTL_HTHRESH(RXDCTL_HTHRESH),
+	.RXDCTL_WTHRESH(RXDCTL_WTHRESH),
+	.RXDCTL_GRAN(RXDCTL_GRAN),
+	.PCSS(PCSS),
+	.RDTR(RDTR),
+	.FPD(FPD),
+	.FPD_set(FPD_set),
+	.RADV(RADV)
 );
 
 shift_eeprom shift_eeprom_i(
@@ -335,9 +463,9 @@ intr_ctrl #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) intr_ctrl_i(
 	.TXQE_req(TXQE_req),
 	.LSC_req(1'b0),
 	.RXSEQ_req(1'b0),
-	.RXDMT0_req(1'b0),
-	.RXO_req(1'b0),
-	.RXT0_req(1'b0),
+	.RXDMT0_req(RXDMT0_req),
+	.RXO_req(RXO_req),
+	.RXT0_req(RXT0_req),
 	.MDAC_req(1'b0),
 	.RXCFG_req(1'b0),
 	.PHYINT_req(PHYINT_req),
@@ -345,59 +473,54 @@ intr_ctrl #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) intr_ctrl_i(
 	.SRPD_req(1'b0)
 );
 
-
-/*
 rx_path rx_path_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
 	// Parameters
-	.EN(EN),
-	.SBP(SBP),
-	.UPE(UPE),
-	.MPE(MPE),
-	.LPE(LPE),
+	.EN(RCTL_EN),
+	//.SBP(SBP),
+	//.UPE(UPE),
+	//.MPE(MPE),
 	.RDMTS(RDMTS),
-	.MO(MO),
-	.BAM(BAM),
+	//.MO(MO),
+	//.BAM(BAM),
 	.BSIZE(BSIZE),
-	.VFE(VFE),
-	.CFIEN(CFIEN),
-	.CFI(CFI),
-	.DPF(DPF),
-	.PMCF(PMCF),
 	.BSEX(BSEX),
-	.SECRC(SECRC),
+	//.VFE(VFE),
+	//.CFIEN(CFIEN),
+	//.CFI(CFI),
+	//.DPF(DPF),
+	//.PMCF(PMCF),
 	.RDBA(RDBA),
 	.RDLEN(RDLEN),
 	.RDH(RDH),
-	.PTHRESH(PTHRESH),
-	.HTHRESH(HTHRESH),
-	.WTHRESH(WTHRESH),
-	.GRAN(GRAN),
+	.RDH_set(RDH_set),
+	.RDH_fb(RDH_fb),
+	.RDT(RDT),
+	.RDT_set(RDT_set),
+	.PTHRESH(RXDCTL_PTHRESH),
+	.HTHRESH(RXDCTL_HTHRESH),
+	.WTHRESH(RXDCTL_WTHRESH),
+	.GRAN(RXDCTL_GRAN),
 	.PCSS(PCSS),
-	.IPOFLD(IPOFLD),
-	.TUOFLD(TUOFLD),
-	.IPV6OFL(IPV6OFL),
+	//.IPOFLD(IPOFLD),
+	//.TUOFLD(TUOFLD),
+	//.IPV6OFL(IPV6OFL),
+	.RDTR(RDTR),
+	.FPD(FPD),
+	.FPD_set(FPD_set),
+	.RADV(RADV),
+	.RXDMT0_req(RXDMT0_req),
+	.RXO_req(RXO_req),
+	.RXT0_req(RXT0_req),
 
-	// Command Port
-	.cmd_s_tdata(rx_cmd_s_tdata),
-	.cmd_s_tvalid(rx_cmd_s_tvalid),
-	.cmd_s_tlast(rx_cmd_s_tlast),
-	.cmd_s_tready(rx_cmd_s_tready),
-
-	// Status Port
-	.stat_m_tdata(rx_stat_m_tdata),
-	.stat_m_tvalid(rx_stat_m_tvalid),
-	.stat_m_tlast(rx_stat_m_tlast),
-	.stat_m_tready(rx_stat_m_tready),
-
-	.rtbl_index(rtbl_index),
-	.rtbl_data(rtbl_data),
-	.mtbl_index(mtbl_index),
-	.mtbl_data(mtbl_data),
-	.vtbl_index(vtbl_index),
-	.vtbl_data(vtbl_data),
+	//.rtbl_index(rtbl_index),
+	//.rtbl_data(rtbl_data),
+	//.mtbl_index(mtbl_index),
+	//.mtbl_data(mtbl_data),
+	//.vtbl_index(vtbl_index),
+	//.vtbl_data(vtbl_data),
 
 	// External Bus Access Port
 	.axi_m_awid(rx_m_awid),
@@ -437,11 +560,11 @@ rx_path rx_path_i(
 
 	// MAC RX Stream Port
 	.mac_s_tdata(mac_rx_m_tdata),
+	.mac_s_tkeep(mac_rx_m_tkeep),
 	.mac_s_tvalid(mac_rx_m_tvalid),
 	.mac_s_tlast(mac_rx_m_tlast),
 	.mac_s_tready(mac_rx_m_tready)
 );
-*/
 
 tx_path #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) tx_path_i(
 	.aclk(aclk),
@@ -472,40 +595,40 @@ tx_path #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) tx_path_i(
 	.TXD_LOW_req(TXD_LOW_req),
 
 	// External Bus Access Port
-	.axi_m_awid(axi_m_awid),
-	.axi_m_awaddr(axi_m_awaddr),
-	.axi_m_awlen(axi_m_awlen),
-	.axi_m_awsize(axi_m_awsize),
-	.axi_m_awburst(axi_m_awburst),
-	.axi_m_awvalid(axi_m_awvalid),
-	.axi_m_awready(axi_m_awready),
+	.axi_m_awid(tx_m_awid),
+	.axi_m_awaddr(tx_m_awaddr),
+	.axi_m_awlen(tx_m_awlen),
+	.axi_m_awsize(tx_m_awsize),
+	.axi_m_awburst(tx_m_awburst),
+	.axi_m_awvalid(tx_m_awvalid),
+	.axi_m_awready(tx_m_awready),
 
-	.axi_m_wid(axi_m_wid),
-	.axi_m_wdata(axi_m_wdata),
-	.axi_m_wstrb(axi_m_wstrb),
-	.axi_m_wlast(axi_m_wlast),
-	.axi_m_wvalid(axi_m_wvalid),
-	.axi_m_wready(axi_m_wready),
+	.axi_m_wid(tx_m_wid),
+	.axi_m_wdata(tx_m_wdata),
+	.axi_m_wstrb(tx_m_wstrb),
+	.axi_m_wlast(tx_m_wlast),
+	.axi_m_wvalid(tx_m_wvalid),
+	.axi_m_wready(tx_m_wready),
 
-	.axi_m_bid(axi_m_bid),
-	.axi_m_bresp(axi_m_bresp),
-	.axi_m_bvalid(axi_m_bvalid),
-	.axi_m_bready(axi_m_bready),
+	.axi_m_bid(tx_m_bid),
+	.axi_m_bresp(tx_m_bresp),
+	.axi_m_bvalid(tx_m_bvalid),
+	.axi_m_bready(tx_m_bready),
 
-	.axi_m_arid(axi_m_arid),
-	.axi_m_araddr(axi_m_araddr),
-	.axi_m_arlen(axi_m_arlen),
-	.axi_m_arsize(axi_m_arsize),
-	.axi_m_arburst(axi_m_arburst),
-	.axi_m_arvalid(axi_m_arvalid),
-	.axi_m_arready(axi_m_arready),
+	.axi_m_arid(tx_m_arid),
+	.axi_m_araddr(tx_m_araddr),
+	.axi_m_arlen(tx_m_arlen),
+	.axi_m_arsize(tx_m_arsize),
+	.axi_m_arburst(tx_m_arburst),
+	.axi_m_arvalid(tx_m_arvalid),
+	.axi_m_arready(tx_m_arready),
 
-	.axi_m_rid(axi_m_rid),
-	.axi_m_rdata(axi_m_rdata),
-	.axi_m_rresp(axi_m_rresp),
-	.axi_m_rlast(axi_m_rlast),
-	.axi_m_rvalid(axi_m_rvalid),
-	.axi_m_rready(axi_m_rready),
+	.axi_m_rid(tx_m_rid),
+	.axi_m_rdata(tx_m_rdata),
+	.axi_m_rresp(tx_m_rresp),
+	.axi_m_rlast(tx_m_rlast),
+	.axi_m_rvalid(tx_m_rvalid),
+	.axi_m_rready(tx_m_rready),
 
 	// MAC RX Stream Port
 	.mac_m_tdata(mac_tx_s_tdata),
@@ -532,11 +655,11 @@ wire tx_pause_en;
 wire Line_loop_en;
 
 assign	Speed = 3'b100;
-assign	RX_APPEND_CRC = 1'b0;
+assign	RX_APPEND_CRC = !SECRC;
 assign	CRC_chk_en = 1'b1;
 assign	RX_IFG_SET = 16'h000c;
-assign	RX_MAX_LENGTH = 16'h4000;
-assign	RX_MIN_LENGTH = 16'h40;
+assign	RX_MAX_LENGTH = LPE?16'h4000:16'h05F2;// 16384 or 1522
+assign	RX_MIN_LENGTH = 16'h40; // 64 minimum
 assign	pause_frame_send_en = 1'b0;
 assign	pause_quanta_set = 16'h0;
 assign	xoff_cpu = 1'b0;
@@ -545,7 +668,7 @@ assign	FullDuplex = 1'b1;
 assign	MaxRetry = 16'h0002;
 assign	IFGset = 16'h000c;
 assign	tx_pause_en = 1'b0;
-assign	Line_loop_en = 1'b0;
+assign	Line_loop_en = &LBM;// 2'b11 == loopback
 
 mac_axis mac_i(
 	.Clk_125M(clk125),
@@ -594,118 +717,86 @@ mac_axis mac_i(
 	.Col(mac_col)
 );
 
-/*
-
-ext_crossbar ext_crossbar(
+axi_mux #(
+	.SLAVE_NUM(2),
+	.ID_WIDTH(4),
+	.ADDR_WIDTH(64),
+	.DATA_WIDTH(32),
+	.LEN_WIDTH(8)
+) ext_mux_i (
 	.aclk(aclk),
 	.aresetn(aresetn),
 
-	.s0_axi_awid(rx_m_awid),
-	.s0_axi_awaddr(rx_m_awaddr),
-	.s0_axi_awlen(rx_m_awlen),
-	.s0_axi_awsize(rx_m_awsize),
-	.s0_axi_awburst(rx_m_awburst),
-	.s0_axi_awvalid(rx_m_awvalid),
-	.s0_axi_awready(rx_m_awready),
+	.s_awid({rx_m_awid,tx_m_awid}),
+	.s_awaddr({rx_m_awaddr,tx_m_awaddr}),
+	.s_awlen({rx_m_awlen,tx_m_awlen}),
+	.s_awsize({rx_m_awsize,tx_m_awsize}),
+	.s_awburst({rx_m_awburst,tx_m_awburst}),
+	.s_awvalid({rx_m_awvalid,tx_m_awvalid}),
+	.s_awready({rx_m_awready,tx_m_awready}),
 
-	.s0_axi_wid(rx_m_wid),
-	.s0_axi_wdata(rx_m_wdata),
-	.s0_axi_wstrb(rx_m_wstrb),
-	.s0_axi_wlast(rx_m_wlast),
-	.s0_axi_wvalid(rx_m_wvalid),
-	.s0_axi_wready(rx_m_wready),
+	.s_wid({rx_m_wid,tx_m_wid}),
+	.s_wdata({rx_m_wdata,tx_m_wdata}),
+	.s_wstrb({rx_m_wstrb,tx_m_wstrb}),
+	.s_wlast({rx_m_wlast,tx_m_wlast}),
+	.s_wvalid({rx_m_wvalid,tx_m_wvalid}),
+	.s_wready({rx_m_wready,tx_m_wready}),
 
-	.s0_axi_bid(rx_m_bid),
-	.s0_axi_bresp(rx_m_bresp),
-	.s0_axi_bvalid(rx_m_bvalid),
-	.s0_axi_bready(rx_m_bready),
+	.s_bid({rx_m_bid,tx_m_bid}),
+	.s_bresp({rx_m_bresp,tx_m_bresp}),
+	.s_bvalid({rx_m_bvalid,tx_m_bvalid}),
+	.s_bready({rx_m_bready,tx_m_bready}),
 
-	.s0_axi_arid(rx_m_arid),
-	.s0_axi_araddr(rx_m_araddr),
-	.s0_axi_arlen(rx_m_arlen),
-	.s0_axi_arsize(rx_m_arsize),
-	.s0_axi_arburst(rx_m_arburst),
-	.s0_axi_arvalid(rx_m_arvalid),
-	.s0_axi_arready(rx_m_arready),
+	.s_arid({rx_m_arid,tx_m_arid}),
+	.s_araddr({rx_m_araddr,tx_m_araddr}),
+	.s_arlen({rx_m_arlen,tx_m_arlen}),
+	.s_arsize({rx_m_arsize,tx_m_arsize}),
+	.s_arburst({rx_m_arburst,tx_m_arburst}),
+	.s_arvalid({rx_m_arvalid,tx_m_arvalid}),
+	.s_arready({rx_m_arready,tx_m_arready}),
 
-	.s0_axi_rid(rx_m_rid),
-	.s0_axi_rdata(rx_m_rdata),
-	.s0_axi_rresp(rx_m_rresp),
-	.s0_axi_rlast(rx_m_rlast),
-	.s0_axi_rvalid(rx_m_rvalid),
-	.s0_axi_rready(rx_m_rready),
+	.s_rid({rx_m_rid,tx_m_rid}),
+	.s_rdata({rx_m_rdata,tx_m_rdata}),
+	.s_rresp({rx_m_rresp,tx_m_rresp}),
+	.s_rlast({rx_m_rlast,tx_m_rlast}),
+	.s_rvalid({rx_m_rvalid,tx_m_rvalid}),
+	.s_rready({rx_m_rready,tx_m_rready}),
 
-	.s1_axi_awid(tx_m_awid),
-	.s1_axi_awaddr(tx_m_awaddr),
-	.s1_axi_awlen(tx_m_awlen),
-	.s1_axi_awsize(tx_m_awsize),
-	.s1_axi_awburst(tx_m_awburst),
-	.s1_axi_awvalid(tx_m_awvalid),
-	.s1_axi_awready(tx_m_awready),
+	.m_awid(axi_m_awid),
+	.m_awaddr(axi_m_awaddr),
+	.m_awlen(axi_m_awlen),
+	.m_awsize(axi_m_awsize),
+	.m_awburst(axi_m_awburst),
+	.m_awvalid(axi_m_awvalid),
+	.m_awready(axi_m_awready),
 
-	.s1_axi_wid(tx_m_wid),
-	.s1_axi_wdata(tx_m_wdata),
-	.s1_axi_wstrb(tx_m_wstrb),
-	.s1_axi_wlast(tx_m_wlast),
-	.s1_axi_wvalid(tx_m_wvalid),
-	.s1_axi_wready(tx_m_wready),
+	.m_wid(axi_m_wid),
+	.m_wdata(axi_m_wdata),
+	.m_wstrb(axi_m_wstrb),
+	.m_wlast(axi_m_wlast),
+	.m_wvalid(axi_m_wvalid),
+	.m_wready(axi_m_wready),
 
-	.s1_axi_bid(tx_m_bid),
-	.s1_axi_bresp(tx_m_bresp),
-	.s1_axi_bvalid(tx_m_bvalid),
-	.s1_axi_bready(tx_m_bready),
+	.m_bid(axi_m_bid),
+	.m_bresp(axi_m_bresp),
+	.m_bvalid(axi_m_bvalid),
+	.m_bready(axi_m_bready),
 
-	.s1_axi_arid(tx_m_arid),
-	.s1_axi_araddr(tx_m_araddr),
-	.s1_axi_arlen(tx_m_arlen),
-	.s1_axi_arsize(tx_m_arsize),
-	.s1_axi_arburst(tx_m_arburst),
-	.s1_axi_arvalid(tx_m_arvalid),
-	.s1_axi_arready(tx_m_arready),
+	.m_arid(axi_m_arid),
+	.m_araddr(axi_m_araddr),
+	.m_arlen(axi_m_arlen),
+	.m_arsize(axi_m_arsize),
+	.m_arburst(axi_m_arburst),
+	.m_arvalid(axi_m_arvalid),
+	.m_arready(axi_m_arready),
 
-	.s1_axi_rid(tx_m_rid),
-	.s1_axi_rdata(tx_m_rdata),
-	.s1_axi_rresp(tx_m_rresp),
-	.s1_axi_rlast(tx_m_rlast),
-	.s1_axi_rvalid(tx_m_rvalid),
-	.s1_axi_rready(tx_m_rready),
-
-	.m0_axi_awid(axi_m_awid),
-	.m0_axi_awaddr(axi_m_awaddr),
-	.m0_axi_awlen(axi_m_awlen),
-	.m0_axi_awsize(axi_m_awsize),
-	.m0_axi_awburst(axi_m_awburst),
-	.m0_axi_awvalid(axi_m_awvalid),
-	.m0_axi_awready(axi_m_awready),
-
-	.m0_axi_wid(axi_m_wid),
-	.m0_axi_wdata(axi_m_wdata),
-	.m0_axi_wstrb(axi_m_wstrb),
-	.m0_axi_wlast(axi_m_wlast),
-	.m0_axi_wvalid(axi_m_wvalid),
-	.m0_axi_wready(axi_m_wready),
-
-	.m0_axi_bid(axi_m_bid),
-	.m0_axi_bresp(axi_m_bresp),
-	.m0_axi_bvalid(axi_m_bvalid),
-	.m0_axi_bready(axi_m_bready),
-
-	.m0_axi_arid(axi_m_arid),
-	.m0_axi_araddr(axi_m_araddr),
-	.m0_axi_arlen(axi_m_arlen),
-	.m0_axi_arsize(axi_m_arsize),
-	.m0_axi_arburst(axi_m_arburst),
-	.m0_axi_arvalid(axi_m_arvalid),
-	.m0_axi_arready(axi_m_arready),
-
-	.m0_axi_rid(axi_m_rid),
-	.m0_axi_rdata(axi_m_rdata),
-	.m0_axi_rresp(axi_m_rresp),
-	.m0_axi_rlast(axi_m_rlast),
-	.m0_axi_rvalid(axi_m_rvalid),
-	.m0_axi_rready(axi_m_rready)
+	.m_rid(axi_m_rid),
+	.m_rdata(axi_m_rdata),
+	.m_rresp(axi_m_rresp),
+	.m_rlast(axi_m_rlast),
+	.m_rvalid(axi_m_rvalid),
+	.m_rready(axi_m_rready)
 );
-*/
 
 generate
 if(DEBUG == "TRUE") begin
