@@ -618,7 +618,7 @@ rx_desc_ctrl #(
 	.RADV(RADV),
 	.RDMTS(RDMTS),
 	.RXDMT0_req(RXDMT0_req),
-	.RXO_req(RXO_req),
+	//.RXO_req(RXO_req),
 	.RXT0_req(RXT0_req),
 
 	// idma Command Port
@@ -729,6 +729,8 @@ rx_frame rx_frame_i(
 	.BSIZE(BSIZE),
 	.BSEX(BSEX),
 	.PCSS(PCSS),
+
+	.RXO_req(RXO_req),
 
 	// Frame Command Port
 	.cmd_s_tdata(frm_cmd_tdata),

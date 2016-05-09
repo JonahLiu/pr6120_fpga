@@ -3,13 +3,13 @@ module rx_desc_ctrl(
 	input aresetn,
 
 	// Parameters
-	input EN, // Transmit Enable
-	input [63:0] RDBA, // Transmit Descriptor Base Address
-	input [12:0] RDLEN, // Transmit Descriptor Buffer length=TDLEN*16*8
-	input [15:0] RDH, // Transmit Descriptor Head
+	input EN, // Receive Enable
+	input [63:0] RDBA, // Receive Descriptor Base Address
+	input [12:0] RDLEN, // Receive Descriptor Buffer length=RDLEN*16*8
+	input [15:0] RDH, // Receive Descriptor Head
 	input RDH_set,
 	output [15:0] RDH_fb,
-	input [15:0] RDT, // Transmit Descriptor Tail
+	input [15:0] RDT, // Receive Descriptor Tail
 	input RDT_set,
 	input [5:0] PTHRESH, // Prefetch Threshold
 	input [5:0] HTHRESH, // Host Threshold
@@ -21,7 +21,7 @@ module rx_desc_ctrl(
 	input [15:0] RADV, // Absolute Interrupt Delay
 	input [1:0] RDMTS, // Desc Minimum Threshold
 	output reg RXDMT0_req,
-	output reg RXO_req,
+	//output reg RXO_req,
 	output reg RXT0_req,
 
 	// idma command port
@@ -72,33 +72,32 @@ localparam DESC_NUM_BITS = clogb2(DESC_MAX_NUM);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Stub module
-assign RDH_fb = RDH;
-
-always @(*)
-begin
-	RXDMT0_req = 0;
-	RXO_req = 0;
-	RXT0_req = 0;
-	idma_m_tdata = 'bx;
-	idma_m_tvalid = 1'b0;
-	idma_m_tlast = 1'bx;
-	idma_s_tready = 1'b1;
-	reng_m_tdata = 'bx;
-	reng_m_tvalid = 1'b0;
-	reng_m_tlast = 1'bx;
-	reng_s_tready = 1'b1;
-end
+//assign RDH_fb = RDH;
+//
+//always @(*)
+//begin
+//	RXDMT0_req = 0;
+//	//RXO_req = 0;
+//	RXT0_req = 0;
+//	idma_m_tdata = 'bx;
+//	idma_m_tvalid = 1'b0;
+//	idma_m_tlast = 1'bx;
+//	idma_s_tready = 1'b1;
+//	reng_m_tdata = 'bx;
+//	reng_m_tvalid = 1'b0;
+//	reng_m_tlast = 1'bx;
+//	reng_s_tready = 1'b1;
+//end
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/*
 // Flag memory for RS and IDE
-reg [1:0] flag_mem[0:DESC_MAX_NUM-1];
-reg [1:0] flag_current;
+//reg [1:0] flag_mem[0:DESC_MAX_NUM-1];
+//reg [1:0] flag_current;
 reg [3:0] delay_cnt;
 
-wire flag_report_status;
-wire flag_delay_interrupt;
+//wire flag_report_status;
+//wire flag_delay_interrupt;
 
 // Host addresses
 reg [63:0] host_wb_address;
@@ -107,7 +106,7 @@ reg [63:0] host_rd_address;
 // Local addresses
 wire [15:0] local_wb_address;
 wire [15:0] local_rd_address;
-wire [15:0] local_teng_address;
+wire [15:0] local_reng_address;
 
 reg [7:0] fetch_num;
 reg [8:0] fetch_num_s1;
@@ -131,6 +130,13 @@ reg [15:0] host_fwd_incr;
 reg host_forward;
 wire [15:0] host_length;
 reg [15:0] host_limit;
+reg [15:0] host_watermark;
+reg [15:0] wback_limit;
+
+reg [15:0] wback_num_s1;
+reg [7:0] wback_num_s2;
+reg [11:0] wback_bytes_s2;
+reg [7:0] wback_num;
 
 // Input Queue
 // Stores TX Descriptors in local memory but not submitted to TX engine
@@ -168,6 +174,10 @@ reg [16:0] host_fresh_n1;
 reg [15:0] host_fresh_n2;
 
 // timers
+reg [7:0] flush_prescale;
+reg flush_tick;
+reg [15:0] flush_timer;
+
 reg [7:0] delay_prescale;
 reg delay_tick;
 reg [15:0] delay_timer;
@@ -175,6 +185,9 @@ reg [15:0] delay_timer;
 reg [7:0] absolute_prescale;
 reg absolute_tick;
 reg [15:0] absolute_timer;
+
+reg flush_tmo;
+reg flush_req;
 
 integer s1, s1_next;
 integer s2, s2_next;
@@ -186,25 +199,37 @@ localparam S1_IDLE=0, S1_READY=1, S1_WRITE_BACK_0=2, S1_WRITE_BACK_1=3,
 
 localparam S2_IDLE=0, S2_READY=1, S2_CMD=2, S2_DEQUEUE=3, S2_ACK=4, S2_ENQUEUE=5;
 
-always @(posedge aclk)
-	flag_current <= flag_mem[out_head];
 
-assign flag_report_status = flag_current[0];
-assign flag_delay_interrupt = flag_current[1];
+//always @(posedge aclk)
+//	flag_current <= flag_mem[out_head];
+//
+//assign flag_report_status = flag_current[0];
+//assign flag_delay_interrupt = flag_current[1];
+
 assign fetch_bytes = {fetch_num,4'h0};
 
 
 assign local_wb_address = {16'b0, out_head, 4'b0};
 assign local_rd_address = {16'b0, in_tail, 4'b0};
-assign local_teng_address = {16'b0, in_head, 4'b0};
+assign local_reng_address = {16'b0, in_head, 4'b0};
 
-assign host_length = {TDLEN, 3'b0};
+assign host_length = {RDLEN, 3'b0};
 
-always @(posedge aclk)
+always @(*)
 begin
-	if(teng_s_tvalid && teng_s_tlast && teng_s_tready)
-		flag_mem[out_tail] <= teng_s_tdata[17:16];
+	case(RDMTS)
+		2'b00: host_watermark = {1'b0,RDLEN,2'b0};
+		2'b01: host_watermark = {2'b0,RDLEN,1'b0};
+		2'b10: host_watermark = {3'b0,RDLEN};
+		2'b11: host_watermark = {4'b0,RDLEN[12:1]};
+	endcase
 end
+
+//always @(posedge aclk)
+//begin
+//	if(reng_s_tvalid && reng_s_tlast && reng_s_tready)
+//		flag_mem[out_tail] <= reng_s_tdata[17:16];
+//end
 
 always @(posedge aclk, negedge aresetn)
 begin
@@ -212,14 +237,14 @@ begin
 		host_calc_stage <= 'b0;
 	end
 	else begin
-		host_calc_stage <= {host_calc_stage,(TDH_set|TDT_set|host_dequeue|host_forward)};
+		host_calc_stage <= {host_calc_stage,(RDH_set|RDT_set|host_dequeue|host_forward)};
 	end
 end
 
 always @(posedge aclk)
 begin
-	if(TDH_set) begin
-		host_head_n0 <= TDH;
+	if(RDH_set) begin
+		host_head_n0 <= RDH;
 	end
 	else if(host_dequeue) begin
 		host_head_n0 <= host_head + host_deq_incr;
@@ -242,12 +267,12 @@ begin
 		host_head <= host_head_n1;
 	end
 end
-assign TDH_fb = host_head;
+assign RDH_fb = host_head;
 
 always @(posedge aclk)
 begin
-	if(TDH_set) begin
-		host_curr_n0 <= TDH;
+	if(RDH_set) begin
+		host_curr_n0 <= RDH;
 	end
 	else if(host_forward) begin
 		host_curr_n0 <= host_curr + host_fwd_incr;
@@ -276,8 +301,8 @@ begin
 	if(!aresetn) begin
 		host_tail <= 'b0;
 	end
-	else if(TDT_set) begin
-		host_tail <= TDT;
+	else if(RDT_set) begin
+		host_tail <= RDT;
 	end
 end
 
@@ -344,6 +369,16 @@ begin
 	end
 	else if(host_calc_stage[2]) begin
 		host_limit <= host_length - host_curr;
+	end
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		wback_limit <= 'b0;
+	end
+	else if(host_calc_stage[2]) begin
+		wback_limit <= host_length - host_head;
 	end
 end
 
@@ -438,10 +473,79 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
+		flush_prescale <= 'b0;
+		flush_tick <= 1'b0;
+	end
+	else if(out_enqueue) begin
+		flush_prescale <= 'b0;
+		flush_tick <= 1'b0;
+	end
+	else if(flush_prescale==CYCLES_1024NS) begin
+		flush_prescale <= 'b0;
+		flush_tick <= 1'b1;
+	end
+	else begin
+		flush_prescale <= flush_prescale+1;
+		flush_tick <= 1'b0;
+	end
+end
+
+// flush timer 
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		flush_timer <= 0;
+	end
+	else if(out_enqueue) begin
+		// reload timer 
+		flush_timer <= RDTR;
+	end
+	else if(flush_req) begin
+		// If write-back trigered, clear timer to avoid redundant interrupt
+		flush_timer <= 0;
+	end
+	else if(flush_timer && flush_tick) begin
+		flush_timer <= flush_timer-1;
+	end
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		flush_tmo <= 1'b0;
+	end
+	else if(out_enqueue && RDTR==0) begin // No delay
+		flush_tmo <= 1'b1;
+	end
+	else if(flush_timer==1 && flush_tick) begin // delay timeout
+		flush_tmo <= 1'b1;
+	end
+	else if(s1_next==S1_WRITE_BACK_0) begin
+		flush_tmo <= 1'b0;
+	end
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		flush_req <= 1'b0;
+	end
+	else if(FPD_set && FPD) begin // force flush
+		flush_req <= 1'b1;
+	end
+	else if(s1_next==S1_WRITE_BACK_0) begin
+		flush_req <= 1'b0;
+	end
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
 		delay_prescale <= 'b0;
 		delay_tick <= 1'b0;
 	end
-	else if(out_dequeue && flag_report_status && flag_delay_interrupt) begin
+	//else if(out_dequeue && flag_report_status && flag_delay_interrupt) begin
+	else if(out_dequeue) begin
 		delay_prescale <= 'b0;
 		delay_tick <= 1'b0;
 	end
@@ -461,11 +565,12 @@ begin
 	if(!aresetn) begin
 		delay_timer <= 0;
 	end
-	else if(out_dequeue && flag_report_status && flag_delay_interrupt) begin
+	//else if(out_dequeue && flag_report_status && flag_delay_interrupt) begin
+	else if(out_dequeue) begin
 		// reload timer each write-back
-		delay_timer <= TIDV;
+		delay_timer <= RDTR;
 	end
-	else if(TXDW_req) begin
+	else if(RXT0_req) begin
 		// If interrupt trigered, clear timer to avoid redundant interrupt
 		delay_timer <= 0;
 	end
@@ -480,8 +585,8 @@ begin
 		absolute_prescale <= 'b0;
 		absolute_tick <= 1'b0;
 	end
-	else if(absolute_timer==0 && out_dequeue && flag_report_status && 
-		flag_delay_interrupt) begin
+	//else if(absolute_timer==0 && out_dequeue && flag_report_status && flag_delay_interrupt) begin
+	else if(absolute_timer==0 && out_dequeue) begin
 		absolute_prescale <= 'b0;
 		absolute_tick <= 1'b0;
 	end
@@ -501,12 +606,12 @@ begin
 	if(!aresetn) begin
 		absolute_timer <= 0;
 	end
-	else if(absolute_timer==0 && out_dequeue && flag_report_status && 
-		flag_delay_interrupt) begin
+	//else if(absolute_timer==0 && out_dequeue && flag_report_status && flag_delay_interrupt) begin
+	else if(absolute_timer==0 && out_dequeue) begin
 		// reload timer on first write-back
-		absolute_timer <= TADV;
+		absolute_timer <= RADV;
 	end
-	else if(TXDW_req) begin
+	else if(RXT0_req) begin
 		// If interrupt trigered, clear timer to avoid redundant interrupt
 		absolute_timer <= 0;
 	end
@@ -519,22 +624,23 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
-		TXDW_req <= 1'b0;
+		RXT0_req <= 1'b0;
 	end
-	else if(out_dequeue && flag_report_status && !flag_delay_interrupt) begin
+	//else if(out_dequeue && flag_report_status && !flag_delay_interrupt) begin
+	else if(out_dequeue && RDTR==0 && RADV==0) begin
 		// immedieate interrupt
-		TXDW_req <= 1'b1;
+		RXT0_req <= 1'b1;
 	end
 	else if(absolute_timer==1 && absolute_tick) begin
 		// Absolute timer expired
-		TXDW_req <= 1'b1;
+		RXT0_req <= 1'b1;
 	end
 	else if(delay_timer==1 && delay_tick) begin
 		// Delay timer expired
-		TXDW_req <= 1'b1;
+		RXT0_req <= 1'b1;
 	end
 	else begin
-		TXDW_req <= 1'b0;
+		RXT0_req <= 1'b0;
 	end
 end
 
@@ -542,43 +648,21 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
-		TXQE_req <= 1'b0;
-		TXD_LOW_req <= 1'b0;
+		RXDMT0_req <= 1'b0;
 	end
 	else if(host_calc_stage[4]) begin
-		if(host_pending_n2 == 0)
-			TXQE_req <= 1'b1;
-		if(host_pending_n2 < LWTHRESH) 
-			TXD_LOW_req <= 1'b1;
+		if(host_pending_n2 < host_watermark)
+			RXDMT0_req <= 1'b1;
 	end
 	else begin
-		TXQE_req <= 1'b0;
-		TXD_LOW_req <= 1'b0;
+		RXDMT0_req <= 1'b0;
 	end
 end
 
-//always @(posedge aclk, negedge aresetn)
-//begin
-//	if(!aresetn) begin
-//		TXQE_req <= 1'b0;
-//		TXD_LOW_req <= 1'b0;
-//	end
-//	else if(!(|host_calc_stage)) begin
-//		if(host_pending == 0)
-//			TXQE_req <= 1'b1;
-//		if(host_pending < LWTHRESH) 
-//			TXD_LOW_req <= 1'b1;
-//	end
-//	else begin
-//		TXQE_req <= 1'b0;
-//		TXD_LOW_req <= 1'b0;
-//	end
-//end
-
 always @(posedge aclk)
 begin
-	host_wb_address <= TDBA + {host_head,4'b0};
-	host_rd_address <= TDBA + {host_curr,4'b0};
+	host_wb_address <= RDBA + {host_head,4'b0};
+	host_rd_address <= RDBA + {host_curr,4'b0};
 end
 
 always @(*)
@@ -591,18 +675,32 @@ begin
 	else
 		fetch_num_s1 = local_available;
 
-	if(fetch_num_s1 > 1 && DPP)
-		fetch_num_s2 = 1;
-	else if(fetch_num_s1 > 64) // Max length limited by AXI bus
+	if(fetch_num_s1 > 64) // Max length limited by AXI bus
 		fetch_num_s2 = 64;
 	else 
 		fetch_num_s2 = fetch_num_s1;
 end
 
+always @(*)
+begin
+	if(wback_limit < out_num)
+		wback_num_s1 = wback_limit;
+	else
+		wback_num_s1 = out_num;
+
+	if(wback_num_s1 > 64) // Max length limited by AXI bus
+		wback_num_s2 = 64;
+	else
+		wback_num_s2 = wback_num_s1;
+
+	wback_bytes_s2 = {wback_num_s2,4'b0};
+end
+
+
 // iDMA Command Dispatch
 // Host-to-Local: if (in_num < PTHRESH && host_fresh> HTHRESH) ||
 //     (DPP && local_pending == 0 && host_fresh> 0)
-// Local-to-Host: if wb_num > WTHRESH || (flush_timer > TIDV && wb_num >0)
+// Local-to-Host: if wb_num > WTHRESH || (flush_timer > RDTR && wb_num >0)
 
 always @(posedge aclk, negedge aresetn)
 begin
@@ -624,14 +722,10 @@ begin
 		S1_READY: begin
 			if(!EN)
 				s1_next = S1_IDLE;
-			else if(out_num>0)
-				if(flag_report_status)
-					// Dequeue and write back
-					s1_next = S1_WRITE_BACK_0;
-				else 
-					// Dequeue no report
-					s1_next = S1_DEQUEUE;
-			else if((!DPP && (PTHRESH==0 || local_pending < PTHRESH) && 
+			else if(out_num>0 && (out_num>=WTHRESH || flush_tmo || flush_req))
+				// Dequeue and write back
+				s1_next = S1_WRITE_BACK_0;
+			else if(((PTHRESH==0 || local_pending < PTHRESH) && 
 					host_fresh > HTHRESH) ||
 				(local_pending == 0 && host_fresh > 0))
 				s1_next = S1_SET_SIZE;
@@ -737,8 +831,10 @@ begin
 		end
 		S1_WRITE_BACK_0: begin
 			// iDMA Command
-			// Only STA byte is updated
-			idma_m_tdata <= {4'h8,12'd1,local_wb_address[15:4],4'hC}; 
+			wback_num <= wback_num_s2;
+			idma_m_tdata[31:28] <= 4'h8;
+			idma_m_tdata[27:16] <= wback_bytes_s2;
+			idma_m_tdata[15:0] <= {local_wb_address[15:4],4'h0};
 			idma_m_tvalid <= 1'b1;
 			idma_m_tlast <= 1'b0;
 		end
@@ -761,7 +857,7 @@ begin
 			host_dequeue <= 1'b1;
 			host_deq_incr <= 1'b1;
 			out_dequeue <= 1'b1;
-			out_deq_incr <= 1'b1;
+			out_deq_incr <= wback_num;
 			delay_cnt <= 5;
 		end
 		S1_SET_SIZE: begin
@@ -829,7 +925,7 @@ begin
 				s2_next = S2_READY;
 		end
 		S2_CMD: begin
-			if(teng_m_tready)
+			if(reng_m_tready)
 				s2_next = S2_DEQUEUE;
 			else
 				s2_next = S2_CMD;
@@ -838,7 +934,7 @@ begin
 			s2_next = S2_ACK;
 		end
 		S2_ACK: begin
-			if(teng_s_tvalid & teng_s_tlast)
+			if(reng_s_tvalid & reng_s_tlast)
 				s2_next = S2_ENQUEUE;
 			else
 				s2_next = S2_ACK;
@@ -857,10 +953,10 @@ begin
 	if(!aresetn) begin
 		in_dequeue <= 1'b0;
 		out_enqueue <= 1'b0;
-		teng_m_tdata <= 'bx;
-		teng_m_tvalid <= 1'b0;
-		teng_m_tlast <= 'b1;
-		teng_s_tready <= 1'b0;
+		reng_m_tdata <= 'bx;
+		reng_m_tvalid <= 1'b0;
+		reng_m_tlast <= 'b1;
+		reng_s_tready <= 1'b0;
 	end
 	else case(s2_next)
 		S2_IDLE: begin
@@ -869,24 +965,23 @@ begin
 			out_enqueue <= 1'b0;
 		end
 		S2_CMD: begin
-			teng_m_tdata <= {16'b0,local_teng_address};
-			teng_m_tvalid <= 1'b1;
-			teng_m_tlast <= 1'b1;
+			reng_m_tdata <= {16'b0,local_reng_address};
+			reng_m_tvalid <= 1'b1;
+			reng_m_tlast <= 1'b1;
 		end
 		S2_DEQUEUE: begin
-			teng_m_tvalid <= 1'b0;
+			reng_m_tvalid <= 1'b0;
 			in_dequeue <= 1'b1;
 		end
 		S2_ACK: begin
 			in_dequeue <= 1'b0;
-			teng_s_tready <= 1'b1;
+			reng_s_tready <= 1'b1;
 		end
 		S2_ENQUEUE: begin
-			teng_s_tready <= 1'b0;
+			reng_s_tready <= 1'b0;
 			out_enqueue <= 1'b1;
 		end
 	endcase
 end
-*/
 
 endmodule

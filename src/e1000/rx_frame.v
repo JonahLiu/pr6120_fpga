@@ -6,6 +6,8 @@ module rx_frame(
 	input BSEX, // Buffer Size Extension
 	input [7:0] PCSS, // Packet Checksum Start
 
+	output RXO_req, // RX FIFO Overrun Interrupt Request
+
 	// Command Port
 	// C1: [31:16]=Length, [15:0]=Local Address 
 	// C2: [31:0]=DESC_DW2
@@ -95,6 +97,8 @@ begin
 
 	mac_s_tready = 1'b1;
 end
+
+assign RXO_req = 1'b0;
 
 ////////////////////////////////////////////////////////////////////////////////
 
