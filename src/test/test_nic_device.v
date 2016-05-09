@@ -5,14 +5,21 @@ module test_nic_device;
 //
 // Host Address
 parameter HOST_BASE = 32'hE000_0000;
-parameter HOST_SIZE = 2*1024*1024;
-parameter HOST_DESC_OFFSET = 0;
-parameter HOST_DATA_OFFSET = HOST_BASE+HOST_SIZE/2;
+parameter HOST_SIZE = 4*1024*1024;
+parameter DESC_BUF_SIZE = HOST_SIZE/4;
+parameter DATA_BUF_SIZE = HOST_SIZE/4;
+parameter HOST_DESC_BASE = HOST_BASE;
+parameter HOST_DATA_BASE = HOST_BASE+DESC_BUF_SIZE*2;
+
+parameter TX_DESC_BASE = HOST_DESC_BASE;
+parameter TX_DATA_BASE = HOST_DATA_BASE;
+parameter RX_DESC_BASE = HOST_DESC_BASE+DESC_BUF_SIZE;
+parameter RX_DATA_BASE = HOST_DATA_BASE+DATA_BUF_SIZE;
 
 parameter HOST_DESC_BATCH = 4;
 
 // Target Addresses
-parameter TGT_CONF_ADDR  = 32'h0100_0000;
+parameter TGT_CONF_ADDR = 32'h0100_0000;
 parameter TGT_BAR0_BASE = 32'h8002_0000;
 parameter TGT_BAR1_BASE = 32'h8004_0000;
 parameter TGT_BAR2_BASE = 32'h0000_0010;
@@ -83,6 +90,27 @@ parameter E1000_TSPMT_TSPBP_MASK 	= 32'hFF;
 parameter E1000_RCTL			=	16'h0100;
 parameter E1000_RCTL_EN			=	(1<<1);
 parameter E1000_RCTL_LPE		=	(1<<5);
+parameter E1000_RCTL_BSIZE_SHIFT	=	(1<<16);
+parameter E1000_RCTL_BSIZE_MASK		= 2'b11;
+parameter E1000_RCTL_BSEX		=	(1<<25);
+
+parameter E1000_RDBAL			=    16'h2800;
+parameter E1000_RDBAH			=    16'h2804;
+parameter E1000_RDLEN			=    16'h2808;
+parameter E1000_RDH				=    16'h2810;
+parameter E1000_RDT				=    16'h2818;
+parameter E1000_RDTR			=    16'h2820;
+
+parameter E1000_RXDCTL			=	16'h2828;
+parameter E1000_RXDCTL_PTHRESH_SHIFT 	= 0;
+parameter E1000_RXDCTL_PTHRESH_MASK 	= 32'h3F;
+parameter E1000_RXDCTL_HTHRESH_SHIFT 	= 8;
+parameter E1000_RXDCTL_HTHRESH_MASK 	= 32'h3F;
+parameter E1000_RXDCTL_WTHRESH_SHIFT 	= 16;
+parameter E1000_RXDCTL_WTHRESH_MASK 	= 32'h3F;
+parameter E1000_RXDCTL_GRAN 			= (1<<24);
+
+parameter E1000_RADV				=   16'h282C;
 
 localparam DESC_SIZE=16;
 localparam HOST_MASK=HOST_SIZE-1;
@@ -395,17 +423,26 @@ wire resp_dd;
 assign resp_sta = resp_data[99:96];
 assign resp_dd = resp_sta[0];
 
-reg [31:0] host_base;
-reg [15:0] host_head;
-reg [15:0] host_tail;
-reg [15:0] host_len;
-reg [31:0] host_dptr;
+reg [31:0] tx_host_base;
+reg [15:0] tx_host_head;
+reg [15:0] tx_host_tail;
+reg [15:0] tx_host_len;
+reg [31:0] tx_host_dptr;
+
+reg [31:0] rx_host_base;
+reg [15:0] rx_host_head;
+reg [15:0] rx_host_tail;
+reg [15:0] rx_host_len;
+reg [31:0] rx_host_dptr;
+
 reg [31:0] intr_state;
 
 reg [0:511] dbg_msg;
 
 integer PARAM_RS;
 integer PARAM_IDE;
+integer PARAM_BSIZE;
+integer PARAM_BSEX;
 
 localparam REPORT_NONE=0, REPORT_ALL=1, REPORT_EOP=2;
 
@@ -431,6 +468,24 @@ begin
 end
 endfunction
 
+function integer queue_spare(input integer head, input integer tail, input integer len);
+	integer n;
+	begin
+		n=0;
+		n = head-tail-1;
+		if(n<0) n=n+len;
+		queue_spare=n;
+	end
+endfunction
+
+function integer queue_pending(input integer head, input integer tail, input integer len);
+	integer n;
+	begin
+		n=tail-head;
+		if(n<0) n=n+len;
+		queue_pending=n;
+	end
+endfunction
 
 task config_target;
 	reg [31:0] data;
@@ -472,13 +527,17 @@ end
 endtask
 
 task initialize_nic(input integer octlen, input integer tidv, input integer tadv,
-	input integer pthresh, input integer hthresh, input integer lwthresh);
+	input integer pthresh, input integer hthresh, input integer wthresh, input integer lwthresh);
 	integer len;
 	reg [31:0] data;
 	begin
-		host_len=octlen*8;
-		host_head=0;
-		host_tail=0;
+		tx_host_len=octlen*8;
+		tx_host_head=0;
+		tx_host_tail=0;
+
+		rx_host_len=octlen*8;
+		rx_host_head=0;
+		rx_host_tail=0;
 
 		e1000_write(E1000_CTRL, E1000_CTRL_RST);
 		#1000; // Wait 1us
@@ -489,17 +548,18 @@ task initialize_nic(input integer octlen, input integer tidv, input integer tadv
 		e1000_write(E1000_ICR, 32'hFFFF_FFFF);
 		e1000_write(E1000_IMS, E1000_INTR_TXDW|E1000_INTR_TXQE|E1000_INTR_TXD_LOW);
 
-		e1000_write(E1000_TDBAL, host_base);
+		e1000_write(E1000_TDBAL, tx_host_base);
 		e1000_write(E1000_TDBAH, 32'h0);
-		e1000_write(E1000_TDLEN, host_len*DESC_SIZE);
-		e1000_write(E1000_TDH, host_head);
-		e1000_write(E1000_TDT, host_tail);
+		e1000_write(E1000_TDLEN, tx_host_len*DESC_SIZE);
+		e1000_write(E1000_TDH, tx_host_head);
+		e1000_write(E1000_TDT, tx_host_tail);
 
 		e1000_write(E1000_TIDV, tidv); 
 		e1000_write(E1000_TADV, tadv); 
 		e1000_write(E1000_TXDCTL,
 			((pthresh&E1000_TXDCTL_PTHRESH_MASK)<<E1000_TXDCTL_PTHRESH_SHIFT) |
 			((hthresh&E1000_TXDCTL_HTHRESH_MASK)<<E1000_TXDCTL_HTHRESH_SHIFT) |
+			((wthresh&E1000_TXDCTL_WTHRESH_MASK)<<E1000_TXDCTL_WTHRESH_SHIFT) |
 			((lwthresh&E1000_TXDCTL_LWTHRESH_MASK)<<E1000_TXDCTL_LWTHRESH_SHIFT) |
 			E1000_TXDCTL_GRAN
 		); 
@@ -509,7 +569,28 @@ task initialize_nic(input integer octlen, input integer tidv, input integer tadv
 		e1000_read(E1000_TCTL, data);
 		e1000_write(E1000_TCTL, data|E1000_TCTL_EN);
 
+		e1000_write(E1000_RDBAL, rx_host_base);
+		e1000_write(E1000_RDBAH, 32'h0);
+		e1000_write(E1000_RDLEN, rx_host_len*DESC_SIZE);
+		e1000_write(E1000_RDH, rx_host_head);
+		e1000_write(E1000_RDT, rx_host_tail);
+
+		e1000_write(E1000_RDTR, tidv); 
+		e1000_write(E1000_RADV, tadv); 
+		e1000_write(E1000_RXDCTL,
+			((pthresh&E1000_RXDCTL_PTHRESH_MASK)<<E1000_RXDCTL_PTHRESH_SHIFT) |
+			((hthresh&E1000_RXDCTL_HTHRESH_MASK)<<E1000_RXDCTL_HTHRESH_SHIFT) |
+			((wthresh&E1000_RXDCTL_WTHRESH_MASK)<<E1000_RXDCTL_WTHRESH_SHIFT) |
+			E1000_RXDCTL_GRAN
+		); 
+
 		e1000_read(E1000_RCTL, data);
+
+		data=data|E1000_RCTL_LPE|E1000_RCTL_EN;
+		if(PARAM_BSEX)
+			data=data|E1000_RCTL_BSEX;
+		data=data|((PARAM_BSIZE&E1000_RCTL_BSIZE_MASK)<<E1000_RCTL_BSIZE_SHIFT);
+
 		e1000_write(E1000_RCTL, data|E1000_RCTL_LPE|E1000_RCTL_EN);
 	end
 endtask
@@ -558,22 +639,22 @@ begin
 end
 endtask
 
-task add_tx_packet(input integer length, input integer seglen);
+task tx_add_packet(input integer length, input integer seglen);
 	reg [7:0] data;
 	begin
 		data=0;
 		while(length > 0) begin
 
-			while(queue_spare(host_head, host_tail, host_len)==0) begin
-				commit_tail();
-				check_available(1);
+			while(queue_spare(tx_host_head, tx_host_tail, tx_host_len)==0) begin
+				tx_commit_tail();
+				tx_wait_available(1);
 			end
 
 			if(length<seglen)
 				seglen = length;
 			length = length-seglen;
 
-			desc_daddr = host_dptr;
+			desc_daddr = tx_host_dptr;
 			desc_length = seglen;
 			case(PARAM_RS)
 				REPORT_ALL: desc_rs = 1;
@@ -586,61 +667,112 @@ task add_tx_packet(input integer length, input integer seglen);
 			#0; // desc_data need a delta time to update
 
 			set_data(desc_daddr, desc_length, data);
-			set_desc(host_base+host_tail*DESC_SIZE, desc_data);
+			set_desc(tx_host_base+tx_host_tail*DESC_SIZE, desc_data);
 
-			host_tail = (host_tail+1)%host_len;
-			host_dptr = host_dptr+desc_length;
+			tx_host_tail = (tx_host_tail+1)%tx_host_len;
+			tx_host_dptr = tx_host_dptr+desc_length;
+			if(tx_host_dptr>(TX_DATA_BASE+DATA_BUF_SIZE))
+				tx_host_dptr = tx_host_dptr-DATA_BUF_SIZE;
 			data = data+desc_length;
 		end
 	end
 endtask
 
-task commit_tail();
+task tx_commit_tail();
 	begin
-		e1000_write(E1000_TDT, host_tail);
+		e1000_write(E1000_TDT, tx_host_tail);
 	end
 endtask
 
-task update_head();
+task tx_update_head();
 	begin
-		e1000_read(E1000_TDH, host_head);
+		e1000_read(E1000_TDH, tx_host_head);
 	end
 endtask
 
-function integer queue_spare(input integer head, input integer tail, input integer len);
-	integer n;
+task tx_wait_available(input integer num);
 	begin
-		n=0;
-		n = head-tail-1;
-		if(n<0) n=n+len;
-		queue_spare=n;
-	end
-endfunction
-
-function integer queue_pending(input integer head, input integer tail, input integer len);
-	integer n;
-	begin
-		n=tail-head;
-		if(n<0) n=n+len;
-		queue_pending=n;
-	end
-endfunction
-
-task check_available(input integer num);
-	begin
-		while(queue_spare(host_head, host_tail, host_len)<num) begin
+		while(queue_spare(tx_host_head, tx_host_tail, tx_host_len)<num) begin
 			#10_000;
-			update_head();
+			tx_update_head();
 			update_interrupt();
 		end
 	end
 endtask
 
-task check_done();
+task tx_check_done();
 	begin
-		while(queue_pending(host_head, host_tail, host_len)>0) begin
+		while(queue_pending(tx_host_head, tx_host_tail, tx_host_len)>0) begin
 			#10_000;
-			update_head();
+			tx_update_head();
+			update_interrupt();
+		end
+	end
+endtask
+
+task rx_add_desc(input integer num);
+	integer i;
+	begin
+		while(queue_spare(rx_host_head, rx_host_tail, rx_host_len)<num) begin
+			rx_commit_tail();
+			rx_wait_available(1);
+		end
+		for(i=0;i<num;i=i+1) begin
+			desc_daddr = rx_host_dptr;
+			case({PARAM_BSEX[0],PARAM_BSIZE[1:0]})
+				3'b000: desc_length = 2048;
+				3'b001: desc_length = 1024;
+				3'b010: desc_length = 512;
+				3'b011: desc_length = 256;
+				3'b100: desc_length = 32768; // illegal
+				3'b101: desc_length = 16384;
+				3'b110: desc_length = 8192;
+				3'b111: desc_length = 4096;
+			endcase
+			desc_rs = 0;
+			desc_ide = 0;
+			desc_eop = 0;
+
+			#0; // desc_data need a delta time to update
+
+			set_data(desc_daddr, desc_length, 0);
+			set_desc(rx_host_base+rx_host_tail*DESC_SIZE, desc_data);
+
+			rx_host_tail = (rx_host_tail+1)%rx_host_len;
+			rx_host_dptr = rx_host_dptr+desc_length;
+			if(rx_host_dptr>(RX_DATA_BASE+DATA_BUF_SIZE))
+				rx_host_dptr=rx_host_dptr-DATA_BUF_SIZE;
+		end
+	end
+endtask
+
+task rx_commit_tail();
+	begin
+		e1000_write(E1000_RDT, rx_host_tail);
+	end
+endtask
+
+task rx_update_head();
+	begin
+		e1000_read(E1000_RDH, rx_host_head);
+	end
+endtask
+
+task rx_wait_available(input integer num);
+	begin
+		while(queue_spare(rx_host_head, rx_host_tail, rx_host_len)<num) begin
+			#10_000;
+			rx_update_head();
+			update_interrupt();
+		end
+	end
+endtask
+
+task rx_check_done();
+	begin
+		while(queue_pending(rx_host_head, rx_host_tail, rx_host_len)>0) begin
+			#10_000;
+			rx_update_head();
 			update_interrupt();
 		end
 	end
@@ -665,10 +797,22 @@ task generate_tx_traffic(input integer length, input integer seglen, input integ
 begin
 
 	for(i=0;i<num;i=i+1) begin
-		add_tx_packet(length, seglen);
+		tx_add_packet(length, seglen);
 	end
 
-	commit_tail();
+	tx_commit_tail();
+end
+endtask
+
+//% Generate Receive requests
+//%
+//% @num: number of descriptors to generate
+task generate_rx_traffic(input integer num);
+	integer i;
+begin
+	for(i=0;i<num;i=i+1) begin
+	// FIXME: Add code here
+	end
 end
 endtask
 
@@ -720,14 +864,14 @@ end
 task test_packet_size();
 	begin
 		dbg_msg = "Test Packet Size";
-		host_base = HOST_BASE;
+		tx_host_base = TX_DESC_BASE;
 
-		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
+		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*wth*/,0/*lwth*/);
 
 		PARAM_RS = REPORT_ALL;
 		PARAM_IDE = 0;
 
-		host_dptr = HOST_DATA_OFFSET;
+		tx_host_dptr = HOST_DATA_BASE;
 		// Invalid packet sizes just for testing DMA functionality
 		generate_tx_traffic(1, 1, 1); 
 		generate_tx_traffic(2, 2, 1); 
@@ -743,7 +887,7 @@ task test_packet_size();
 		generate_tx_traffic(60, 60, 1); // without padding
 		generate_tx_traffic(1518, 1518, 1); // 1522 Bytes plus FCS
 		generate_tx_traffic(16380, 16380, 1); // 16384 Bytes plus FCS
-		check_done();
+		tx_check_done();
 		#50_000;
 	end
 endtask
@@ -751,20 +895,20 @@ endtask
 task test_throughput();
 	begin
 		dbg_msg = "Test throughput";
-		host_base = HOST_BASE;
+		tx_host_base = TX_DESC_BASE;
 
-		initialize_nic(16/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,8/*lwth*/);
+		initialize_nic(16/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,0/*wth*/,8/*lwth*/);
 
 		PARAM_RS = REPORT_ALL;
 		PARAM_IDE = 0;
 
-		host_dptr = HOST_DATA_OFFSET;
+		tx_host_dptr = HOST_DATA_BASE;
 		
 		generate_tx_traffic(1518, 1518, 64); 
 		generate_tx_traffic(9596, 9596, 8); 
 		generate_tx_traffic(16380, 16380, 2); 
 
-		check_done();
+		tx_check_done();
 		#50_000;
 	end
 endtask
@@ -772,46 +916,46 @@ endtask
 task test_host_queue_size();
 	begin
 		dbg_msg = "Test Host Queue Size";
-		host_base = HOST_BASE;
+		tx_host_base = TX_DESC_BASE;
 		PARAM_RS = REPORT_ALL;
 		PARAM_IDE = 0;
 
-		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
-		host_dptr = HOST_DATA_OFFSET;
+		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*wth*/,0/*lwth*/);
+		tx_host_dptr = HOST_DATA_BASE;
 		generate_tx_traffic(12, 12, 7); 
-		check_done();
+		tx_check_done();
 		generate_tx_traffic(12, 12, 8); 
-		check_done();
+		tx_check_done();
 		generate_tx_traffic(12, 12, 15); 
-		check_done();
+		tx_check_done();
 		generate_tx_traffic(12, 12, 16); 
-		check_done();
+		tx_check_done();
 		generate_tx_traffic(12, 12, 24); 
-		check_done();
+		tx_check_done();
 
-		initialize_nic(2/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
-		host_dptr = HOST_DATA_OFFSET;
+		initialize_nic(2/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*wth*/,0/*lwth*/);
+		tx_host_dptr = HOST_DATA_BASE;
 		generate_tx_traffic(12, 12, 15); 
-		check_done();
+		tx_check_done();
 		generate_tx_traffic(12, 12, 16); 
-		check_done();
+		tx_check_done();
 		generate_tx_traffic(12, 12, 32); 
-		check_done();
+		tx_check_done();
 		generate_tx_traffic(12, 12, 48); 
-		check_done();
+		tx_check_done();
 	end
 endtask
 
 task test_multi_desc();
 	begin
 		dbg_msg = "Test Multi-Desc Packet";
-		host_base = HOST_BASE;
+		tx_host_base = TX_DESC_BASE;
 		PARAM_RS = REPORT_EOP;
 		PARAM_IDE = 0;
 
-		initialize_nic(8/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
+		initialize_nic(8/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*wth*/,0/*lwth*/);
 
-		host_dptr = HOST_DATA_OFFSET;
+		tx_host_dptr = HOST_DATA_BASE;
 		generate_tx_traffic(12, 1, 1); 
 		generate_tx_traffic(12, 3, 1); 
 		generate_tx_traffic(12, 4, 1); 
@@ -819,53 +963,53 @@ task test_multi_desc();
 		//generate_tx_traffic(16380, 8192, 1); // 16384 Bytes plus FCS
 		//generate_tx_traffic(16380, 4096, 1); // 16384 Bytes plus FCS
 		generate_tx_traffic(16380, 512, 1); // 16384 Bytes plus FCS
-		check_done();
+		tx_check_done();
 	end
 endtask
 
 task test_disable_prefetch();
 	begin
 		dbg_msg = "Test Disalbe Prefetch";
-		host_base = HOST_BASE;
+		tx_host_base = TX_DESC_BASE;
 		PARAM_RS = REPORT_ALL;
 		PARAM_IDE = 0;
 
-		initialize_nic(2/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
+		initialize_nic(2/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*wth*/,0/*lwth*/);
 		e1000_write(E1000_TXDMAC, E1000_TXDMAC_DPP);
 
-		host_dptr = HOST_DATA_OFFSET;
+		tx_host_dptr = HOST_DATA_BASE;
 		generate_tx_traffic(12, 12, 16); 
-		check_done();
+		tx_check_done();
 	end
 endtask
 
 task test_non_aligned_desc();
 	begin
 		dbg_msg = "Test Non-aligned Desc Queue";
-		host_base = HOST_BASE+'h10;
+		tx_host_base = TX_DESC_BASE+'h10;
 		PARAM_RS = REPORT_ALL;
 		PARAM_IDE = 0;
 
-		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
+		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*wth*/,0/*lwth*/);
 
-		host_dptr = HOST_DATA_OFFSET;
+		tx_host_dptr = HOST_DATA_BASE;
 		generate_tx_traffic(12, 12, 16); 
-		check_done();
+		tx_check_done();
 	end
 endtask
 
 task test_interrupt_delay();
 	begin
 		dbg_msg = "Test Interrupt Delay";
-		host_base = HOST_BASE;
+		tx_host_base = TX_DESC_BASE;
 		PARAM_RS = REPORT_ALL;
 		PARAM_IDE = 1;
 
-		initialize_nic(16/*octlen*/,16/*tidv*/,32/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
+		initialize_nic(16/*octlen*/,16/*tidv*/,32/*tadv*/,0/*pth*/,0/*hth*/,0/*wth*/,0/*lwth*/);
 
-		host_dptr = HOST_DATA_OFFSET;
+		tx_host_dptr = HOST_DATA_BASE;
 		generate_tx_traffic(12, 12, 64); 
-		check_done();
+		tx_check_done();
 		#16_000;
 	end
 endtask
@@ -873,32 +1017,32 @@ endtask
 task test_prefetch();
 	begin
 		dbg_msg = "Test Prefetch";
-		host_base = HOST_BASE;
+		tx_host_base = TX_DESC_BASE;
 		PARAM_RS = REPORT_ALL;
 		PARAM_IDE = 0;
 
-		initialize_nic(2/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,8/*lwth*/);
+		initialize_nic(2/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,0/*wth*/,8/*lwth*/);
 
-		host_dptr = HOST_DATA_OFFSET;
+		tx_host_dptr = HOST_DATA_BASE;
 		repeat(64) generate_tx_traffic(12, 12, 1); 
-		check_done();
+		tx_check_done();
 	end
 endtask
 
 task test_large_queue();
 	begin
 		dbg_msg = "Test Large_queue";
-		host_base = HOST_BASE;
+		tx_host_base = TX_DESC_BASE;
 		PARAM_RS = REPORT_NONE;
 		PARAM_IDE = 0;
 
-		initialize_nic(8191/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,8/*lwth*/);
+		initialize_nic(8191/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,0/*wth*/,8/*lwth*/);
 
-		host_dptr = HOST_DATA_OFFSET;
+		tx_host_dptr = HOST_DATA_BASE;
 		//generate_tx_traffic(1, 1, 65536); 
 		// Break into multiple to avoid reaching iteration limit
 		repeat(64) generate_tx_traffic(12, 12, 1024); 
-		check_done();
+		tx_check_done();
 	end
 endtask
 
@@ -998,7 +1142,7 @@ end
 always @(posedge PCLK)
 begin
 	if(dbg_host_rd && FRAME_N && IRDY_N && TRDY_N) begin
-		if(dbg_host_addr < HOST_DATA_OFFSET)
+		if(dbg_host_addr < HOST_DATA_BASE)
 			$display($time,,,"FETCH DESC @%X, %d DW", dbg_host_addr, dbg_host_dcnt);
 		else
 			$display($time,,,"FETCH DATA @%X, %d DW", dbg_host_addr, dbg_host_dcnt);
