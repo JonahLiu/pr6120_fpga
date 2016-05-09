@@ -1,6 +1,10 @@
-module tx_frame(
+module rx_frame(
 	input aclk,
 	input aresetn,
+
+	input [1:0] BSIZE, // Receive Buffer Size
+	input BSEX, // Buffer Size Extension
+	input [7:0] PCSS, // Packet Checksum Start
 
 	// Command Port
 	// C1: [31:16]=Length, [15:0]=Local Address 
@@ -9,7 +13,7 @@ module tx_frame(
 	input [31:0] cmd_s_tdata,
 	input cmd_s_tvalid,
 	input cmd_s_tlast,
-	output cmd_s_tready,
+	output reg cmd_s_tready,
 
 	// Response Port
 	// [31:16]=Length, [15:0]=Local Address
@@ -18,32 +22,32 @@ module tx_frame(
 	output reg stat_m_tlast,
 	input stat_m_tready,
 
-	output [3:0] dram_m_awid,
-	output [15:0] dram_m_awaddr,
-	output [7:0] dram_m_awlen,
-	output [2:0] dram_m_awsize,
-	output [1:0] dram_m_awburst,
-	output dram_m_awvalid,
+	output reg [3:0] dram_m_awid,
+	output reg [15:0] dram_m_awaddr,
+	output reg [7:0] dram_m_awlen,
+	output reg [2:0] dram_m_awsize,
+	output reg [1:0] dram_m_awburst,
+	output reg dram_m_awvalid,
 	input dram_m_awready,
 
-	output [3:0] dram_m_wid,
-	output [31:0] dram_m_wdata,
-	output [3:0] dram_m_wstrb,
-	output dram_m_wlast,
-	output dram_m_wvalid,
+	output reg [3:0] dram_m_wid,
+	output reg [31:0] dram_m_wdata,
+	output reg [3:0] dram_m_wstrb,
+	output reg dram_m_wlast,
+	output reg dram_m_wvalid,
 	input dram_m_wready,
 
 	input [3:0] dram_m_bid,
 	input [1:0] dram_m_bresp,
 	input dram_m_bvalid,
-	output dram_m_bready,
+	output reg dram_m_bready,
 
-	output  [3:0] dram_m_arid,
-	output  [15:0] dram_m_araddr,
-	output  [7:0] dram_m_arlen,
-	output  [2:0] dram_m_arsize,
-	output  [1:0] dram_m_arburst,
-	output  dram_m_arvalid,
+	output reg  [3:0] dram_m_arid,
+	output reg  [15:0] dram_m_araddr,
+	output reg  [7:0] dram_m_arlen,
+	output reg  [2:0] dram_m_arsize,
+	output reg  [1:0] dram_m_arburst,
+	output reg  dram_m_arvalid,
 	input dram_m_arready,
 
 	input [3:0] dram_m_rid,
@@ -51,23 +55,54 @@ module tx_frame(
 	input [1:0] dram_m_rresp,
 	input dram_m_rlast,
 	input dram_m_rvalid,
-	output dram_m_rready,
+	output reg dram_m_rready,
 
-	// MAC Tx Port
-	output [31:0] mac_m_tdata,
-	output [3:0] mac_m_tkeep,
-	output mac_m_tvalid,
-	output mac_m_tlast,
-	input mac_m_tready	
+	// MAC Rx Port
+	input [31:0] mac_s_tdata,
+	input [3:0] mac_s_tkeep,
+	input mac_s_tvalid,
+	input mac_s_tlast,
+	output reg mac_s_tready	
 );
 
+////////////////////////////////////////////////////////////////////////////////
+//
+always @(*)
+begin
+	cmd_s_tready = 1'b1;
+	stat_m_tdata = 'bx;
+	stat_m_tvalid = 1'b0;
+	stat_m_tlast = 1'bx;
+	dram_m_awid = 'bx;
+	dram_m_awaddr = 'bx;
+	dram_m_awlen = 'bx;
+	dram_m_awsize = 'bx;
+	dram_m_awburst = 'bx;
+	dram_m_awvalid = 1'b0;
+	dram_m_wid = 'bx;
+	dram_m_wdata = 'bx;
+	dram_m_wstrb = 'bx;
+	dram_m_wlast = 'bx;
+	dram_m_wvalid = 1'b0;
+	dram_m_bready = 1'b1;
+	dram_m_arid = 'bx;
+	dram_m_araddr = 'bx;
+	dram_m_arlen = 'bx;
+	dram_m_arsize = 'bx;
+	dram_m_arburst = 'bx;
+	dram_m_arvalid = 1'b0;
+	dram_m_rready = 1'b1;
+
+	mac_s_tready = 1'b1;
+end
+
+////////////////////////////////////////////////////////////////////////////////
+
+/*
 reg [15:0] length;
 reg [15:0] local_addr;
 reg [31:0] desc_dw2;
 reg [31:0] desc_dw3;
-
-wire [15:0] buf_length;
-wire [15:0] buf_addr;
 
 wire [7:0] desc_cmd;
 wire desc_eop;
@@ -78,65 +113,27 @@ wire rdma_tvalid;
 wire rdma_tlast;
 wire rdma_tready;
 
-wire [32:0] fifo_din;
-wire [32:0] fifo_dout;
-wire fifo_full;
-wire fifo_empty;
-wire fifo_wr_en;
-wire fifo_rd_en;
+assign desc_cmd = desc_dw2[31:24];
+assign desc_eop = desc_cmd[0];
 
 reg [1:0] cmd_cnt;
 
 wire cmd_valid;
-wire cmd_ready;
 
-reg [3:0] pkt_cnt;
-
-reg start_xmit;
-
-reg is_eop;
-
-assign desc_cmd = desc_dw2[31:24];
-assign desc_eop = desc_cmd[0];
-
-assign fifo_din = {desc_eop, length, local_addr};
-assign fifo_wr_en = cmd_s_tready && cmd_s_tvalid && cmd_s_tlast;
-
-assign fifo_rd_en = cmd_valid && cmd_ready;
-
-assign buf_eop = fifo_dout[32];
-assign buf_length = fifo_dout[31:16];
-assign buf_addr = fifo_dout[15:0];
-
-assign cmd_s_tready = !fifo_full;
-
-assign cmd_valid = start_xmit && !fifo_empty;
+assign cmd_valid = cmd_s_tready&cmd_s_tvalid&cmd_s_tlast;
 
 assign mac_m_tdata = rdma_tdata;
 assign mac_m_tkeep = rdma_tkeep;
 assign mac_m_tvalid = rdma_tvalid;
-assign mac_m_tlast = rdma_tlast & is_eop;
+assign mac_m_tlast = rdma_tlast & desc_eop;
 assign rdma_tready = mac_m_tready;
-
-assign dram_m_awid = 'bx;
-assign dram_m_awaddr = 'bx;
-assign dram_m_awlen = 'bx;
-assign dram_m_awsize = 'bx;
-assign dram_m_awburst = 'bx;
-assign dram_m_awvalid = 1'b0;
-assign darm_m_wid = 'bx;
-assign dram_m_wdata = 'bx;
-assign dram_m_wstrb = 'bx;
-assign dram_m_wlast = 1'bx;
-assign dram_m_wvalid = 1'b0;
-assign dram_m_bready = 1'b1;
 
 axi_rdma #(.ADDRESS_BITS(16), .LENGTH_BITS(16)) rdma_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
-	.cmd_address(buf_addr),
-	.cmd_bytes(buf_length),
+	.cmd_address(local_addr),
+	.cmd_bytes(length),
 	.cmd_valid(cmd_valid),
 	.cmd_ready(cmd_ready),
 
@@ -162,19 +159,7 @@ axi_rdma #(.ADDRESS_BITS(16), .LENGTH_BITS(16)) rdma_i(
 	.dout_tready(rdma_tready)
 );
 
-// FIXME: replace with fifo_sync
-fifo_async #(.DSIZE(33),.ASIZE(4),.MODE("FWFT")) addr_fifo_i(
-	.wr_rst(!aresetn),
-	.wr_clk(aclk),
-	.din(fifo_din),
-	.wr_en(cmd_s_tready && cmd_s_tvalid && cmd_s_tlast),
-	.full(fifo_full),
-	.rd_rst(!aresetn),
-	.rd_clk(aclk),
-	.dout(fifo_dout),
-	.rd_en(fifo_rd_en),
-	.empty(fifo_empty)
-);
+always @(*) stat_m_tdata = {length, local_addr};
 
 always @(posedge aclk, negedge aresetn)
 begin
@@ -186,7 +171,7 @@ begin
 		desc_dw3 <= 'bx;
 	end
 	else if(cmd_s_tready && cmd_s_tvalid) begin
-		case(cmd_cnt) /* synthesis parallel_case */
+		case(cmd_cnt) // synthesis parallel_case 
 			0: begin
 				length <= cmd_s_tdata[31:16];
 				local_addr <= cmd_s_tdata[15:0];
@@ -208,33 +193,13 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
-		pkt_cnt <= 'b0;
-		start_xmit <= 1'b0;
+		cmd_s_tready <= 1'b1;
 	end
-	else if(fifo_wr_en && desc_eop) begin
-		if(fifo_rd_en && buf_eop) begin
-			pkt_cnt <= pkt_cnt;
-		end
-		else begin
-			pkt_cnt <= pkt_cnt+1;
-			start_xmit <= 1'b1;
-		end
+	else if(cmd_s_tready && cmd_s_tvalid && cmd_s_tlast) begin
+		cmd_s_tready <= 1'b0;
 	end
-	else if(fifo_rd_en && buf_eop) begin
-		if(pkt_cnt==1)
-			start_xmit <= 1'b0;
-		pkt_cnt <= pkt_cnt-1;
-	end
-	else if(fifo_full) begin
-		start_xmit <= 1'b1;
-	end
-end
-
-always @(posedge aclk)
-begin
-	if(cmd_valid && cmd_ready) begin
-		stat_m_tdata <= {buf_length, buf_addr};
-		is_eop <= buf_eop;
+	else if(stat_m_tvalid && stat_m_tlast && stat_m_tready) begin
+		cmd_s_tready <= 1'b1;
 	end
 end
 
@@ -251,5 +216,6 @@ begin
 		stat_m_tvalid <= 1'b0;
 	end
 end
+*/
 
 endmodule

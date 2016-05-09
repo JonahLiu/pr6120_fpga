@@ -53,6 +53,10 @@ read_verilog ../../src/e1000/tx_path.v
 read_verilog ../../src/e1000/tx_desc_ctrl.v
 read_verilog ../../src/e1000/tx_engine.v
 read_verilog ../../src/e1000/tx_frame.v
+read_verilog ../../src/e1000/rx_path.v
+read_verilog ../../src/e1000/rx_desc_ctrl.v
+read_verilog ../../src/e1000/rx_engine.v
+read_verilog ../../src/e1000/rx_frame.v
 read_verilog ../../src/e1000/axis_realign.v
 read_verilog ../../src/e1000/axi_idma.v
 read_verilog ../../src/e1000/axi_rdma.v
@@ -81,16 +85,16 @@ read_verilog ../../src/common/fifo_async.v
 file mkdir $ipDir/pci32_0
 file copy -force ../../ip/pci32_0.xci $ipDir/pci32_0
 read_ip $ipDir/pci32_0/pci32_0.xci
+upgrade_ip [get_ips pci32_0]
 #set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files $ipDir/pci32_0/pci32_0.xci]
-#upgrade_ip [get_ips pci32_0]
 #generate_target -force {all} [get_ips pci32_0]
 
 file mkdir $ipDir/ila_0
 file copy -force ../../ip/ila_0.xci $ipDir/ila_0
 file copy -force ../../ip/ila_0.xml $ipDir/ila_0
 read_ip $ipDir/ila_0/ila_0.xci
+upgrade_ip [get_ips ila_0]
 set_property GENERATE_SYNTH_CHECKPOINT FALSE [get_files $ipDir/ila_0/ila_0.xci]
-#upgrade_ip [get_ips ila_0]
 #generate_target -force {all} [get_ips ila_0]
 
 ################################################################################
@@ -118,7 +122,6 @@ read_xdc ../../src/device/timing.xdc
 #set_property GENERATE_SYNTH_CHECKPOINT true [get_files ../../src/device/clock_generation.xci]
 
 foreach ip [get_ips] {
-	upgrade_ip $ip
 	generate_target -force {all} $ip
 }
 

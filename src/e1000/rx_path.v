@@ -21,7 +21,7 @@ module rx_path(
 	input [12:0] RDLEN, // Rx Desc Memory Size = RDLEN*16*8
 	input [15:0] RDH, // Rx Desc Head
 	input RDH_set, // RX Desc Head update
-	input [15:0] RDH_fb, // Rx Desc Head feedback
+	output [15:0] RDH_fb, // Rx Desc Head feedback
 	input [15:0] RDT, // Rx Desc Tail
 	input RDT_set, // Rx Desc Tail update
 	input [5:0] PTHRESH, // Prefetch Threshold
@@ -34,10 +34,11 @@ module rx_path(
 	//input IPV6OFL, // IPv6 Checksum Offload
 	input [15:0] RDTR, // Interrupt Delay
 	input FPD, // Flush Pending Descriptor
+	input FPD_set, // Flush Pending Desc set
 	input [15:0] RADV, // Absolute Interrupt Delay
 	output RXDMT0_req, // Rx Desc Min Threshold Interrupt set
 	output RXO_req, // Rx Overrun Interrupt set
-	output RXT0, // Rx Timer Interrupt set
+	output RXT0_req, // Rx Timer Interrupt set
 
 	// Filter Table Access
 	//output [3:0] rtbl_index,
@@ -48,33 +49,33 @@ module rx_path(
 	//input [31:0] vtbl_data,
 
 	// External Bus Access
-	input [3:0] axi_m_awid,
-	input [63:0] axi_m_awaddr,
-	input [3:0] axi_m_awlen,
-	input [2:0] axi_m_awsize,
-	input [1:0] axi_m_awburst,
-	input axi_m_awvalid,
-	output axi_m_awready,
+	output [3:0] axi_m_awid,
+	output [63:0] axi_m_awaddr,
+	output [7:0] axi_m_awlen,
+	output [2:0] axi_m_awsize,
+	output [1:0] axi_m_awburst,
+	output axi_m_awvalid,
+	input  axi_m_awready,
 
-	input [3:0] axi_m_wid,
-	input [31:0] axi_m_wdata,
-	input [3:0] axi_m_wstrb,
-	input axi_m_wlast,
-	input axi_m_wvalid,
-	output axi_m_wready,
+	output [3:0] axi_m_wid,
+	output [31:0] axi_m_wdata,
+	output [3:0] axi_m_wstrb,
+	output axi_m_wlast,
+	output axi_m_wvalid,
+	input  axi_m_wready,
 
 	input [3:0] axi_m_bid,
 	input [1:0] axi_m_bresp,
 	input axi_m_bvalid,
 	output axi_m_bready,
 
-	input [3:0] axi_m_arid,
-	input [63:0] axi_m_araddr,
-	input [3:0] axi_m_arlen,
-	input [2:0] axi_m_arsize,
-	input [1:0] axi_m_arburst,
-	input axi_m_arvalid,
-	output axi_m_arready,
+	output [3:0] axi_m_arid,
+	output [63:0] axi_m_araddr,
+	output [7:0] axi_m_arlen,
+	output [2:0] axi_m_arsize,
+	output [1:0] axi_m_arburst,
+	output axi_m_arvalid,
+	input  axi_m_arready,
 
 	input [3:0] axi_m_rid,
 	input [31:0] axi_m_rdata,
@@ -612,6 +613,8 @@ rx_desc_ctrl #(
 	.WTHRESH(WTHRESH),
 	.GRAN(GRAN),
 	.RDTR(RDTR),
+	.FPD(FPD),
+	.FPD_set(FPD_set),
 	.RADV(RADV),
 	.RDMTS(RDMTS),
 	.RXDMT0_req(RXDMT0_req),
@@ -648,9 +651,6 @@ rx_engine #(
 )rx_engine_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
-
-	.BSIZE(BSIZE),
-	.BSEX(BSEX),
 
 	// Command Port
 	.cmd_s_tdata(re_cmd_tdata),
@@ -726,6 +726,8 @@ rx_frame rx_frame_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 	
+	.BSIZE(BSIZE),
+	.BSEX(BSEX),
 	.PCSS(PCSS),
 
 	// Frame Command Port

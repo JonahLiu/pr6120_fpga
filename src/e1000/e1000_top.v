@@ -252,8 +252,8 @@ wire TXQE_req;
 wire TXD_LOW_req;
 
 wire RCTL_EN; // Receive Enable
-//wire LPE; // Long Packet Reciption Enable
-//wire LBM; // Loopback mode
+wire LPE; // Long Packet Reciption Enable
+wire [1:0] LBM; // Loopback mode
 wire [1:0] RDMTS; // Rx Desc Minimum Threshold
 wire [1:0] BSIZE; // Rx Buffer Size
 wire BSEX; // Buffer Sizse Extension
@@ -290,8 +290,6 @@ assign phy_reset_out = CTRL_PHY_RST || reset;
 assign PHYINT_req = phy_int_sync[1];
 
 assign reset_request = CTRL_RST;
-
-assign mac_rx_m_tready = 1'b1;
 
 always @(posedge aclk)
 begin
@@ -383,6 +381,8 @@ e1000_regs cmd_i(
 	.TSPBP(TSPBP),
 
 	.RCTL_EN(RCTL_EN),
+	.LPE(LPE),
+	.LBM(LBM),
 	.RDMTS(RDMTS),
 	.BSIZE(BSIZE),
 	.BSEX(BSEX),
@@ -637,6 +637,8 @@ tx_path #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) tx_path_i(
 	.mac_m_tlast(mac_tx_s_tlast),
 	.mac_m_tready(mac_tx_s_tready)
 );
+
+// FIXME: need speed and duplex auto-detection
 
 wire [2:0] Speed;
 wire RX_APPEND_CRC;       

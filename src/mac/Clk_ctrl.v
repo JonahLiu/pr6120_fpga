@@ -57,6 +57,8 @@ Gtx_clk         ,
 Rx_clk          ,
 Tx_clk          ,
 //interface clk ,
+MAC_tx_rst		,
+MAC_rx_rst		,
 MAC_tx_clk      ,
 MAC_rx_clk      ,
 MAC_tx_clk_div  ,
@@ -71,6 +73,8 @@ output          Gtx_clk         ;//used only in GMII mode
 input           Rx_clk          ;
 input           Tx_clk          ;//used only in MII mode
                 //interface clk signals
+output          MAC_tx_rst      ;
+output          MAC_rx_rst      ;
 output          MAC_tx_clk      ;
 output          MAC_rx_clk      ;
 output          MAC_tx_clk_div  ;
@@ -121,4 +125,24 @@ CLK_SWITCH U_2_CLK_SWITCH(
 .SW             (Speed[2]       ),
 .OUT            (MAC_tx_clk_div )
 );
+
+reg [2:0] rx_rst_sync;
+always @(posedge MAC_rx_clk, posedge Reset)
+begin
+	if(Reset)
+		rx_rst_sync <= ~0;
+	else
+		rx_rst_sync <= {rx_rst_sync,1'b0};
+end
+assign MAC_rx_rst = rx_rst_sync[2];
+
+reg [2:0] tx_rst_sync;
+always @(posedge MAC_tx_clk, posedge Reset)
+begin
+	if(Reset)
+		tx_rst_sync <= ~0;
+	else
+		tx_rst_sync <= {tx_rst_sync,1'b0};
+end
+assign MAC_tx_rst = tx_rst_sync[2];
 endmodule

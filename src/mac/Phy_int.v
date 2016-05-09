@@ -51,8 +51,9 @@
 // 
 
 module Phy_int (
-Reset               ,
+MAC_rx_rst			,
 MAC_rx_clk          ,
+MAC_tx_rst			,
 MAC_tx_clk          ,
 //Rx interface      ,
 MCrs_dv             ,
@@ -76,8 +77,9 @@ Line_loop_en        ,
 Speed               
 
 );
-input           Reset               ;
+input           MAC_rx_rst			;
 input           MAC_rx_clk          ;
+input           MAC_tx_rst			;
 input           MAC_tx_clk          ;
                 //Rx interface
 output          MCrs_dv             ;       
@@ -121,8 +123,8 @@ reg             Col_dl1             ;
 //Tx control                                                              
 //******************************************************************************
 //reg boundery signals
-always @ (posedge MAC_tx_clk or posedge Reset)
-    if (Reset)
+always @ (posedge MAC_tx_clk or posedge MAC_tx_rst)
+    if (MAC_tx_rst)
         begin
         MTxD_dl1            <=0;
         MTxEn_dl1           <=0;
@@ -133,8 +135,8 @@ always @ (posedge MAC_tx_clk or posedge Reset)
         MTxEn_dl1           <=MTxEn ;
         end 
      
-always @ (posedge MAC_tx_clk or posedge Reset)
-    if (Reset)   
+always @ (posedge MAC_tx_clk or posedge MAC_tx_rst)
+    if (MAC_tx_rst)   
         Tx_odd_data_ptr     <=0;
     else if (!MTxD_dl1)
         Tx_odd_data_ptr     <=0;
@@ -142,8 +144,8 @@ always @ (posedge MAC_tx_clk or posedge Reset)
         Tx_odd_data_ptr     <=!Tx_odd_data_ptr;
         
 
-always @ (posedge MAC_tx_clk or posedge Reset)
-    if (Reset)  
+always @ (posedge MAC_tx_clk or posedge MAC_tx_rst)
+    if (MAC_tx_rst)  
         Txd                 <=0;
     else if(Speed[2]&&MTxEn_dl1)
         Txd                 <=MTxD_dl1;
@@ -154,8 +156,8 @@ always @ (posedge MAC_tx_clk or posedge Reset)
     else
         Txd                 <=0;
 
-always @ (posedge MAC_tx_clk or posedge Reset)
-    if (Reset)  
+always @ (posedge MAC_tx_clk or posedge MAC_tx_rst)
+    if (MAC_tx_rst)  
         Tx_en               <=0;
     else if(MTxEn_dl1)
         Tx_en               <=1;    
@@ -168,8 +170,8 @@ assign Tx_er=0;
 //Rx control                                                              
 //******************************************************************************
 //reg boundery signals
-always @ (posedge MAC_rx_clk or posedge Reset)
-    if (Reset)  
+always @ (posedge MAC_rx_clk or posedge MAC_rx_rst)
+    if (MAC_rx_rst)  
         begin
         Rx_er_dl1           <=0;
         Rx_dv_dl1           <=0;
@@ -193,8 +195,8 @@ always @ (posedge MAC_rx_clk or posedge Reset)
 assign MRxErr   =Rx_er_dl1      ;
 assign MCRS     =Crs_dl1        ;
 
-always @ (posedge MAC_rx_clk or posedge Reset)
-    if (Reset)  
+always @ (posedge MAC_rx_clk or posedge MAC_rx_rst)
+    if (MAC_rx_rst)  
         MCrs_dv         <=0;
     else if(Line_loop_en)
         MCrs_dv         <=Tx_en;
@@ -203,16 +205,16 @@ always @ (posedge MAC_rx_clk or posedge Reset)
     else
         MCrs_dv         <=0;
 
-always @ (posedge MAC_rx_clk or posedge Reset)
-    if (Reset)   
+always @ (posedge MAC_rx_clk or posedge MAC_rx_rst)
+    if (MAC_rx_rst)   
         Rx_odd_data_ptr     <=0;
     else if (!Rx_dv_dl1)
         Rx_odd_data_ptr     <=0;
     else 
         Rx_odd_data_ptr     <=!Rx_odd_data_ptr;
         
-always @ (posedge MAC_rx_clk or posedge Reset)
-    if (Reset)  
+always @ (posedge MAC_rx_clk or posedge MAC_rx_rst)
+    if (MAC_rx_rst)  
         MRxD            <=0;
     else if(Line_loop_en)
         MRxD            <=Txd;

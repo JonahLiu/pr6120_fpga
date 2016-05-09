@@ -80,6 +80,10 @@ parameter E1000_TSPMT_TSMT_MASK 	= 32'h3F;
 parameter E1000_TSPMT_TSPBP_SHIFT 	= 16;
 parameter E1000_TSPMT_TSPBP_MASK 	= 32'hFF;
 
+parameter E1000_RCTL			=	16'h0100;
+parameter E1000_RCTL_EN			=	(1<<1);
+parameter E1000_RCTL_LPE		=	(1<<5);
+
 localparam DESC_SIZE=16;
 localparam HOST_MASK=HOST_SIZE-1;
 
@@ -504,6 +508,9 @@ task initialize_nic(input integer octlen, input integer tidv, input integer tadv
 
 		e1000_read(E1000_TCTL, data);
 		e1000_write(E1000_TCTL, data|E1000_TCTL_EN);
+
+		e1000_read(E1000_RCTL, data);
+		e1000_write(E1000_RCTL, data|E1000_RCTL_LPE|E1000_RCTL_EN);
 	end
 endtask
 
@@ -704,7 +711,8 @@ begin
 	$dumpvars(1,dut_i);
 	$dumpvars(1,dut_i.e1000_i);
 	//$dumpvars(1,dut_i.e1000_i.tx_path_i);
-	//$dumpvars(1,dut_i.e1000_i.mac_i);
+	//$dumpvars(1,dut_i.e1000_i.tx_path_i.tx_frame_i);
+	//$dumpvars(0,dut_i.e1000_i.mac_i);
 	#1_000_000_000;
 	$finish;
 end
@@ -720,11 +728,42 @@ task test_packet_size();
 		PARAM_IDE = 0;
 
 		host_dptr = HOST_DATA_OFFSET;
+		// Invalid packet sizes just for testing DMA functionality
 		generate_tx_traffic(1, 1, 1); 
 		generate_tx_traffic(2, 2, 1); 
+		generate_tx_traffic(3, 3, 1); 
 		generate_tx_traffic(4, 4, 1); 
+		generate_tx_traffic(5, 5, 1); 
+		generate_tx_traffic(6, 6, 1); 
+		generate_tx_traffic(7, 7, 1); 
 		generate_tx_traffic(8, 8, 1); 
-		generate_tx_traffic(16384, 16384, 1); 
+
+		// Valid packets
+		generate_tx_traffic(12, 12, 1); // with padding
+		generate_tx_traffic(60, 60, 1); // without padding
+		generate_tx_traffic(1518, 1518, 1); // 1522 Bytes plus FCS
+		generate_tx_traffic(16380, 16380, 1); // 16384 Bytes plus FCS
+		check_done();
+		#50_000;
+	end
+endtask
+
+task test_throughput();
+	begin
+		dbg_msg = "Test throughput";
+		host_base = HOST_BASE;
+
+		initialize_nic(16/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,8/*lwth*/);
+
+		PARAM_RS = REPORT_ALL;
+		PARAM_IDE = 0;
+
+		host_dptr = HOST_DATA_OFFSET;
+		
+		generate_tx_traffic(1518, 1518, 64); 
+		generate_tx_traffic(9596, 9596, 8); 
+		generate_tx_traffic(16380, 16380, 2); 
+
 		check_done();
 		#50_000;
 	end
@@ -739,26 +778,26 @@ task test_host_queue_size();
 
 		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
 		host_dptr = HOST_DATA_OFFSET;
-		generate_tx_traffic(1, 1, 7); 
+		generate_tx_traffic(12, 12, 7); 
 		check_done();
-		generate_tx_traffic(1, 1, 8); 
+		generate_tx_traffic(12, 12, 8); 
 		check_done();
-		generate_tx_traffic(1, 1, 15); 
+		generate_tx_traffic(12, 12, 15); 
 		check_done();
-		generate_tx_traffic(1, 1, 16); 
+		generate_tx_traffic(12, 12, 16); 
 		check_done();
-		generate_tx_traffic(1, 1, 24); 
+		generate_tx_traffic(12, 12, 24); 
 		check_done();
 
 		initialize_nic(2/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
 		host_dptr = HOST_DATA_OFFSET;
-		generate_tx_traffic(1, 1, 15); 
+		generate_tx_traffic(12, 12, 15); 
 		check_done();
-		generate_tx_traffic(1, 1, 16); 
+		generate_tx_traffic(12, 12, 16); 
 		check_done();
-		generate_tx_traffic(1, 1, 32); 
+		generate_tx_traffic(12, 12, 32); 
 		check_done();
-		generate_tx_traffic(1, 1, 48); 
+		generate_tx_traffic(12, 12, 48); 
 		check_done();
 	end
 endtask
@@ -770,11 +809,16 @@ task test_multi_desc();
 		PARAM_RS = REPORT_EOP;
 		PARAM_IDE = 0;
 
-		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
+		initialize_nic(8/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
 
 		host_dptr = HOST_DATA_OFFSET;
-		generate_tx_traffic(2, 1, 1); 
-		generate_tx_traffic(16384, 4096, 1); 
+		generate_tx_traffic(12, 1, 1); 
+		generate_tx_traffic(12, 3, 1); 
+		generate_tx_traffic(12, 4, 1); 
+		generate_tx_traffic(12, 5, 1); 
+		//generate_tx_traffic(16380, 8192, 1); // 16384 Bytes plus FCS
+		//generate_tx_traffic(16380, 4096, 1); // 16384 Bytes plus FCS
+		generate_tx_traffic(16380, 512, 1); // 16384 Bytes plus FCS
 		check_done();
 	end
 endtask
@@ -790,7 +834,7 @@ task test_disable_prefetch();
 		e1000_write(E1000_TXDMAC, E1000_TXDMAC_DPP);
 
 		host_dptr = HOST_DATA_OFFSET;
-		generate_tx_traffic(1, 1, 16); 
+		generate_tx_traffic(12, 12, 16); 
 		check_done();
 	end
 endtask
@@ -805,7 +849,7 @@ task test_non_aligned_desc();
 		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
 
 		host_dptr = HOST_DATA_OFFSET;
-		generate_tx_traffic(1, 1, 16); 
+		generate_tx_traffic(12, 12, 16); 
 		check_done();
 	end
 endtask
@@ -820,7 +864,7 @@ task test_interrupt_delay();
 		initialize_nic(16/*octlen*/,16/*tidv*/,32/*tadv*/,0/*pth*/,0/*hth*/,0/*lwth*/);
 
 		host_dptr = HOST_DATA_OFFSET;
-		generate_tx_traffic(1, 1, 64); 
+		generate_tx_traffic(12, 12, 64); 
 		check_done();
 		#16_000;
 	end
@@ -836,7 +880,7 @@ task test_prefetch();
 		initialize_nic(2/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,8/*lwth*/);
 
 		host_dptr = HOST_DATA_OFFSET;
-		repeat(64) generate_tx_traffic(1, 1, 1); 
+		repeat(64) generate_tx_traffic(12, 12, 1); 
 		check_done();
 	end
 endtask
@@ -853,7 +897,7 @@ task test_large_queue();
 		host_dptr = HOST_DATA_OFFSET;
 		//generate_tx_traffic(1, 1, 65536); 
 		// Break into multiple to avoid reaching iteration limit
-		repeat(64) generate_tx_traffic(1, 1, 1024); 
+		repeat(64) generate_tx_traffic(12, 12, 1024); 
 		check_done();
 	end
 endtask
@@ -879,6 +923,8 @@ begin:T0
 	test_interrupt_delay();
 	#100_000;
 	test_prefetch();
+	#100_000;
+	test_throughput();
 	#100_000;
 
 `undef TEST_LARGE_QUEUE

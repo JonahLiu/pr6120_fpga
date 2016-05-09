@@ -53,6 +53,7 @@
 module MAC_tx(
 input           Reset               ,
 input           Clk                 ,
+input			Rst_user			,
 input           Clk_user            ,
                 //PHY interface
 output  [7:0]   TxD                 ,
@@ -227,8 +228,9 @@ MAC_tx_addr_add U_MAC_tx_addr_add(
 assign MAC_tx_addr_data=0;
 `endif
 MAC_tx_FF U_MAC_tx_FF(
-.Reset                    (Reset                  ),
+.Rst_MAC				  (Reset                  ),
 .Clk_MAC                  (Clk                    ),
+.Rst_SYS				  (Rst_user				  ),
 .Clk_SYS                  (Clk_user               ),
  //MAC_rx_ctrl interf     (//MAC_rx_ctrl interf   ),
 .Fifo_data                (Fifo_data              ),

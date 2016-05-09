@@ -57,8 +57,9 @@
 //                                           
 `include "header.v"
 module MAC_tx_FF ( 
-Reset               ,      
+Rst_MAC               ,      
 Clk_MAC             ,            
+Rst_SYS             ,            
 Clk_SYS             ,            
 //MAC_rx_ctrl interface    
 Fifo_data           ,
@@ -83,8 +84,9 @@ Tx_Hwmark           ,
 Tx_Lwmark           
 
 );
-input           Reset               ;
+input           Rst_MAC               ;
 input           Clk_MAC             ;
+input           Rst_SYS               ;
 input           Clk_SYS             ;
                 //MAC_tx_ctrl
 output  [7:0]   Fifo_data           ;
@@ -208,8 +210,8 @@ integer         i                       ;
 //write data to from FF .
 //domain Clk_SYS
 //******************************************************************************
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         Current_state_SYS   <=SYS_idle;
     else
         Current_state_SYS   <=Next_state_SYS;
@@ -255,8 +257,8 @@ always @ (Current_state_SYS or Tx_mac_wr or Tx_mac_sop or Full or AlmostFull
     endcase
     
 //delay signals 
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         begin       
         Tx_mac_wr_dl1           <=0;
         Tx_mac_data_dl1         <=0;
@@ -300,8 +302,8 @@ always @(Current_state_SYS or Tx_mac_wr_dl1)
 //
         
         
-always @ (posedge Reset or posedge Clk_SYS)
-    if (Reset)
+always @ (posedge Rst_SYS or posedge Clk_SYS)
+    if (Rst_SYS)
         Add_wr_gray         <=0;
     else 
 		begin
@@ -312,20 +314,20 @@ always @ (posedge Reset or posedge Clk_SYS)
 
 //
 
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         Add_rd_gray_dl1         <=0;
     else
         Add_rd_gray_dl1         <=Add_rd_gray;
                     
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         Add_rd_jump_wr_pl1  <=0;
     else        
         Add_rd_jump_wr_pl1  <=Add_rd_jump;
                     
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         Add_rd_ungray       =0;
     else if (!Add_rd_jump_wr_pl1)       
 		begin
@@ -342,24 +344,24 @@ always @ (Add_wr_pluse or Add_rd_ungray)
     else
         Full    =0;
 
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         AlmostFull  <=0;
     else if (Add_wr_pluse_pluse==Add_rd_ungray)
         AlmostFull  <=1;
     else
         AlmostFull  <=0;
         
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         Add_wr  <= 0;
     else if (Wr_en&&!Full)
         Add_wr  <= Add_wr +1;
         
         
 //
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         begin
         Packet_number_sub_dl1   <=0;
         Packet_number_sub_dl2   <=0;
@@ -370,16 +372,16 @@ always @ (posedge Clk_SYS or posedge Reset)
         Packet_number_sub_dl2   <=Packet_number_sub_dl1;
         end
         
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         Packet_number_sub_edge  <=0;
     else if (Packet_number_sub_dl1&!Packet_number_sub_dl2)
         Packet_number_sub_edge  <=1;
     else
         Packet_number_sub_edge  <=0;
 
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         Packet_number_add       <=0;    
     else if (Current_state_SYS==SYS_EOP_ok||Current_state_SYS==SYS_EOP_err)
         Packet_number_add       <=1;
@@ -387,8 +389,8 @@ always @ (posedge Clk_SYS or posedge Reset)
         Packet_number_add       <=0;    
         
 
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         Packet_number_inFF      <=0;
     else if (Packet_number_add&&!Packet_number_sub_edge)
         Packet_number_inFF      <=Packet_number_inFF + 1'b1;
@@ -396,14 +398,14 @@ always @ (posedge Clk_SYS or posedge Reset)
         Packet_number_inFF      <=Packet_number_inFF - 1'b1;
 
 
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         Packet_number_inFF_reg      <=0;
     else
         Packet_number_inFF_reg      <=Packet_number_inFF;
 
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         begin
         Add_rd_reg_rdy_dl1          <=0;
         Add_rd_reg_rdy_dl2          <=0;
@@ -414,16 +416,16 @@ always @ (posedge Clk_SYS or posedge Reset)
         Add_rd_reg_rdy_dl2          <=Add_rd_reg_rdy_dl1;
         end     
 
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         Add_rd_reg_dl1              <=0;
     else if (Add_rd_reg_rdy_dl1&!Add_rd_reg_rdy_dl2)
         Add_rd_reg_dl1              <=Add_rd_reg;
 
 
 
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         Fifo_data_count     <=0;
     else if (FullDuplex)
         Fifo_data_count     <=Add_wr[`MAC_TX_FF_DEPTH-1:`MAC_TX_FF_DEPTH-5]-Add_rd_ungray[`MAC_TX_FF_DEPTH-1:`MAC_TX_FF_DEPTH-5];
@@ -431,16 +433,16 @@ always @ (posedge Clk_SYS or posedge Reset)
         Fifo_data_count     <=Add_wr[`MAC_TX_FF_DEPTH-1:`MAC_TX_FF_DEPTH-5]-Add_rd_reg_dl1[`MAC_TX_FF_DEPTH-1:`MAC_TX_FF_DEPTH-5]; //for half duplex backoff requirement
         
 
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         Fifo_ra_tmp <=0;    
     else if (Packet_number_inFF_reg>=1||Fifo_data_count>=Tx_Lwmark)
         Fifo_ra_tmp <=1;        
     else 
         Fifo_ra_tmp <=0;
 
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         begin 
         Tx_Hwmark_pl        <=0;
         Tx_Lwmark_pl        <=0;    
@@ -451,8 +453,8 @@ always @ (posedge Clk_SYS or posedge Reset)
         Tx_Lwmark_pl        <=Tx_Lwmark;    
         end    
     
-always @ (posedge Clk_SYS or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_SYS or posedge Rst_SYS)
+    if (Rst_SYS)
         Tx_mac_wa   <=0;  
     else if (Fifo_data_count>=Tx_Hwmark_pl)
         Tx_mac_wa   <=0;
@@ -494,8 +496,8 @@ always @ (posedge Clk_SYS or posedge Reset)
 reg[35:0]   Dout_dl1;
 reg         Dout_reg_en /* synthesis syn_keep=1 */;
 
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Dout_dl1    <=0;
     else
         Dout_dl1    <=Dout;
@@ -506,16 +508,16 @@ always @ (Current_state_MAC or Next_state_MAC)
     else
         Dout_reg_en     =0; 
             
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Dout_reg        <=0;
     else if (Dout_reg_en)
         Dout_reg    <=Dout_dl1;     
         
 assign {Dout_eop,Dout_err,Dout_BE,Dout_data}=Dout_reg;
 
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Current_state_MAC   <=MAC_idle;
     else
         Current_state_MAC   <=Next_state_MAC;       
@@ -588,8 +590,8 @@ always @ (Current_state_MAC or Fifo_rd or Dout_BE or Dout_eop or Fifo_rd_retry
                     Next_state_MAC=MAC_idle;    
         endcase
 //
-always @ (posedge Reset or posedge Clk_MAC)
-    if (Reset)
+always @ (posedge Rst_MAC or posedge Clk_MAC)
+    if (Rst_MAC)
         Add_rd_gray         <=0;
     else 
 		begin
@@ -599,14 +601,14 @@ always @ (posedge Reset or posedge Clk_MAC)
 		end
 //
 
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Add_wr_gray_dl1     <=0;
     else
         Add_wr_gray_dl1     <=Add_wr_gray;
             
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Add_wr_ungray       =0;
     else        
 		begin
@@ -615,8 +617,8 @@ always @ (posedge Clk_MAC or posedge Reset)
 			Add_wr_ungray[i]	=Add_wr_ungray[i+1]^Add_wr_gray_dl1[i];	
 		end                   
 //empty     
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)      
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)      
         Empty   <=1;
     else if (Add_rd==Add_wr_ungray)
         Empty   <=1;
@@ -624,24 +626,24 @@ always @ (posedge Clk_MAC or posedge Reset)
         Empty   <=0;    
         
 //ra
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Fifo_ra <=0;
     else
         Fifo_ra <=Fifo_ra_tmp;
 
 
 
-always @ (posedge Clk_MAC or posedge Reset)     
-    if (Reset)  
+always @ (posedge Clk_MAC or posedge Rst_MAC)     
+    if (Rst_MAC)  
         Pkt_sub_apply_tmp   <=0;
     else if (Current_state_MAC==MAC_pkt_sub)
         Pkt_sub_apply_tmp   <=1;
     else
         Pkt_sub_apply_tmp   <=0;
         
-always @ (posedge Clk_MAC or posedge Reset) 
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC) 
+    if (Rst_MAC)
         Pkt_sub_apply   <=0;
     else if ((Current_state_MAC==MAC_pkt_sub)||Pkt_sub_apply_tmp)
         Pkt_sub_apply   <=1;
@@ -649,22 +651,22 @@ always @ (posedge Clk_MAC or posedge Reset)
         Pkt_sub_apply   <=0;
 
 //reg Add_rd for collison retry
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Add_rd_reg      <=0;
     else if (Fifo_rd_finish)
         Add_rd_reg      <=Add_rd;
 
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Add_rd_reg_rdy_tmp      <=0;
     else if (Fifo_rd_finish)
         Add_rd_reg_rdy_tmp      <=1;
     else
         Add_rd_reg_rdy_tmp      <=0;
         
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Add_rd_reg_rdy      <=0;
     else if (Fifo_rd_finish||Add_rd_reg_rdy_tmp)
         Add_rd_reg_rdy      <=1;
@@ -680,30 +682,30 @@ always @ (Current_state_MAC or Next_state_MAC)
         Add_rd_add  =0;
         
         
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Add_rd          <=0;
     else if (Current_state_MAC==MAC_retry)
         Add_rd          <= Add_rd_reg;
     else if (Add_rd_add)
         Add_rd          <= Add_rd + 1;  
                     
-always @ (posedge Clk_MAC or posedge Reset)
-	if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+	if (Rst_MAC)
 	    Add_rd_jump_tmp <=0;
 	else if (Current_state_MAC==MAC_retry)
 	    Add_rd_jump_tmp <=1;
 	else
 	    Add_rd_jump_tmp <=0;
 
-always @ (posedge Clk_MAC or posedge Reset)
-	if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+	if (Rst_MAC)
 	    Add_rd_jump_tmp_pl1 <=0;
 	else
 	    Add_rd_jump_tmp_pl1 <=Add_rd_jump_tmp;	 
 	    
-always @ (posedge Clk_MAC or posedge Reset)
-	if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+	if (Rst_MAC)
 	    Add_rd_jump <=0;
 	else if (Current_state_MAC==MAC_retry)
 	    Add_rd_jump <=1;
@@ -727,14 +729,14 @@ always @ (Dout_data or Current_state_MAC)
             Fifo_data   =0;     
     endcase
 //gen Fifo_da           
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Fifo_rd_dl1     <=0;
     else
         Fifo_rd_dl1     <=Fifo_rd;
         
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Fifo_da         <=0;
     else if ((Current_state_MAC==MAC_byte0||Current_state_MAC==MAC_byte1||
               Current_state_MAC==MAC_byte2||Current_state_MAC==MAC_byte3)&&Fifo_rd&&!Fifo_eop)
@@ -745,14 +747,14 @@ always @ (posedge Clk_MAC or posedge Reset)
 //gen Fifo_data_err_empty
 assign  Fifo_data_err_full=Dout_err;
 //gen Fifo_data_err_empty
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Current_state_MAC_reg   <=0;
     else
         Current_state_MAC_reg   <=Current_state_MAC;
         
-always @ (posedge Clk_MAC or posedge Reset)
-    if (Reset)
+always @ (posedge Clk_MAC or posedge Rst_MAC)
+    if (Rst_MAC)
         Fifo_data_err_empty     <=0;
     else if (Current_state_MAC_reg==MAC_FFEmpty)
         Fifo_data_err_empty     <=1;
@@ -767,7 +769,7 @@ always @ (posedge Clk_MAC)
         end
 
 //gen Fifo_eop aligned to last valid data byte¡£            
-always @ (Current_state_MAC or Dout_eop)
+always @ (Current_state_MAC or Dout_eop or Dout_BE)
     if (((Current_state_MAC==MAC_byte0&&Dout_BE==2'b00||
         Current_state_MAC==MAC_byte1&&Dout_BE==2'b11||
         Current_state_MAC==MAC_byte2&&Dout_BE==2'b10||

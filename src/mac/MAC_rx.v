@@ -51,8 +51,9 @@
 // 
 `include "header.v"
 module MAC_rx (
-input           Reset   ,
+input			Rst_user,
 input           Clk_user,
+input           Reset   ,
 input           Clk     ,
                 //RMII interface
 input           MCrs_dv ,       
@@ -155,8 +156,9 @@ MAC_rx_ctrl U_MAC_rx_ctrl(
 );
 
 MAC_rx_FF  U_MAC_rx_FF (
-.Reset                       (Reset                     ),
+.Rst_MAC                     (Reset                     ),
 .Clk_MAC                     (Clk                       ), 
+.Rst_SYS					 (Rst_user					),
 .Clk_SYS                     (Clk_user                  ), 
  //MAC_rx_ctrl interface     (//MAC_rx_ctrl interface   ),
 .Fifo_data                   (Fifo_data                 ),

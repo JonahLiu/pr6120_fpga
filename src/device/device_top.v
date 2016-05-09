@@ -469,27 +469,29 @@ assign nic_m_rlast = mst_s_rlast;
 assign nic_m_rvalid = mst_s_rvalid;
 assign mst_s_rready = nic_m_rready;
 
+ZHOLD_DELAY zhd_p0_rxd0_i(.DLYIN(p0_rxdat[0]), .DLYFABRIC(mac_rxdat[0]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd1_i(.DLYIN(p0_rxdat[1]), .DLYFABRIC(mac_rxdat[1]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd2_i(.DLYIN(p0_rxdat[2]), .DLYFABRIC(mac_rxdat[2]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd3_i(.DLYIN(p0_rxdat[3]), .DLYFABRIC(mac_rxdat[3]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd4_i(.DLYIN(p0_rxdat[4]), .DLYFABRIC(mac_rxdat[4]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd5_i(.DLYIN(p0_rxdat[5]), .DLYFABRIC(mac_rxdat[5]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd6_i(.DLYIN(p0_rxdat[6]), .DLYFABRIC(mac_rxdat[6]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxd7_i(.DLYIN(p0_rxdat[7]), .DLYFABRIC(mac_rxdat[7]), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxdv_i(.DLYIN(p0_rxdv), .DLYFABRIC(mac_rxdv), .DLYIFF());
+ZHOLD_DELAY zhd_p0_rxer_i(.DLYIN(p0_rxer), .DLYFABRIC(mac_rxer), .DLYIFF());
+ZHOLD_DELAY zhd_p0_crs_i(.DLYIN(p0_crs), .DLYFABRIC(mac_crs), .DLYIFF());
+ZHOLD_DELAY zhd_p0_col_i(.DLYIN(p0_col), .DLYFABRIC(mac_col), .DLYIFF());
+BUFR bufr_p0_rxsclk_i(.CE(1'b1),.CLR(1'b0),.I(p0_rxsclk),.O(mac_rxsclk));
+BUFR bufr_p0_txsclk_i(.CE(1'b1),.CLR(1'b0),.I(p0_txsclk),.O(mac_txsclk));
 /*
-ZHOLD_DELAY zhd_p0_rxd0_I(.DLYIN(p0_rxdat[0]), .DLYFABRIC(mac_rxdat[0]), .DLYIFF());
-ZHOLD_DELAY zhd_p0_rxd1_I(.DLYIN(p0_rxdat[1]), .DLYFABRIC(mac_rxdat[1]), .DLYIFF());
-ZHOLD_DELAY zhd_p0_rxd2_I(.DLYIN(p0_rxdat[2]), .DLYFABRIC(mac_rxdat[2]), .DLYIFF());
-ZHOLD_DELAY zhd_p0_rxd3_I(.DLYIN(p0_rxdat[3]), .DLYFABRIC(mac_rxdat[3]), .DLYIFF());
-ZHOLD_DELAY zhd_p0_rxd4_I(.DLYIN(p0_rxdat[4]), .DLYFABRIC(mac_rxdat[4]), .DLYIFF());
-ZHOLD_DELAY zhd_p0_rxd5_I(.DLYIN(p0_rxdat[5]), .DLYFABRIC(mac_rxdat[5]), .DLYIFF());
-ZHOLD_DELAY zhd_p0_rxd6_I(.DLYIN(p0_rxdat[6]), .DLYFABRIC(mac_rxdat[6]), .DLYIFF());
-ZHOLD_DELAY zhd_p0_rxd7_I(.DLYIN(p0_rxdat[7]), .DLYFABRIC(mac_rxdat[7]), .DLYIFF());
-ZHOLD_DELAY zhd_p0_rxdv_I(.DLYIN(p0_rxdv), .DLYFABRIC(mac_rxdv), .DLYIFF());
-ZHOLD_DELAY zhd_p0_rxer_I(.DLYIN(p0_rxer), .DLYFABRIC(mac_rxer), .DLYIFF());
-ZHOLD_DELAY zhd_p0_crs_I(.DLYIN(p0_crs), .DLYFABRIC(mac_crs), .DLYIFF());
-ZHOLD_DELAY zhd_p0_crs_I(.DLYIN(p0_col), .DLYFABRIC(mac_col), .DLYIFF());
-*/
 assign mac_rxdat = p0_rxdat;
 assign mac_rxdv = p0_rxdv;
 assign mac_rxer = p0_rxer;
-assign mac_rxsclk = p0_rxsclk;
-assign mac_txsclk = p0_txsclk;
 assign mac_crs = p0_crs;
 assign mac_col = p0_col;
+assign mac_rxsclk = p0_rxsclk;
+assign mac_txsclk = p0_txsclk;
+*/
 assign p0_txdat = mac_txdat;
 assign p0_txen = mac_txen;
 assign p0_txer = mac_txer;

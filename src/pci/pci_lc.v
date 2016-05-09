@@ -222,8 +222,8 @@ parameter HARDWIRE_IDSEL=0;
   IBUFG      XPCI_CLK1 (.O(CLK_NUB),.I(CLK_I));
   BUFG       XPCI_CLK2 (.O(CLK),.I(CLK_NUB));
   IBUF       XPCI_RST1 (.O(RST_INV),.I(RST_I));
-  INV        XPCI_RST2 (.O(RST),.I(RST_INV));
-  //BUFG       XPCI_RST2 (.O(RST),.I(!RST_INV));
+  //INV        XPCI_RST2 (.O(RST),.I(RST_INV));
+  BUFG       XPCI_RST2 (.O(RST),.I(!RST_INV));
 
   assign NC_OPEN = 1'b0;
 
@@ -462,7 +462,7 @@ parameter HARDWIRE_IDSEL=0;
                 .cbt(CBT),
                 .paro(PARO),
                 .pari(PARF),
-                .pard(PARD),
+                .pard(PARF),
                 .part(PART),
                 .frameo(FRAMEO),
                 .framei(FRAMEF),

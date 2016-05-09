@@ -52,7 +52,10 @@ input           Col
 //******************************************************************************
 //internal signals                                                              
 //******************************************************************************
-wire			Reset					;
+wire			areset					;
+wire			Rst_tx					;
+wire			Rst_rx					;
+wire			Rst_user				;
 wire			Clk_user				;
 wire          Rx_mac_ra               ;
 wire		  Rx_mac_rd               ;
@@ -68,9 +71,9 @@ wire   [1:0]   Tx_mac_BE               ;//big endian
 wire           Tx_mac_sop              ;
 wire           Tx_mac_eop              ;
 
-wire 			Pkg_lgth_fifo_rd        ;
-wire          Pkg_lgth_fifo_ra        ;
-wire  [15:0]  Pkg_lgth_fifo_data      ;
+//wire 			Pkg_lgth_fifo_rd        ;
+//wire          Pkg_lgth_fifo_ra        ;
+//wire  [15:0]  Pkg_lgth_fifo_data      ;
 
                 //RMON interface
 wire    [15:0]  Rx_pkt_length_rmon      ;
@@ -164,75 +167,10 @@ reg [3:0] rx_keep;
 reg rx_rd;
 reg rx_rd_lgth;
 reg [1:0] rx_state;
-reg [15:0] rx_length;
+//reg [15:0] rx_length;
 
-always @(posedge aclk, negedge aresetn)
-begin
-	if(!aresetn)
-		tx_flag<= 1'b0;
-	else if(!tx_flag && tx_mac_tvalid && tx_mac_tready)
-		tx_flag <= 1'b1;
-	else if(tx_flag && tx_mac_tvalid && tx_mac_tlast && tx_mac_tready)
-		tx_flag <= 1'b0;
-end
-
-always @(*)
-begin
-	casex(tx_mac_tkeep)
-		4'b1110: tx_be = 2'b11;
-		4'b110x: tx_be = 2'b10;
-		4'b10xx: tx_be = 2'b01;
-		default: tx_be = 2'b00;
-	endcase
-end
-
-always @(*)
-begin
-	case(rx_fifo_dout[33:32]) /* synthesis full_case */
-		2'b00: rx_keep = 4'b1111;
-		2'b11: rx_keep = 4'b1110;
-		2'b10: rx_keep = 4'b1100;
-		2'b01: rx_keep = 4'b1000;
-	endcase
-end
-
-always @(posedge Clk_user, posedge Reset)
-begin
-	if(Reset) begin
-		rx_rd <= 1'b0;
-		rx_rd_lgth <= 1'b0;
-		rx_state <= 0;
-		rx_length <= 'bx;
-	end
-	else begin
-		case(rx_state) /* synthesis full_case */
-			0: begin
-				//if(Pkg_lgth_fifo_ra) begin
-				if(Rx_mac_ra) begin
-					rx_rd <= rx_fifo_wr_count<10;
-					rx_state <= 1;
-					rx_length <= Pkg_lgth_fifo_data;
-					rx_rd_lgth <= 1'b1;
-				end
-			end
-			1: begin
-				rx_rd_lgth <= 1'b0;
-				if(Rx_mac_pa && Rx_mac_eop) begin
-					rx_rd <= 1'b0;
-					rx_state <= 2;
-				end
-				else begin
-					rx_rd <= rx_fifo_wr_count<10;
-				end
-			end
-			2: begin
-				rx_state <= 0;
-			end
-		endcase
-	end
-end
-
-assign Reset = !aresetn;
+assign areset = !aresetn;
+assign Rst_user = areset;
 assign Clk_user = aclk;
 
 assign Tx_mac_data = tx_fifo_dout[31:0];
@@ -257,7 +195,7 @@ assign rx_mac_tdata = rx_fifo_dout[31:0];
 assign rx_mac_tvalid = !rx_fifo_empty;
 assign rx_mac_tlast = rx_fifo_dout[34];
 assign rx_mac_tkeep = rx_keep;
-assign rx_mac_tuser = rx_length;
+//assign rx_mac_tuser = rx_length;
 
 assign Pkg_lgth_fifo_rd = rx_rd_lgth;
 
@@ -290,8 +228,9 @@ assign tx_fifo_din = {!tx_flag, tx_mac_tlast, tx_be, tx_mac_tdata};
 // internal modules
 //******************************************************************************
 MAC_rx U_MAC_rx(
-.Reset                      (Reset                      ),    
+.Rst_user					(Rst_user					),    
 .Clk_user                   (Clk_user                   ), 
+.Reset						(Rst_rx						),
 .Clk                        (MAC_rx_clk_div             ), 
  //RMII interface           (//PHY interface            ),  
 .MCrs_dv                    (MCrs_dv                    ),        
@@ -331,9 +270,10 @@ MAC_rx U_MAC_rx(
 );
 
 MAC_tx U_MAC_tx(
-.Reset                      (Reset                      ),
-.Clk                        (MAC_tx_clk_div             ),
+.Rst_user					(Rst_user					),
 .Clk_user                   (Clk_user                   ),
+.Reset						(Rst_tx						),
+.Clk                        (MAC_tx_clk_div             ),
  //PHY interface            (//PHY interface            ),
 .TxD                        (MTxD                       ),
 .TxEn                       (MTxEn                      ),
@@ -371,13 +311,13 @@ MAC_tx U_MAC_tx(
 );
 
 fifo_async #(.DSIZE(36),.ASIZE(4),.MODE("FWFT")) rx_fifo_i(
-	.wr_rst(Reset),
+	.wr_rst(Rst_user),
 	.wr_clk(Clk_user),
 	.din(rx_fifo_din),
 	.full(),
 	.wr_count(rx_fifo_wr_count),
 	.wr_en(Rx_mac_pa),
-	.rd_rst(Reset),
+	.rd_rst(areset),
 	.rd_clk(aclk),
 	.dout(rx_fifo_dout),
 	.empty(rx_fifo_empty),
@@ -386,13 +326,13 @@ fifo_async #(.DSIZE(36),.ASIZE(4),.MODE("FWFT")) rx_fifo_i(
 );
 
 fifo_async #(.DSIZE(36),.ASIZE(4),.MODE("FWFT")) tx_fifo_i(
-	.wr_rst(Reset),
+	.wr_rst(areset),
 	.wr_clk(aclk),
 	.din(tx_fifo_din),
 	.full(tx_fifo_full),
 	.wr_count(),
 	.wr_en(tx_mac_tvalid && tx_mac_tready),
-	.rd_rst(Reset),
+	.rd_rst(Rst_user),
 	.rd_clk(Clk_user),
 	.dout(tx_fifo_dout),
 	.empty(tx_fifo_empty),
@@ -463,8 +403,9 @@ RMON U_RMON(
 */
 
 Phy_int U_Phy_int(
-.Reset                      (Reset                      ),
+.MAC_rx_rst					(Rst_rx						),
 .MAC_rx_clk                 (MAC_rx_clk                 ),
+.MAC_tx_rst					(Rst_tx						),
 .MAC_tx_clk                 (MAC_tx_clk                 ),
  //Rx interface             (//Rx interface             ),
 .MCrs_dv                    (MCrs_dv                    ),
@@ -489,7 +430,7 @@ Phy_int U_Phy_int(
 );
 
 Clk_ctrl U_Clk_ctrl(
-.Reset                      (Reset                      ),
+.Reset                      (areset						),
 .Clk_125M                   (Clk_125M                   ),
  //host interface           (//host interface           ),
 .Speed                      (Speed                      ),
@@ -498,6 +439,8 @@ Clk_ctrl U_Clk_ctrl(
 .Rx_clk                     (Rx_clk                     ),
 .Tx_clk                     (Tx_clk                     ),
  //interface clk            (//interface clk            ),
+.MAC_tx_rst                 (Rst_tx						),
+.MAC_rx_rst                 (Rst_rx						),
 .MAC_tx_clk                 (MAC_tx_clk                 ),
 .MAC_rx_clk                 (MAC_rx_clk                 ),
 .MAC_tx_clk_div             (MAC_tx_clk_div             ),
@@ -591,6 +534,72 @@ Reg_int U_Reg_int(
 .UpdateMIIRX_DATAReg		(UpdateMIIRX_DATAReg		)
 );
 */
+
+always @(posedge aclk, posedge areset)
+begin
+	if(areset)
+		tx_flag<= 1'b0;
+	else if(!tx_flag && tx_mac_tvalid && tx_mac_tready)
+		tx_flag <= 1'b1;
+	else if(tx_flag && tx_mac_tvalid && tx_mac_tlast && tx_mac_tready)
+		tx_flag <= 1'b0;
+end
+
+always @(*)
+begin
+	casex(tx_mac_tkeep)
+		4'b1110: tx_be = 2'b11;
+		4'b110x: tx_be = 2'b10;
+		4'b10xx: tx_be = 2'b01;
+		default: tx_be = 2'b00;
+	endcase
+end
+
+always @(*)
+begin
+	case(rx_fifo_dout[33:32]) /* synthesis full_case */
+		2'b00: rx_keep = 4'b1111;
+		2'b11: rx_keep = 4'b1110;
+		2'b10: rx_keep = 4'b1100;
+		2'b01: rx_keep = 4'b1000;
+	endcase
+end
+
+always @(posedge Clk_user, posedge Rst_user)
+begin
+	if(Rst_user) begin
+		rx_rd <= 1'b0;
+		rx_rd_lgth <= 1'b0;
+		rx_state <= 0;
+		//rx_length <= 'bx;
+	end
+	else begin
+		case(rx_state) /* synthesis full_case */
+			0: begin
+				//if(Pkg_lgth_fifo_ra) begin
+				if(Rx_mac_ra) begin
+					rx_rd <= rx_fifo_wr_count<10;
+					rx_state <= 1;
+					//rx_length <= Pkg_lgth_fifo_data;
+					rx_rd_lgth <= 1'b1;
+				end
+			end
+			1: begin
+				rx_rd_lgth <= 1'b0;
+				if(Rx_mac_pa && Rx_mac_eop) begin
+					rx_rd <= 1'b0;
+					rx_state <= 2;
+				end
+				else begin
+					rx_rd <= rx_fifo_wr_count<10;
+				end
+			end
+			2: begin
+				rx_state <= 0;
+			end
+		endcase
+	end
+end
 endmodule
 
 

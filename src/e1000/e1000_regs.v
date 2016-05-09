@@ -86,6 +86,8 @@ module e1000_regs(
 	output [15:0] TSPBP,
 
 	output RCTL_EN,
+	output LPE,
+	output [1:0] LBM,
 	output [1:0] RDMTS,
 	output [1:0] BSIZE,
 	output BSEX,
@@ -94,7 +96,7 @@ module e1000_regs(
 	output [12:0] RDLEN,
 	output [15:0] RDH,
 	output RDH_set,
-	output [15:0] RDH_fb,
+	input  [15:0] RDH_fb,
 	output [15:0] RDT,
 	output RDT_set,
 	output [5:0] RXDCTL_PTHRESH,
@@ -453,6 +455,8 @@ e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0100),.BMSK(32'hF800_0000)) RCTL
 );
 assign RCTL_B = {5'b0,RCTL[26:0]};
 assign RCTL_EN = RCTL[1];
+assign LPE = RCTL[5];
+assign LBM = RCTL[7:6];
 assign RDMTS = RCTL[9:8];
 assign BSIZE = RCTL[17:16];
 assign BSEX = RCTL[25];
@@ -528,12 +532,12 @@ assign RDT = RDT_O[15:0];
 
 wire [31:0] RDTR_O, RDTR_Q, RDTR_B;
 wire RDTR_get, RDTR_set;
-e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h2820),.BMSK(32'h7FFF_0000)) RDTR_reg_i(
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h2820),.BMSK(32'hFFFF_0000)) RDTR_reg_i(
 	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
 	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
 	.O(RDTR_O),.Q(RDTR_Q),.B(RDTR_B),.S(RDTR_set),.G(RDTR_get)
 );
-assign RDTR_B = {RDTR_O[31],15'b0,RDTR_O[15:0]};
+assign RDTR_B = {16'b0,RDTR_O[15:0]};
 assign RDTR = RDTR_O[15:0];
 assign FPD = RDTR_O[31];
 assign FPD_set = RDTR_set;
@@ -634,7 +638,7 @@ e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h3818),.BMSK(32'hFFFF_0000)) TDT_
 	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
 	.O(TDT_O),.Q(TDT_Q),.B(TDT_B),.S(TDT_set),.G(TDT_get)
 );
-assign TDT_i = {16'b0,TDT_O[15:0]};
+assign TDT_B = {16'b0,TDT_O[15:0]};
 assign TDT = TDT_O[15:0];
 
 wire [31:0] TIDV_O, TIDV_Q, TIDV_B;
@@ -644,7 +648,7 @@ e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h3820),.BMSK(32'hFFFF_0000)) TIDV
 	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
 	.O(TIDV_O),.Q(TIDV_Q),.B(TIDV_B),.S(TIDV_set),.G(TIDV_get)
 );
-assign TIDV_i = {16'b0,TIDV_O[15:0]};
+assign TIDV_B = {16'b0,TIDV_O[15:0]};
 assign TIDV = TIDV_O[15:0];
 
 wire [31:0] TXDMAC, TXDMAC_Q, TXDMAC_B;

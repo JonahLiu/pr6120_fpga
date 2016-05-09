@@ -41,6 +41,7 @@ reg [LENGTH_BITS-1:0] remain_dwords_init;
 reg [LENGTH_BITS-1:0] fetch_dwords;
 reg [LENGTH_BITS-1:0] fetch_dwords_next;
 reg [3:0] first_wstrb;
+reg [3:0] first_wstrb_set;
 reg [3:0] last_wstrb;
 
 integer state, state_next;
@@ -52,7 +53,7 @@ begin
 	dout_tdata = axi_m_rdata;
 
 	if(dout_dwords==0)
-		dout_tkeep = first_wstrb;
+		dout_tkeep = first_wstrb|first_wstrb_set;
 	else if(dout_dwords==length_dwords-1)
 		dout_tkeep = last_wstrb;
 	else
@@ -144,6 +145,7 @@ begin
 		axi_m_araddr <= 'bx;
 		first_wstrb <= 'bx;
 		last_wstrb <= 'bx;
+		first_wstrb_set <= 'bx;
 		axi_m_arvalid <= 1'b0;
 		axi_m_arlen <= 'bx;
 		cmd_ready <= 1'b1;
@@ -193,8 +195,16 @@ begin
 				4'b1110: last_wstrb <= 4'b0001;
 				4'b1111: last_wstrb <= 4'b0011;
 			endcase
+			case(cmd_address[1:0])// synthesis full_case
+				2'b00: first_wstrb_set <= 4'b1111;
+				2'b01: first_wstrb_set <= 4'b1110;
+				2'b10: first_wstrb_set <= 4'b1100;
+				2'b11: first_wstrb_set <= 4'b1000;
+			endcase
 		end
 		S_CALC: begin
+			if(length_dwords==1)
+				first_wstrb_set <= 4'b0;
 			fetch_dwords <= fetch_dwords_next;
 		end
 		S_ASTRB: begin
