@@ -1,4 +1,13 @@
 `timescale 1ns/10ps
+`define TEST_TX
+`define TEST_RX
+
+`define REPORT_PCI_FETCH
+`define REPORT_PCI_WRITE_BACK
+`undef REPORT_FETCH
+`undef REPORT_WRITE_BACK
+`define REPORT_INTERRUPT
+
 module test_nic_device;
 ////////////////////////////////////////////////////////////////////////////////
 // Parameters
@@ -713,11 +722,13 @@ endtask
 task rx_add_desc(input integer num);
 	integer i;
 	begin
-		while(queue_spare(rx_host_head, rx_host_tail, rx_host_len)<num) begin
-			rx_commit_tail();
-			rx_wait_available(1);
-		end
 		for(i=0;i<num;i=i+1) begin
+
+			while(queue_spare(rx_host_head, rx_host_tail, rx_host_len)==0) begin
+				rx_commit_tail();
+				rx_wait_available(1);
+			end
+
 			desc_daddr = rx_host_dptr;
 			case({PARAM_BSEX[0],PARAM_BSIZE[1:0]})
 				3'b000: desc_length = 2048;
@@ -743,6 +754,7 @@ task rx_add_desc(input integer num);
 			if(rx_host_dptr>(RX_DATA_BASE+DATA_BUF_SIZE))
 				rx_host_dptr=rx_host_dptr-DATA_BUF_SIZE;
 		end
+		rx_commit_tail();
 	end
 endtask
 
@@ -847,6 +859,18 @@ begin
 	desc_css = 0;
 	desc_special = 0;
 
+	tx_host_base = 0;
+	tx_host_head = 0;
+	tx_host_tail = 0;
+	tx_host_len = 0;
+	tx_host_dptr = 0;
+
+	rx_host_base = 0;
+	rx_host_head = 0;
+	rx_host_tail = 0;
+	rx_host_len = 0;
+	rx_host_dptr = 0;
+
 	PARAM_RS = REPORT_ALL;
 	PARAM_IDE = 0;
 
@@ -854,6 +878,7 @@ begin
 	$dumpvars(1);
 	$dumpvars(1,dut_i);
 	$dumpvars(1,dut_i.e1000_i);
+	$dumpvars(0,dut_i.e1000_i.rx_path_i);
 	//$dumpvars(1,dut_i.e1000_i.tx_path_i);
 	//$dumpvars(1,dut_i.e1000_i.tx_path_i.tx_frame_i);
 	//$dumpvars(0,dut_i.e1000_i.mac_i);
@@ -1046,6 +1071,18 @@ task test_large_queue();
 	end
 endtask
 
+task test_rx_desc_queue();
+	begin
+		dbg_msg = "Test RX Desc Quque";
+		rx_host_base = RX_DESC_BASE;
+
+		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,0/*wth*/,8/*lwth*/);
+		rx_add_desc(8);
+
+		rx_check_done();
+	end
+endtask
+
 initial
 begin:T0
 	#1000;
@@ -1054,6 +1091,7 @@ begin:T0
 
 	config_target();
 
+`ifdef TEST_TX
 	test_host_queue_size();
 	#100_000;
 	test_non_aligned_desc();
@@ -1075,18 +1113,33 @@ begin:T0
 `ifdef TEST_LARGE_QUEUE
 	test_large_queue();
 `endif
+`endif
+
+`ifdef TEST_RX
+	test_rx_desc_queue();
+	#100_000;
+`endif
 
 	#100_000;
 	$finish;
 end
 
-`define REPORT_PCI_FETCH
-`undef REPORT_FETCH
-`define REPORT_WRITE_BACK
-`define REPORT_INTERRUPT
+task report_desc(input [31:0] addr, input [31:0] length);
+	integer i;
+	begin
+		for(i=0;i<length;i=i+DESC_SIZE) begin
+			#0
+			get_desc(addr/DESC_SIZE*DESC_SIZE, resp_data);
+			#0;
+			$display($time,,," @%x PDATA=%x STA=%x", addr/DESC_SIZE*DESC_SIZE, resp_data[31:0], resp_sta);
+			addr=addr+DESC_SIZE;
+		end
+	end
+endtask
 
 reg dbg_frame_0;
 reg dbg_host_rd;
+reg dbg_host_wr;
 reg [31:0] dbg_host_addr;
 reg [8:0] dbg_host_dcnt;
 always @(posedge PCLK) dbg_frame_0 <= FRAME_N;
@@ -1095,17 +1148,28 @@ begin
 	if(dbg_frame_0 && !FRAME_N && pci_cmd_is_mm_rd(CBE) &&
 		((AD&(~HOST_MASK))==HOST_BASE)) begin
 		dbg_host_rd <= 1'b1;
-		dbg_host_addr <= AD;
 	end
 	else if(FRAME_N && IRDY_N && TRDY_N && STOP_N)
 		dbg_host_rd <= 1'b0;
+
+	if(dbg_frame_0 && !FRAME_N && pci_cmd_is_mm_wr(CBE) &&
+		((AD&(~HOST_MASK))==HOST_BASE)) begin
+		dbg_host_wr <= 1'b1;
+	end
+	else if(FRAME_N && IRDY_N && TRDY_N && STOP_N)
+		dbg_host_wr <= 1'b0;
+
+	if(dbg_frame_0 && !FRAME_N &&
+		((AD&(~HOST_MASK))==HOST_BASE)) begin
+		dbg_host_addr <= AD;
+	end
 end
 always @(posedge PCLK)
 begin
-	if(!dbg_host_rd) begin
+	if(!dbg_host_rd && !dbg_host_wr) begin
 		dbg_host_dcnt <= 0;
 	end
-	else if(dbg_host_rd && !IRDY_N && !TRDY_N) begin
+	else if((dbg_host_rd||dbg_host_wr) && !IRDY_N && !TRDY_N) begin
 		dbg_host_dcnt <= dbg_host_dcnt+1;
 	end
 end
@@ -1150,6 +1214,21 @@ begin
 end
 `endif
 
+`ifdef REPORT_PCI_WRITE_BACK
+always @(posedge PCLK)
+begin
+	if(dbg_host_wr && FRAME_N && IRDY_N && TRDY_N) begin
+		if(dbg_host_addr < HOST_DATA_BASE) begin
+			$display($time,,,"WRITE DESC @%X, %d DW", dbg_host_addr, dbg_host_dcnt);
+			report_desc(dbg_host_addr, dbg_host_dcnt*4);
+		end
+		else begin
+			$display($time,,,"WRITE DATA @%X, %d DW", dbg_host_addr, dbg_host_dcnt);
+		end
+	end
+end
+`endif
+
 `ifdef REPORT_FETCH
 always @(posedge PCLK)
 begin
@@ -1168,9 +1247,12 @@ end
 always @(posedge PCLK)
 begin
 	if(host.wstrobe) begin
+		report_desc(host.write_addr, DESC_SIZE);
+		/*
 		get_desc(host.write_addr/DESC_SIZE*DESC_SIZE, resp_data);
 		#0;
 		$display($time,,,"WRITE BACK @%x PDATA=%x STA=%x", host.write_addr, resp_data[31:0], host.wdata[3:0]);
+		*/
 	end
 end
 `endif

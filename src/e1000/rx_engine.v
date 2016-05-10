@@ -333,7 +333,7 @@ begin
 		ram_m_wid <= 'b0;
 		ram_m_wvalid <= 1'b0;
 		ram_m_wstrb <= 4'b0001;
-		ram_m_wlast <= 1'b1;
+		ram_m_wlast <= 1'b0;
 		stat_m_tlast <= 1'b1;
 		ram_m_bready <= 1'b1;
 		ram_m_rready <= 1'b1;
@@ -362,11 +362,13 @@ begin
 			ram_m_awaddr <= {local_addr[15:4],4'h8};
 		end
 		S_WRITE_DW2: begin
+			ram_m_wlast <= 1'b0;
 			ram_m_wdata <= wback_dw2;
 			ram_m_awvalid <= 1'b0;
 			ram_m_wvalid <= 1'b1;
 		end
 		S_WRITE_DW3: begin
+			ram_m_wlast <= 1'b1;
 			ram_m_wdata <= wback_dw3;
 			ram_m_awvalid <= 1'b0;
 			ram_m_wvalid <= 1'b1;

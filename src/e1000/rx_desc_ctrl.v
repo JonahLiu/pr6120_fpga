@@ -841,7 +841,7 @@ begin
 		S1_WRITE_BACK_1: begin
 			// Lower 32-bit address
 			// Starts from the third DWORD
-			idma_m_tdata <= {host_wb_address[31:4],4'hC};
+			idma_m_tdata <= {host_wb_address[31:4],4'h0};
 		end
 		S1_WRITE_BACK_2: begin
 			// Upper 32-bit address
@@ -855,7 +855,7 @@ begin
 		S1_DEQUEUE: begin
 			idma_s_tready <= 1'b0;
 			host_dequeue <= 1'b1;
-			host_deq_incr <= 1'b1;
+			host_deq_incr <= wback_num;
 			out_dequeue <= 1'b1;
 			out_deq_incr <= wback_num;
 			delay_cnt <= 5;
