@@ -2,6 +2,9 @@ module rx_engine(
 	input aclk,
 	input aresetn,
 
+	input [1:0] BSIZE, // Receive Buffer Size
+	input BSEX, // Buffer Size Extension
+
 	// Command Port
 	// [31:16]=RSV, [15:0]=Local Address
 	input [31:0] cmd_s_tdata,
@@ -98,45 +101,6 @@ endfunction
 
 localparam DATA_IDX_BITS = clogb2(DATA_RAM_DWORDS);
 
-////////////////////////////////////////////////////////////////////////////////
-//
-always @(*)
-begin
-//	cmd_s_tready = 1'b1;
-//	stat_m_tdata = 'bx;
-//	stat_m_tvalid = 1'b0;
-//	stat_m_tlast = 1'bx;
-//	ram_m_awid = 'bx;
-//	ram_m_awaddr = 'bx;
-//	ram_m_awlen = 'bx;
-//	ram_m_awsize = 'bx;
-//	ram_m_awburst = 'bx;
-//	ram_m_awvalid = 1'b0;
-//	ram_m_wid = 'bx;
-//	ram_m_wdata = 'bx;
-//	ram_m_wstrb = 'bx;
-//	ram_m_wlast = 'bx;
-//	ram_m_wvalid = 1'b0;
-//	ram_m_bready = 1'b1;
-//	ram_m_arid = 'bx;
-//	ram_m_araddr = 'bx;
-//	ram_m_arlen = 'bx;
-//	ram_m_arsize = 'bx;
-//	ram_m_arburst = 'bx;
-//	ram_m_arvalid = 1'b0;
-//	ram_m_rready = 1'b1;
-	idma_m_tdata = 'bx;
-	idma_m_tvalid = 1'b0;
-	idma_m_tlast = 1'bx;
-	idma_s_tready = 1'b1;
-	frm_m_tdata = 'bx;
-	frm_m_tvalid = 1'b0;
-	frm_m_tlast = 1'bx;
-	frm_s_tready = 1'b1;
-end
-
-////////////////////////////////////////////////////////////////////////////////
-
 reg [15:0] local_addr;
 reg [1:0] fetch_cnt;
 
@@ -145,60 +109,42 @@ reg [31:0] desc_dw1;
 reg [31:0] desc_dw2;
 reg [31:0] desc_dw3;
 
-wire [31:0] wback_dw2;
-wire [31:0] wback_dw3;
+reg start_fetch_data;
+reg done_fetch_data;
+
+reg [31:0] wback_dw2;
+reg [31:0] wback_dw3;
+
+reg [31:0] pkt_desc_dw2;
+reg [31:0] pkt_desc_dw3;
+
+reg [15:0] host_available;
+reg [15:0] remain_bytes;
+reg [15:0] fetch_bytes_s1;
+reg [15:0] fetch_bytes_next;
+reg [15:0] fetch_bytes;
+
+reg [15:0] pkt_address;
+reg [15:0] desc_length;
 
 reg [11:0] fetch_dwords;
 reg [15:0] remain_dwords;
-reg [DATA_IDX_BITS-1:0] dram_head;
-reg [DATA_IDX_BITS-1:0] dram_tail;
-reg [DATA_IDX_BITS:0] dram_available;
 reg [15:0] remain_dwords_init;
 reg [11:0] fetch_dwords_next;
 reg [63:0] host_address;
-reg [DATA_IDX_BITS-1:0] dram_head_next;
 reg [15:0] local_start;
 
-wire packet_valid;
+wire [31:0] pkt_fifo_din;
+wire pkt_fifo_wr;
+wire pkt_fifo_full;
+wire [31:0] pkt_fifo_dout;
+reg pkt_fifo_rd;
+wire pkt_fifo_empty;
 
 // Legacy Descriptor Layout
-wire [63:0] desc_buf_addr;
-wire [3:0] desc_dtyp;
-wire [15:0] desc_special;
-wire [7:0] desc_css;
-wire [7:0] desc_cso;
-wire [15:0] desc_length;
-wire desc_eop;
-wire desc_ifcs;
-wire desc_ic;
-wire desc_rs;
-wire desc_dext;
-wire desc_vle;
-wire desc_ide;
-wire [7:0] desc_cmd;
-wire [3:0] desc_sta;
-wire [11:0] desc_vlan;
-wire desc_cfi;
-wire [2:0] desc_pri;
+wire [63:0] host_buf_addr;
 
-// Context Descriptor Layout
-wire [7:0] desc_ipcss;
-wire [7:0] desc_ipcso;
-wire [15:0] desc_ipcse;
-wire [7:0] desc_tucss;
-wire [7:0] desc_tucso;
-wire [15:0] desc_tucse;
-wire [19:0] desc_paylen;
-wire [7:0] desc_tucmd;
-wire [7:0] desc_hdrlen;
-wire [15:0] desc_mss;
-
-// Data Descriptor Layout
-wire [19:0] desc_dtalen;
-wire [7:0] desc_dcmd;
-wire [7:0] desc_ports;
-wire desc_ixsm;
-wire desc_txsm;
+reg [15:0] host_buf_size;
 
 integer state, state_next;
 
@@ -206,15 +152,45 @@ localparam S_IDLE=0, S_FETCH_ASTB=1, S_FETCH_DLATCH=2, S_PROCESS=3,
 	S_CHECK_NULL=4, S_WRITE_ASTB=5, S_WRITE_DW2=6, S_WRITE_DW3=7, S_REPORT=8;
 
 integer s2, s2_next;
-localparam S2_IDLE=0, S2_FETCH_CALC=1, S2_FETCH_C1=2, S2_FETCH_C2=3, S2_FETCH_C3=4, S2_FETCH_INCR=5, S2_FETCH_ACK=6, S2_CMD_C1=7, S2_CMD_C2=8, S2_CMD_C3=9, S2_UNSUPPORT=10;
+localparam S2_INIT=0, S2_GET_PKT_0=1, S2_GET_PKT_1=2, S2_GET_PKT_2=3, S2_GET_DESC=4, S2_WBAK_CALC=5, S2_WBAK_0=6, S2_WBAK_1=7, S2_WBAK_2=8, S2_WBAK_INCR=9, S2_WBAK_ACK=10, S2_FREE=11, S2_IDLE=12;
 
-assign desc_buf_addr = {desc_dw1, desc_dw0};
+assign host_buf_addr = {desc_dw1, desc_dw0};
+
+assign pkt_fifo_wr = frm_s_tvalid & frm_s_tready;
+assign frm_s_tready = !pkt_fifo_full;
+assign pkt_fifo_din = frm_s_tdata;
+
+// FIXME: replace with fifo_sync
+fifo_async #(.DSIZE(32),.ASIZE(10),.MODE("FWFT")) pkt_fifo_i(
+	.wr_rst(!aresetn),
+	.wr_clk(aclk),
+	.din(pkt_fifo_din),
+	.wr_en(pkt_fifo_wr),
+	.full(pkt_fifo_full),
+	.rd_rst(!aresetn),
+	.rd_clk(aclk),
+	.dout(pkt_fifo_dout),
+	.rd_en(pkt_fifo_rd),
+	.empty(pkt_fifo_empty)
+);
+
+always @(*)
+begin
+	case({BSEX,BSIZE}) // synthesis full_case
+		3'b000: host_buf_size = 2048;
+		3'b001: host_buf_size = 1024;
+		3'b010: host_buf_size = 512;
+		3'b011: host_buf_size = 256;
+		3'b100: host_buf_size = 32768; // illegal
+		3'b101: host_buf_size = 16384;
+		3'b110: host_buf_size = 8192;
+		3'b111: host_buf_size = 4096;
+	endcase
+end
 
 always @(*) 
 begin
-	stat_m_tdata[31:18] = 14'b0;
-	stat_m_tdata[17] = desc_ide;
-	stat_m_tdata[16] = desc_rs;
+	stat_m_tdata[31:16] = 16'b0;
 	stat_m_tdata[15:0] = local_addr;
 end
 
@@ -276,16 +252,16 @@ begin
 				state_next = S_FETCH_DLATCH;
 		end
 		S_CHECK_NULL: begin
-			if(desc_buf_addr==0)
+			if(host_buf_addr==0)
 				state_next = S_WRITE_ASTB;
 			else
 				state_next = S_PROCESS;
 		end
 		S_PROCESS: begin
-			if(packet_valid)
-				state_next = S_WRITE_ASTB;
-			else
+			if(done_fetch_data)
 				state_next = S_PROCESS;
+			else
+				state_next = S_WRITE_ASTB;
 		end
 		S_WRITE_ASTB: begin
 			if(ram_m_awready)
@@ -356,10 +332,13 @@ begin
 		S_CHECK_NULL: begin
 		end
 		S_PROCESS: begin
+			start_fetch_data <= 1'b1;
 		end
 		S_WRITE_ASTB: begin
 			ram_m_awvalid <= 1'b1;
 			ram_m_awaddr <= {local_addr[15:4],4'h8};
+			wback_dw2 <= pkt_desc_dw2;
+			wback_dw3 <= pkt_desc_dw3;
 		end
 		S_WRITE_DW2: begin
 			ram_m_wlast <= 1'b0;
@@ -380,15 +359,10 @@ begin
 	endcase
 end
 
-assign packet_valid = 1;
-assign wback_dw2 = 32'h0000_0000;
-assign wback_dw3 = 32'h0000_0001;
-
-/*
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn)
-		s2 <= S2_IDLE;
+		s2 <= S2_INIT;
 	else
 		s2 <= s2_next;
 end
@@ -396,71 +370,80 @@ end
 always @(*)
 begin
 	case(s2)
+		S2_INIT: begin
+			if(frm_m_tready)
+				s2_next = S2_IDLE;
+			else
+				s2_next = S2_INIT;
+		end
 		S2_IDLE: begin
+			if(!pkt_fifo_empty)
+				s2_next = S2_GET_PKT_0;
+			else
+				s2_next = S2_IDLE;
+		end
+		S2_GET_PKT_0: begin
+			if(!pkt_fifo_empty)
+				s2_next = S2_GET_PKT_1;
+			else
+				s2_next = S2_GET_PKT_0;
+		end
+		S2_GET_PKT_1: begin
+			if(!pkt_fifo_empty)
+				s2_next = S2_GET_PKT_2;
+			else
+				s2_next = S2_GET_PKT_1;
+		end
+		S2_GET_PKT_2: begin
+			if(!pkt_fifo_empty)
+				s2_next = S2_GET_DESC;
+			else
+				s2_next = S2_GET_PKT_2;
+		end
+		S2_GET_DESC: begin
 			if(start_fetch_data)
-				if(desc_dext)
-					s2_next = S2_UNSUPPORT;
-				else
-					s2_next = S2_FETCH_CALC;
+				s2_next = S2_WBAK_CALC;
 			else
 				s2_next = S2_IDLE;
 		end
-		S2_FETCH_CALC: begin
-			if(fetch_dwords>0 && host_address!=0) // 0 is null pointer
-				if(dram_available >= fetch_dwords)
-					s2_next = S2_FETCH_C1;
-				else
-					s2_next = S2_FETCH_CALC;
-			else
-				s2_next = S2_IDLE;
+		S2_WBAK_CALC: begin
+			s2_next = S2_WBAK_0;
 		end
-		S2_FETCH_C1: begin
+		S2_WBAK_0: begin
 			if(idma_m_tready)
-				s2_next = S2_FETCH_C2;
+				s2_next = S2_WBAK_1;
 			else
-				s2_next = S2_FETCH_C1;
+				s2_next = S2_WBAK_0;
 		end
-		S2_FETCH_C2: begin
+		S2_WBAK_1: begin
 			if(idma_m_tready)
-				s2_next = S2_FETCH_C3;
+				s2_next = S2_WBAK_2;
 			else
-				s2_next = S2_FETCH_C2;
+				s2_next = S2_WBAK_1;
 		end
-		S2_FETCH_C3: begin
+		S2_WBAK_2: begin
 			if(idma_m_tready)
-				s2_next = S2_FETCH_INCR;
+				s2_next = S2_WBAK_INCR;
 			else
-				s2_next = S2_FETCH_C3;
+				s2_next = S2_WBAK_2;
 		end
-		S2_FETCH_INCR,S2_FETCH_ACK: begin
+		S2_WBAK_INCR,S2_WBAK_ACK: begin
 			if(idma_s_tvalid)
-				if(remain_dwords>0)
-					s2_next = S2_FETCH_CALC;
-				else
-					s2_next = S2_CMD_C1;
+				s2_next = S2_FREE;
 			else
-				s2_next = S2_FETCH_ACK;
+				s2_next = S2_WBAK_ACK;
 		end
-		S2_CMD_C1: begin
+		S2_FREE: begin
 			if(frm_m_tready)
-				s2_next = S2_CMD_C2;
+				if(remain_dwords > 0)
+					if(host_available > 0)
+						s2_next = S2_WBAK_CALC;
+					else
+						s2_next = S2_GET_DESC;
+				else 
+					s2_next = S2_IDLE;
 			else
-				s2_next = S2_CMD_C1;
-		end
-		S2_CMD_C2: begin
-			if(frm_m_tready)
-				s2_next = S2_CMD_C3;
-			else
-				s2_next = S2_CMD_C2;
-		end
-		S2_CMD_C3: begin
-			if(frm_m_tready)
-				s2_next = S2_IDLE;
-			else
-				s2_next = S2_CMD_C3;
-		end
-		S2_UNSUPPORT: begin // TODO: add other process 
-			s2_next = S2_IDLE;
+				s2_next = S2_FREE;
 		end
 		default: begin
 			s2_next = 'bx;
@@ -468,117 +451,109 @@ begin
 	endcase
 end
 
+always @(*)
+begin
+	if(remain_bytes > host_available)
+		fetch_bytes_s1 = host_available;
+	else
+		fetch_bytes_s1 = remain_bytes;
+
+	if(fetch_bytes_s1 > 1024) // limit by AXI bus
+		fetch_bytes_next = 1024;
+	else
+		fetch_bytes_next = fetch_bytes_s1;
+end
+
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
-		busy_fetch_data <= 1'b0;
+		done_fetch_data <= 1'b0;
 		idma_m_tdata <= 1'bx;
 		idma_m_tvalid <= 1'b0;
 		idma_m_tlast <= 1'bx;
 		idma_s_tready <= 1'b1;
 		frm_m_tvalid <= 1'b0;
-		frm_m_tlast <= 1'bx;
-		frm_s_tready <= 1'b1;
-		dram_tail <= 'b0;
-		remain_dwords <= 'bx;
-		fetch_dwords <= 'bx;
-		local_start <= 'bx;
+		frm_m_tlast <= 1'b1;
+		pkt_address <= 'b0;
+		pkt_fifo_rd <= 1'b0;
+		remain_bytes <= 'bx;
+		fetch_bytes <= 'bx;
+		host_address <= 'bx;
+		host_available <= 'bx;
+		desc_length <= 'bx;
+		pkt_desc_dw2 <= 'bx;
+		pkt_desc_dw3 <= 'bx;
 	end
 	else case(s2_next)
 		S2_IDLE: begin
-			busy_fetch_data <= 1'b0;
-			remain_dwords <= remain_dwords_init;
-			host_address <= {desc_buf_addr[63:2],2'b0};
-			local_start <= {15'b0, dram_tail, desc_buf_addr[1:0]};
+			remain_bytes <= 'b0;
 			frm_m_tvalid <= 1'b0;
+			done_fetch_data <= 1'b0;
 		end
-		S2_FETCH_CALC: begin
-			busy_fetch_data <= 1'b1;
-			fetch_dwords <= fetch_dwords_next;
+		S2_GET_PKT_0: begin
+			pkt_fifo_rd <= 1'b1;
+			pkt_address <= pkt_fifo_dout[15:0];
+			remain_bytes <= pkt_fifo_dout[31:16];
 		end
-		S2_FETCH_C1: begin
+		S2_GET_PKT_1: begin
+			pkt_desc_dw2 <= pkt_fifo_dout;
+		end
+		S2_GET_PKT_2: begin
+			pkt_desc_dw3 <= pkt_fifo_dout;
+		end
+		S2_GET_DESC: begin
+			pkt_fifo_rd <= 1'b0;
+			host_address <= host_buf_addr;
+			host_available <= host_buf_size;
+			desc_length <= 'b0;
+		end
+		S2_WBAK_CALC: begin
+			fetch_bytes <= fetch_bytes_next;
+		end
+		S2_WBAK_0: begin
 			idma_m_tvalid <= 1'b1;
-			idma_m_tdata[15:0] <= {dram_tail,2'b0};
-			idma_m_tdata[27:16] <= {fetch_dwords,2'b0};
+			idma_m_tdata[15:0] <= pkt_address;
+			idma_m_tdata[27:16] <= fetch_bytes;
 			idma_m_tdata[30:28] <= 'b0;
-			idma_m_tdata[31] <= 0;
+			idma_m_tdata[31] <= 1'b1;
 			idma_m_tlast <= 1'b0;
 		end
-		S2_FETCH_C2: begin
+		S2_WBAK_1: begin
 			idma_m_tdata <= host_address[31:0];
 		end
-		S2_FETCH_C3: begin
+		S2_WBAK_2: begin
 			idma_m_tdata <= host_address[63:32];
 			idma_m_tlast <= 1'b1;
 		end
-		S2_FETCH_INCR: begin
-			remain_dwords <= remain_dwords-fetch_dwords;
+		S2_WBAK_INCR: begin
 			idma_s_tready <= 1'b1;
-			dram_tail <= dram_tail+fetch_dwords;
-			host_address <= host_address+{fetch_dwords,2'b0};
+			remain_bytes <= remain_bytes-fetch_bytes;
+			pkt_address <= pkt_address+fetch_bytes;
+			host_address <= host_address+fetch_bytes;
+			host_available <= host_available-fetch_bytes;
+			desc_length <= desc_length+fetch_bytes;
 		end
-		S2_FETCH_ACK: begin
+		S2_WBAK_ACK: begin
 			idma_m_tvalid <= 1'b0;
 		end
-		S2_CMD_C1: begin
-			frm_m_tdata[15:0] <= local_start; 
-			frm_m_tdata[31:16] <= desc_length;
+		S2_FREE: begin
+			frm_m_tdata[15:0] <= pkt_address; 
+			frm_m_tdata[31:16] <= fetch_bytes;
 			frm_m_tvalid <= 1'b1;
-			frm_m_tlast <= 1'b0;
-		end
-		S2_CMD_C2: begin
-			frm_m_tdata <= desc_dw2;
-		end
-		S2_CMD_C3: begin
-			frm_m_tdata <= desc_dw3;
 			frm_m_tlast <= 1'b1;
+			if(remain_dwords == 0 || host_available==0) begin
+				done_fetch_data <= 1'b1;
+			end
+			pkt_desc_dw2[9] <= (remain_dwords==0);//EOP
+			pkt_desc_dw2[7:0] <= desc_length;
+			pkt_desc_dw2[8] <= 1'b1; //DD;
 		end
-		S2_UNSUPPORT: begin
-			busy_fetch_data <= 1'b1;
+		S2_INIT: begin
+			frm_m_tdata[15:0] <= 'b0; 
+			frm_m_tdata[31:16] <= DATA_RAM_DWORDS*4;
+			frm_m_tvalid <= 1'b1;
+			frm_m_tlast <= 1'b1;
 		end
 	endcase
 end
-
-always @(*)
-begin:DATA_REMAIN_INIT_CALC
-	reg [15:0] length;
-	if(desc_length!=0)
-		length = desc_length+desc_buf_addr[1:0];
-	else
-		length = 0;
-
-	remain_dwords_init = length[15:2]+(|length[1:0]);
-
-end
-
-always @(*)
-begin
-	if(remain_dwords > 256)
-		fetch_dwords_next = 256;
-	else
-		fetch_dwords_next = remain_dwords;
-end
-
-always @(*)
-begin:BRAM_HEAD_NEXT_CALC
-	reg [15:0] address;
-	address = frm_s_tdata[15:0]+frm_s_tdata[31:16];
-	dram_head_next = address[15:2]+(|address[1:0]);
-end
-
-always @(posedge aclk, negedge aresetn)
-begin
-	if(!aresetn) begin
-		dram_head <= 'b0;
-	end
-	else if(frm_s_tvalid && frm_s_tlast && frm_s_tready) begin
-		dram_head <= dram_head_next;
-	end
-end
-
-always @(posedge aclk)
-begin
-	dram_available <= dram_head-dram_tail-1;
-end
-*/
 endmodule

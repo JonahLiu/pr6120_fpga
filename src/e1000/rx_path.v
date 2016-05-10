@@ -652,6 +652,9 @@ rx_engine #(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
+	.BSIZE(BSIZE),
+	.BSEX(BSEX),
+
 	// Command Port
 	.cmd_s_tdata(re_cmd_tdata),
 	.cmd_s_tvalid(re_cmd_tvalid),
@@ -726,8 +729,6 @@ rx_frame rx_frame_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 	
-	.BSIZE(BSIZE),
-	.BSEX(BSEX),
 	.PCSS(PCSS),
 
 	.RXO_req(RXO_req),

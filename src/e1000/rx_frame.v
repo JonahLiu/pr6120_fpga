@@ -2,23 +2,21 @@ module rx_frame(
 	input aclk,
 	input aresetn,
 
-	input [1:0] BSIZE, // Receive Buffer Size
-	input BSEX, // Buffer Size Extension
 	input [7:0] PCSS, // Packet Checksum Start
 
 	output RXO_req, // RX FIFO Overrun Interrupt Request
 
 	// Command Port
-	// C1: [31:16]=Length, [15:0]=Local Address 
-	// C2: [31:0]=DESC_DW2
-	// C3: [31:0]=DESC_DW3
+	// C1: [31:16]=Length, [15:0]=Local Address (Free Buffer)
 	input [31:0] cmd_s_tdata,
 	input cmd_s_tvalid,
 	input cmd_s_tlast,
 	output reg cmd_s_tready,
 
-	// Response Port
-	// [31:16]=Length, [15:0]=Local Address
+	// Report Port
+	// [31:16]=Length, [15:0]=Local Address (Valid Buffer)
+	// C2: [31:0]=DESC_DW2
+	// C3: [31:0]=DESC_DW3
 	output reg [31:0] stat_m_tdata,
 	output reg stat_m_tvalid,
 	output reg stat_m_tlast,
@@ -67,159 +65,85 @@ module rx_frame(
 	output reg mac_s_tready	
 );
 
-////////////////////////////////////////////////////////////////////////////////
-//
-always @(*)
-begin
-	cmd_s_tready = 1'b1;
-	stat_m_tdata = 'bx;
-	stat_m_tvalid = 1'b0;
-	stat_m_tlast = 1'bx;
-	dram_m_awid = 'bx;
-	dram_m_awaddr = 'bx;
-	dram_m_awlen = 'bx;
-	dram_m_awsize = 'bx;
-	dram_m_awburst = 'bx;
-	dram_m_awvalid = 1'b0;
-	dram_m_wid = 'bx;
-	dram_m_wdata = 'bx;
-	dram_m_wstrb = 'bx;
-	dram_m_wlast = 'bx;
-	dram_m_wvalid = 1'b0;
-	dram_m_bready = 1'b1;
-	dram_m_arid = 'bx;
-	dram_m_araddr = 'bx;
-	dram_m_arlen = 'bx;
-	dram_m_arsize = 'bx;
-	dram_m_arburst = 'bx;
-	dram_m_arvalid = 1'b0;
-	dram_m_rready = 1'b1;
-
-	mac_s_tready = 1'b1;
-end
-
-assign RXO_req = 1'b0;
-
-////////////////////////////////////////////////////////////////////////////////
-
-/*
-reg [15:0] length;
-reg [15:0] local_addr;
 reg [31:0] desc_dw2;
 reg [31:0] desc_dw3;
 
-wire [7:0] desc_cmd;
-wire desc_eop;
+wire [31:0] wdma_tdata;
+wire [3:0] wdma_tkeep;
+wire wdma_tvalid;
+wire wdma_tlast;
+wire wdma_tready;
 
-wire [31:0] rdma_tdata;
-wire [3:0] rdma_tkeep;
-wire rdma_tvalid;
-wire rdma_tlast;
-wire rdma_tready;
+wire [31:0] pkt_fifo_din;
+wire pkt_fifo_wr;
+wire pkt_fifo_full;
+wire [31:0] pkt_fifo_dout;
+reg pkt_fifo_rd;
+wire pkt_fifo_empty;
 
-assign desc_cmd = desc_dw2[31:24];
-assign desc_eop = desc_cmd[0];
+assign mac_m_tdata = wdma_tdata;
+assign mac_m_tkeep = wdma_tkeep;
+assign mac_m_tvalid = wdma_tvalid;
+assign mac_m_tlast = wdma_tlast & desc_eop;
+assign wdma_tready = mac_m_tready;
 
-reg [1:0] cmd_cnt;
+assign buf_fifo_din = cmd_s_tdata;
+assign buf_fifo_wr = cmd_s_tvalid & cmd_s_tready;
+assign cmd_s_tready = !buf_fifo_full;
 
-wire cmd_valid;
+assign cmd_address = buf_fifo_dout[15:0];
+assign cmd_bytes = buf_fifo_dout[31:16];
+assign cmd_valid = !buf_fifo_empty;
+assign buf_fifo_rd = cmd_valid & cmd_ready;
 
-assign cmd_valid = cmd_s_tready&cmd_s_tvalid&cmd_s_tlast;
+// FIXME: replace with fifo_sync
+fifo_async #(.DSIZE(32),.ASIZE(4),.MODE("FWFT")) buf_fifo_i(
+	.wr_rst(!aresetn),
+	.wr_clk(aclk),
+	.din(buf_fifo_din),
+	.wr_en(buf_fifo_wr),
+	.full(buf_fifo_full),
+	.rd_rst(!aresetn),
+	.rd_clk(aclk),
+	.dout(buf_fifo_dout),
+	.rd_en(buf_fifo_rd),
+	.empty(buf_fifo_empty)
+);
 
-assign mac_m_tdata = rdma_tdata;
-assign mac_m_tkeep = rdma_tkeep;
-assign mac_m_tvalid = rdma_tvalid;
-assign mac_m_tlast = rdma_tlast & desc_eop;
-assign rdma_tready = mac_m_tready;
-
-axi_rdma #(.ADDRESS_BITS(16), .LENGTH_BITS(16)) rdma_i(
+axi_wdma #(.ADDRESS_BITS(16), .LENGTH_BITS(16)) rdma_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
-	.cmd_address(local_addr),
-	.cmd_bytes(length),
+	.cmd_address(cmd_address),
+	.cmd_bytes(cmd_bytes),
 	.cmd_valid(cmd_valid),
 	.cmd_ready(cmd_ready),
 
-	.axi_m_arid(dram_m_arid),
-	.axi_m_araddr(dram_m_araddr),
-	.axi_m_arlen(dram_m_arlen),
-	.axi_m_arsize(dram_m_arsize),
-	.axi_m_arburst(dram_m_arburst),
-	.axi_m_arvalid(dram_m_arvalid),
-	.axi_m_arready(dram_m_arready),
+	.axi_m_awid(dram_m_awid),
+	.axi_m_awaddr(dram_m_awaddr),
+	.axi_m_awlen(dram_m_awlen),
+	.axi_m_awsize(dram_m_awsize),
+	.axi_m_awburst(dram_m_awburst),
+	.axi_m_awvalid(dram_m_awvalid),
+	.axi_m_awready(dram_m_awready),
 
-	.axi_m_rid(dram_m_rid),
-	.axi_m_rdata(dram_m_rdata),
-	.axi_m_rresp(dram_m_rresp),
-	.axi_m_rlast(dram_m_rlast),
-	.axi_m_rvalid(dram_m_rvalid),
-	.axi_m_rready(dram_m_rready),
+	.axi_m_wid(dram_m_wid),
+	.axi_m_wdata(dram_m_wdata),
+	.axi_m_wlast(dram_m_wlast),
+	.axi_m_wvalid(dram_m_wvalid),
+	.axi_m_wready(dram_m_wready),
 
-	.dout_tdata(rdma_tdata),
-	.dout_tkeep(rdma_tkeep),
-	.dout_tlast(rdma_tlast),
-	.dout_tvalid(rdma_tvalid),
-	.dout_tready(rdma_tready)
+	.axi_m_bid(dram_m_bid),
+	.axi_m_bresp(dram_m_bresp),
+	.axi_m_bvalid(dram_m_bvalid),
+	.axi_m_bready(dram_m_bready),
+
+	.din_tdata(mac_s_tdata),
+	.din_tkeep(mac_s_tkeep),
+	.din_tlast(mac_s_tlast),
+	.din_tvalid(mac_s_tvalid),
+	.din_tready(mac_s_tready)
 );
 
-always @(*) stat_m_tdata = {length, local_addr};
-
-always @(posedge aclk, negedge aresetn)
-begin
-	if(!aresetn) begin
-		cmd_cnt <= 'b0;
-		length <= 'bx;
-		local_addr <= 'bx;
-		desc_dw2 <= 'bx;
-		desc_dw3 <= 'bx;
-	end
-	else if(cmd_s_tready && cmd_s_tvalid) begin
-		case(cmd_cnt) // synthesis parallel_case 
-			0: begin
-				length <= cmd_s_tdata[31:16];
-				local_addr <= cmd_s_tdata[15:0];
-			end
-			1: begin
-				desc_dw2 <= cmd_s_tdata;
-			end
-			2: begin
-				desc_dw3 <= cmd_s_tdata;
-			end
-		endcase
-		if(cmd_s_tlast) 
-			cmd_cnt <= 0;
-		else
-			cmd_cnt <= cmd_cnt+1;
-	end
-end
-
-always @(posedge aclk, negedge aresetn)
-begin
-	if(!aresetn) begin
-		cmd_s_tready <= 1'b1;
-	end
-	else if(cmd_s_tready && cmd_s_tvalid && cmd_s_tlast) begin
-		cmd_s_tready <= 1'b0;
-	end
-	else if(stat_m_tvalid && stat_m_tlast && stat_m_tready) begin
-		cmd_s_tready <= 1'b1;
-	end
-end
-
-always @(posedge aclk, negedge aresetn)
-begin
-	if(!aresetn) begin
-		stat_m_tvalid <= 1'b0;
-		stat_m_tlast <= 1'b1;
-	end
-	else if(rdma_tvalid && rdma_tlast && rdma_tready) begin
-		stat_m_tvalid <= 1'b1;
-	end
-	else if(stat_m_tvalid && stat_m_tready && stat_m_tlast) begin
-		stat_m_tvalid <= 1'b0;
-	end
-end
-*/
 
 endmodule
