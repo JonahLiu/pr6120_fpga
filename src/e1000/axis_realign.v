@@ -2,6 +2,9 @@ module axis_realign(
 	input	aclk,
 	input	aresetn,
 
+	input	[1:0] offset,
+	input	init,
+
 	input	[31:0] s_tdata,
 	input	[3:0] s_tkeep,
 	input	s_tlast,
@@ -60,6 +63,10 @@ wire [7:0] in_b1;
 wire [7:0] in_b2;
 wire [7:0] in_b3;
 wire [3:0] in_be;
+
+reg [3:0] be_mask;
+reg busy_r;
+wire busy;
 
 generate
 if(INPUT_BIG_ENDIAN=="TRUE") begin
@@ -137,14 +144,32 @@ begin
 		b_next = b;
 end
 
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		be_mask <= 4'b0000;
+	end
+	else if(init) begin
+		case(offset)
+			0: be_mask <= 4'b0000;
+			1: be_mask <= 4'b1000;
+			2: be_mask <= 4'b1100;
+			3: be_mask <= 4'b1110;
+		endcase
+	end
+	else if(s_tvalid && s_tready) begin
+		be_mask <= 4'b0000;
+	end
+end
+
 always @(posedge aclk)
 begin
 	case(b_next)
-		0: out_be <= 4'b0000;
-		1: out_be <= 4'b1000;
-		2: out_be <= 4'b1100;
-		3: out_be <= 4'b1110;
-		default: out_be <= 4'b1111;
+		0: out_be <= 4'b0000 &(~be_mask);
+		1: out_be <= 4'b1000 &(~be_mask);
+		2: out_be <= 4'b1100 &(~be_mask);
+		3: out_be <= 4'b1110 &(~be_mask);
+		default: out_be <= 4'b1111 &(~be_mask);
 	endcase
 end
 
@@ -178,9 +203,9 @@ begin
 		m_tlast <= 1'b0;
 	else if(s_tvalid && s_tlast && s_tready && b_next<=4)
 		m_tlast <= 1;
-	else if(last_r)
+	else if(!m_tlast && last_r)
 		m_tlast <= 1;
-	else
+	else if(m_tready)
 		m_tlast <= 0;
 end
 
@@ -337,26 +362,40 @@ end
 
 always @(posedge aclk, negedge aresetn)
 begin
-	if(!aresetn) begin
-		out_b0 <= 'bx;
-		out_b1 <= 'bx;
-		out_b2 <= 'bx;
-		out_b3 <= 'bx;
-		out_b4 <= 'bx;
-		out_b5 <= 'bx;
-		out_b6 <= 'bx;
-		b <= 'b0;
-	end
-	else begin
-		out_b0 <= out_b0_next;
-		out_b1 <= out_b1_next;
-		out_b2 <= out_b2_next;
-		out_b3 <= out_b3_next;
-		out_b4 <= out_b4_next;
-		out_b5 <= out_b5_next;
-		out_b6 <= out_b6_next;
-		b <= b_next;
-	end
+	if(!aresetn)
+		busy_r <= 1'b0;
+	else if(s_tvalid && s_tready)
+		busy_r <= 1'b1;
+	else if(m_tvalid && m_tready && m_tlast)
+		busy_r <= 1'b0;
+end
+assign busy = busy_r|s_tvalid;
+
+always @(posedge aclk, negedge aresetn)
+begin
+if(!aresetn) begin
+	out_b0 <= 'bx;
+	out_b1 <= 'bx;
+	out_b2 <= 'bx;
+	out_b3 <= 'bx;
+	out_b4 <= 'bx;
+	out_b5 <= 'bx;
+	out_b6 <= 'bx;
+	b <= 'b0;
+end
+else if(init && !busy) begin
+	b <= offset;
+end
+else begin
+	out_b0 <= out_b0_next;
+	out_b1 <= out_b1_next;
+	out_b2 <= out_b2_next;
+	out_b3 <= out_b3_next;
+	out_b4 <= out_b4_next;
+	out_b5 <= out_b5_next;
+	out_b6 <= out_b6_next;
+	b <= b_next;
+end
 end
 
 endmodule
