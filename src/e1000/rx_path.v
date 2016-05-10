@@ -731,8 +731,6 @@ rx_frame rx_frame_i(
 	
 	.PCSS(PCSS),
 
-	.RXO_req(RXO_req),
-
 	// Frame Command Port
 	.cmd_s_tdata(frm_cmd_tdata),
 	.cmd_s_tvalid(frm_cmd_tvalid),

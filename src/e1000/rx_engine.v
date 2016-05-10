@@ -86,7 +86,7 @@ module rx_engine(
 	input [31:0] frm_s_tdata,
 	input frm_s_tvalid,
 	input frm_s_tlast,
-	output reg frm_s_tready
+	output frm_s_tready
 );
 
 parameter DATA_RAM_DWORDS=8192;
