@@ -170,6 +170,9 @@ begin
 			else
 				state_next = S_WAIT;
 		end
+		default: begin
+			state_next = 'bx;
+		end
 	endcase
 end
 
