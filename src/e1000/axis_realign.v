@@ -2,13 +2,11 @@ module axis_realign(
 	input	aclk,
 	input	aresetn,
 
-	input	[1:0] offset,
-	input	init,
-
 	input	[31:0] s_tdata,
 	input	[3:0] s_tkeep,
 	input	s_tlast,
 	input	s_tvalid,	
+	input	[1:0] s_tuser, // offset
 	output 	s_tready,
 
 	output	[31:0] m_tdata,
@@ -42,7 +40,7 @@ reg [2:0] b;
 reg [2:0] l;
 reg [2:0] b_next;
 reg [3:0] sum;
-reg last_r;
+reg more;
 reg [3:0] out_be;
 
 reg signed [3:0] sel_base;
@@ -65,8 +63,8 @@ wire [7:0] in_b3;
 wire [3:0] in_be;
 
 reg [3:0] be_mask;
-reg busy_r;
-wire busy;
+reg s_busy;
+wire reload;
 
 generate
 if(INPUT_BIG_ENDIAN=="TRUE") begin
@@ -90,7 +88,8 @@ else begin
 end
 endgenerate
 
-assign s_tready = last_r?1'b0:m_tready;
+assign reload = !s_busy && (!m_tvalid || (m_tvalid&&m_tlast&&m_tready));
+assign s_tready = !s_busy?1'b0:m_tready;
 
 always @(*)
 begin
@@ -149,8 +148,8 @@ begin
 	if(!aresetn) begin
 		be_mask <= 4'b0000;
 	end
-	else if(init) begin
-		case(offset)
+	else if(reload) begin
+		case(s_tuser)
 			0: be_mask <= 4'b0000;
 			1: be_mask <= 4'b1000;
 			2: be_mask <= 4'b1100;
@@ -176,11 +175,11 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn)
-		last_r <= 1'b0;
+		more <= 1'b0;
 	else if(s_tvalid && s_tlast && s_tready && b_next>4)
-		last_r <= 1'b1;
+		more <= 1'b1;
 	else if(m_tvalid && m_tlast && m_tready)
-		last_r <= 1'b0;
+		more <= 1'b0;
 end
 
 always @(posedge aclk, negedge aresetn)
@@ -191,7 +190,7 @@ begin
 		m_tvalid <= 1;
 	else if(s_tvalid && s_tlast && s_tready)
 		m_tvalid <= 1;
-	else if(b_next>0 && last_r)
+	else if(b_next>0 && more)
 		m_tvalid <= 1;
 	else
 		m_tvalid <= 0;
@@ -203,7 +202,7 @@ begin
 		m_tlast <= 1'b0;
 	else if(s_tvalid && s_tlast && s_tready && b_next<=4)
 		m_tlast <= 1;
-	else if(!m_tlast && last_r)
+	else if(!m_tlast && more)
 		m_tlast <= 1;
 	else if(m_tready)
 		m_tlast <= 0;
@@ -363,13 +362,12 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn)
-		busy_r <= 1'b0;
-	else if(s_tvalid && s_tready)
-		busy_r <= 1'b1;
-	else if(m_tvalid && m_tready && m_tlast)
-		busy_r <= 1'b0;
+		s_busy <= 1'b0;
+	else if(s_tvalid && s_tready && s_tlast)
+		s_busy <= 1'b0;
+	else if(s_tvalid && (!more || (m_tvalid && m_tready && m_tlast)))
+		s_busy <= 1'b1;
 end
-assign busy = busy_r|s_tvalid;
 
 always @(posedge aclk, negedge aresetn)
 begin
@@ -383,8 +381,8 @@ if(!aresetn) begin
 	out_b6 <= 'bx;
 	b <= 'b0;
 end
-else if(init && !busy) begin
-	b <= offset;
+else if(reload) begin
+	b <= s_tuser;
 end
 else begin
 	out_b0 <= out_b0_next;

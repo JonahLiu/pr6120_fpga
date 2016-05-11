@@ -7,6 +7,7 @@ reg [31:0] s_tdata;
 reg [3:0] s_tkeep;
 reg s_tlast;
 reg s_tvalid;
+reg [1:0] s_tuser;
 wire s_tready;
 
 wire [31:0] m_tdata;
@@ -15,19 +16,14 @@ wire m_tlast;
 wire m_tvalid;
 reg m_tready;
 
-reg init;
-reg [1:0] offset;
-
-
 axis_realign #(.INPUT_BIG_ENDIAN("TRUE"),.OUTPUT_BIG_ENDIAN("FALSE")) dut(
 	.aclk(aclk),
 	.aresetn(aresetn),
-	.init(init),
-	.offset(offset),
 	.s_tdata(s_tdata),
 	.s_tkeep(s_tkeep),
 	.s_tlast(s_tlast),
 	.s_tvalid(s_tvalid),
+	.s_tuser(s_tuser),
 	.s_tready(s_tready),
 	.m_tdata(m_tdata),
 	.m_tkeep(m_tkeep),
@@ -71,13 +67,9 @@ task finish();
 	end
 endtask
 
-task init_offset(input [1:0] value);
+task set_offset(input [1:0] value);
 	begin
-		@(posedge aclk);
-		offset <= value;
-		init <= 1'b1;
-		@(posedge aclk);
-		init <= 1'b0;
+		s_tuser <= value;
 	end
 endtask
 
@@ -91,6 +83,8 @@ begin
 
 	repeat(10) @(posedge aclk);
 	m_tready <= 1;
+
+	set_offset(0);
 
 	strobe(32'h00112233, 4'b1000, 1);
 	finish();
@@ -203,131 +197,131 @@ begin
 
 	// Test initial offset
 
-	init_offset(0);
+	set_offset(0);
 	strobe(32'h00112233, 4'b1111, 1);
 	finish();
 
-	init_offset(1);
+	set_offset(1);
 	strobe(32'h00112233, 4'b1111, 1);
 	finish();
 
-	init_offset(2);
+	set_offset(2);
 	strobe(32'h00112233, 4'b1111, 1);
 	finish();
 
-	init_offset(3);
+	set_offset(3);
 	strobe(32'h00112233, 4'b1111, 1);
 	finish();
 
-	init_offset(1);
+	set_offset(1);
 	strobe(32'h00112233, 4'b1000, 1);
 	finish();
 
-	init_offset(2);
+	set_offset(2);
 	strobe(32'h00112233, 4'b1000, 1);
 	finish();
 
-	init_offset(3);
+	set_offset(3);
 	strobe(32'h00112233, 4'b1000, 1);
 	finish();
 
-	init_offset(1);
+	set_offset(1);
 	strobe(32'h00112233, 4'b1100, 1);
 	finish();
 
-	init_offset(2);
+	set_offset(2);
 	strobe(32'h00112233, 4'b1100, 1);
 	finish();
 
-	init_offset(3);
+	set_offset(3);
 	strobe(32'h00112233, 4'b1100, 1);
 	finish();
 
-	init_offset(1);
+	set_offset(1);
 	strobe(32'h00112233, 4'b1110, 1);
 	finish();
 
-	init_offset(2);
+	set_offset(2);
 	strobe(32'h00112233, 4'b1110, 1);
 	finish();
 
-	init_offset(3);
+	set_offset(3);
 	strobe(32'h00112233, 4'b1110, 1);
 	finish();
 
-	init_offset(1);
+	set_offset(1);
 	strobe(32'h00112233, 4'b0100, 1);
 	finish();
 
-	init_offset(2);
+	set_offset(2);
 	strobe(32'h00112233, 4'b0100, 1);
 	finish();
 
-	init_offset(3);
+	set_offset(3);
 	strobe(32'h00112233, 4'b0100, 1);
 	finish();
 
-	init_offset(1);
+	set_offset(1);
 	strobe(32'h00112233, 4'b0010, 1);
 	finish();
 
-	init_offset(2);
+	set_offset(2);
 	strobe(32'h00112233, 4'b0010, 1);
 	finish();
 
-	init_offset(3);
+	set_offset(3);
 	strobe(32'h00112233, 4'b0010, 1);
 	finish();
 
-	init_offset(1);
+	set_offset(1);
 	strobe(32'h00112233, 4'b0001, 1);
 	finish();
 
-	init_offset(2);
+	set_offset(2);
 	strobe(32'h00112233, 4'b0001, 1);
 	finish();
 
-	init_offset(3);
+	set_offset(3);
 	strobe(32'h00112233, 4'b0001, 1);
 	finish();
 
-	init_offset(1);
+	set_offset(1);
 	strobe(32'h00112233, 4'b0110, 1);
 	finish();
 
-	init_offset(2);
+	set_offset(2);
 	strobe(32'h00112233, 4'b0110, 1);
 	finish();
 
-	init_offset(3);
+	set_offset(3);
 	strobe(32'h00112233, 4'b0110, 1);
 	finish();
 
-	init_offset(1);
+	set_offset(1);
 	strobe(32'h00112233, 4'b0011, 1);
 	finish();
 
-	init_offset(2);
+	set_offset(2);
 	strobe(32'h00112233, 4'b0011, 1);
 	finish();
 
-	init_offset(3);
+	set_offset(3);
 	strobe(32'h00112233, 4'b0011, 1);
 	finish();
 
-	init_offset(1);
+	set_offset(1);
 	strobe(32'h00112233, 4'b0111, 1);
 	finish();
 
-	init_offset(2);
+	set_offset(2);
 	strobe(32'h00112233, 4'b0111, 1);
 	finish();
 
-	init_offset(3);
+	set_offset(3);
 	strobe(32'h00112233, 4'b0111, 1);
 	finish();
 
-	init_offset(3);
+	set_offset(3);
 	strobe(32'h00XXXXXX, 4'b1000, 0);
 	strobe(32'hXX11XXXX, 4'b0100, 0);
 	strobe(32'hXXXX22XX, 4'b0010, 0);
