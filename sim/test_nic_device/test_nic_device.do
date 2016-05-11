@@ -47,10 +47,12 @@ vlog $vlog_opts ../../src/e1000/tx_frame.v
 vlog $vlog_opts ../../src/e1000/tx_path.v
 vlog $vlog_opts ../../src/e1000/axis_realign.v
 vlog $vlog_opts ../../src/e1000/axi_rdma.v
+vlog $vlog_opts ../../src/e1000/axi_wdma.v
 vlog $vlog_opts ../../src/e1000/mac_axis.v
 vlog $vlog_opts ../../src/e1000/rx_desc_ctrl.v
 vlog $vlog_opts ../../src/e1000/rx_engine.v
 vlog $vlog_opts ../../src/e1000/rx_frame.v
+vlog $vlog_opts ../../src/e1000/rx_checksum.v
 vlog $vlog_opts ../../src/e1000/rx_path.v
 
 vlog $vlog_opts ../../src/mac/Clk_ctrl.v

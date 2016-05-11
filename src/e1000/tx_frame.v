@@ -78,6 +78,12 @@ wire rdma_tvalid;
 wire rdma_tlast;
 wire rdma_tready;
 
+wire [31:0] algn_tdata;
+wire [3:0] algn_tkeep;
+wire algn_tlast;
+wire algn_tvalid;
+wire algn_tready;
+
 wire [32:0] fifo_din;
 wire [32:0] fifo_dout;
 wire fifo_full;
@@ -112,11 +118,11 @@ assign cmd_s_tready = !fifo_full;
 
 assign cmd_valid = start_xmit && !fifo_empty;
 
-assign mac_m_tdata = rdma_tdata;
-assign mac_m_tkeep = rdma_tkeep;
-assign mac_m_tvalid = rdma_tvalid;
-assign mac_m_tlast = rdma_tlast & is_eop;
-assign rdma_tready = mac_m_tready;
+assign algn_tdata = rdma_tdata;
+assign algn_tkeep = rdma_tkeep;
+assign algn_tvalid = rdma_tvalid;
+assign algn_tlast = rdma_tlast & is_eop;
+assign rdma_tready = algn_tready;
 
 assign dram_m_awid = 'bx;
 assign dram_m_awaddr = 'bx;
@@ -160,6 +166,25 @@ axi_rdma #(.ADDRESS_BITS(16), .LENGTH_BITS(16)) rdma_i(
 	.dout_tlast(rdma_tlast),
 	.dout_tvalid(rdma_tvalid),
 	.dout_tready(rdma_tready)
+);
+
+axis_realign #(
+	.INPUT_BIG_ENDIAN("FALSE"), 
+	.OUTPUT_BIG_ENDIAN("TRUE")
+) tx_align_i(
+	.aclk(aclk),
+	.aresetn(aresetn),
+	.s_tdata(algn_tdata),
+	.s_tkeep(algn_tkeep),
+	.s_tuser(2'b0),
+	.s_tlast(algn_tlast),
+	.s_tvalid(algn_tvalid),
+	.s_tready(algn_tready),
+	.m_tdata(mac_m_tdata),
+	.m_tkeep(mac_m_tkeep),
+	.m_tlast(mac_m_tlast),
+	.m_tvalid(mac_m_tvalid),
+	.m_tready(mac_m_tready)
 );
 
 // FIXME: replace with fifo_sync

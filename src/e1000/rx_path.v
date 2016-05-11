@@ -87,6 +87,7 @@ module rx_path(
 	// MAC Rx Port
 	input [31:0] mac_s_tdata,
 	input [3:0] mac_s_tkeep,
+	input [15:0] mac_s_tuser,
 	input mac_s_tvalid,
 	input mac_s_tlast,
 	output mac_s_tready	
@@ -646,9 +647,7 @@ rx_desc_ctrl #(
 );
 
 // Receiver state machine
-rx_engine #(
-	.DATA_RAM_DWORDS(DATA_RAM_DWORDS)
-)rx_engine_i(
+rx_engine rx_engine_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
@@ -725,7 +724,9 @@ rx_engine #(
 	.frm_s_tready(frm_rpt_tready)
 );
 
-rx_frame rx_frame_i(
+rx_frame #(
+	.DATA_RAM_DWORDS(DATA_RAM_DWORDS)
+)rx_frame_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 	
@@ -782,6 +783,7 @@ rx_frame rx_frame_i(
 	// MAC Tx Stream Port
 	.mac_s_tdata(mac_s_tdata),
 	.mac_s_tkeep(mac_s_tkeep),
+	.mac_s_tuser(mac_s_tuser),
 	.mac_s_tvalid(mac_s_tvalid),
 	.mac_s_tlast(mac_s_tlast),
 	.mac_s_tready(mac_s_tready)
@@ -832,7 +834,7 @@ axi_ram #(
 	.s_rready(desc_s_rready)
 );
 
-//% Rx Data Ram 32768 Bytes
+//% Rx Data Ram 65536 Bytes
 axi_ram #(
 	.MEMORY_DEPTH(DATA_RAM_DWORDS),
 	.DATA_WIDTH(32),

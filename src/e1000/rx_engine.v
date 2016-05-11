@@ -89,18 +89,6 @@ module rx_engine(
 	output frm_s_tready
 );
 
-parameter DATA_RAM_DWORDS=8192;
-
-function integer clogb2 (input integer size);
-begin
-	size = size - 1;
-	for (clogb2=1; size>1; clogb2=clogb2+1)
-		size = size >> 1;
-end
-endfunction
-
-localparam DATA_IDX_BITS = clogb2(DATA_RAM_DWORDS);
-
 reg [15:0] local_addr;
 reg [1:0] fetch_cnt;
 
@@ -152,7 +140,7 @@ localparam S_IDLE=0, S_FETCH_ASTB=1, S_FETCH_DLATCH=2, S_PROCESS=3,
 	S_CHECK_NULL=4, S_WRITE_ASTB=5, S_WRITE_DW2=6, S_WRITE_DW3=7, S_REPORT=8;
 
 integer s2, s2_next;
-localparam S2_INIT=0, S2_GET_PKT_0=1, S2_GET_PKT_1=2, S2_GET_PKT_2=3, S2_GET_DESC=4, S2_WBAK_CALC=5, S2_WBAK_0=6, S2_WBAK_1=7, S2_WBAK_2=8, S2_WBAK_INCR=9, S2_WBAK_ACK=10, S2_FREE=11, S2_IDLE=12;
+localparam S2_IDLE=0, S2_GET_PKT_0=1, S2_GET_PKT_1=2, S2_GET_PKT_2=3, S2_GET_DESC=4, S2_WBAK_CALC=5, S2_WBAK_0=6, S2_WBAK_1=7, S2_WBAK_2=8, S2_WBAK_INCR=9, S2_WBAK_ACK=10, S2_FREE=11;
 
 assign host_buf_addr = {desc_dw1, desc_dw0};
 
@@ -362,7 +350,7 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn)
-		s2 <= S2_INIT;
+		s2 <= S2_IDLE;
 	else
 		s2 <= s2_next;
 end
@@ -370,12 +358,6 @@ end
 always @(*)
 begin
 	case(s2)
-		S2_INIT: begin
-			if(frm_m_tready)
-				s2_next = S2_IDLE;
-			else
-				s2_next = S2_INIT;
-		end
 		S2_IDLE: begin
 			if(!pkt_fifo_empty)
 				s2_next = S2_GET_PKT_0;
@@ -547,12 +529,6 @@ begin
 			pkt_desc_dw2[9] <= (remain_dwords==0);//EOP
 			pkt_desc_dw2[7:0] <= desc_length;
 			pkt_desc_dw2[8] <= 1'b1; //DD;
-		end
-		S2_INIT: begin
-			frm_m_tdata[15:0] <= 'b0; 
-			frm_m_tdata[31:16] <= DATA_RAM_DWORDS*4;
-			frm_m_tvalid <= 1'b1;
-			frm_m_tlast <= 1'b1;
 		end
 	endcase
 end

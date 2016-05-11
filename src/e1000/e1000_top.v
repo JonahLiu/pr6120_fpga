@@ -102,6 +102,10 @@ module e1000_top(
 
 parameter PHY_ADDR=5'b0;
 parameter CLK_PERIOD_NS=8;
+parameter TX_DESC_RAM_DWORDS=1024;
+parameter TX_DATA_RAM_DWORDS=8192;
+parameter RX_DESC_RAM_DWORDS=1024;
+parameter RX_DATA_RAM_DWORDS=16384;
 parameter DEBUG="TRUE";
 
 wire [31:0] mac_tx_s_tdata;
@@ -112,7 +116,7 @@ wire mac_tx_s_tready;
 
 wire [31:0] mac_rx_m_tdata;
 wire [3:0] mac_rx_m_tkeep;
-//wire [15:0] mac_rx_m_tuser;
+wire [15:0] mac_rx_m_tuser;
 wire mac_rx_m_tvalid;
 wire mac_rx_m_tlast;
 wire mac_rx_m_tready;
@@ -473,7 +477,11 @@ intr_ctrl #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) intr_ctrl_i(
 	.SRPD_req(1'b0)
 );
 
-rx_path rx_path_i(
+rx_path #(
+	.CLK_PERIOD_NS(CLK_PERIOD_NS),
+	.DESC_RAM_DWORDS(RX_DESC_RAM_DWORDS),
+	.DATA_RAM_DWORDS(RX_DATA_RAM_DWORDS)
+)rx_path_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
@@ -562,11 +570,16 @@ rx_path rx_path_i(
 	.mac_s_tdata(mac_rx_m_tdata),
 	.mac_s_tkeep(mac_rx_m_tkeep),
 	.mac_s_tvalid(mac_rx_m_tvalid),
+	.mac_s_tuser(mac_rx_m_tuser),
 	.mac_s_tlast(mac_rx_m_tlast),
 	.mac_s_tready(mac_rx_m_tready)
 );
 
-tx_path #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) tx_path_i(
+tx_path #(
+	.CLK_PERIOD_NS(CLK_PERIOD_NS),
+	.DESC_RAM_DWORDS(TX_DESC_RAM_DWORDS),
+	.DATA_RAM_DWORDS(TX_DATA_RAM_DWORDS)
+) tx_path_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
@@ -695,7 +708,7 @@ mac_axis mac_i(
 
 	.rx_mac_tdata(mac_rx_m_tdata),
 	.rx_mac_tkeep(mac_rx_m_tkeep),
-//	.rx_mac_tuser(mac_rx_m_tuser),
+	.rx_mac_tuser(mac_rx_m_tuser),
 	.rx_mac_tlast(mac_rx_m_tlast),
 	.rx_mac_tvalid(mac_rx_m_tvalid),
 	.rx_mac_tready(mac_rx_m_tready),
