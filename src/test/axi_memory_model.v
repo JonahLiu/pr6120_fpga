@@ -25,6 +25,7 @@ module axi_memory_model
 	output reg	s_axi_awready,
 
 	// AXI Master Write Data
+	input	[3:0] s_axi_wid,
 	input	[S_AXI_DATA_WIDTH-1:0]	s_axi_wdata,
 	input	[S_AXI_STRB_WIDTH-1:0]	s_axi_wstrb,
 	input	s_axi_wlast,
@@ -69,7 +70,10 @@ endfunction
 localparam MEM_ADDR_LSB = clogb2(S_AXI_STRB_WIDTH);
 localparam MEM_ADDR_MSB = clogb2(MEMORY_DEPTH)+MEM_ADDR_LSB-1;
 
-reg	[S_AXI_DATA_WIDTH-1:0]	memory	[0:MEMORY_DEPTH-1];
+reg	[S_AXI_DATA_WIDTH-1:0]	mem_b0	[0:MEMORY_DEPTH-1];
+reg	[S_AXI_DATA_WIDTH-1:0]	mem_b1	[0:MEMORY_DEPTH-1];
+reg	[S_AXI_DATA_WIDTH-1:0]	mem_b2	[0:MEMORY_DEPTH-1];
+reg	[S_AXI_DATA_WIDTH-1:0]	mem_b3	[0:MEMORY_DEPTH-1];
 reg	[31:0]	write_addr;
 //reg	[7:0]	write_len;
 //reg	[7:0]	write_cnt;
@@ -81,13 +85,19 @@ reg	[S_AXI_ID_WIDTH-1:0]	read_id;
 
 task write(input integer addr, input [S_AXI_DATA_WIDTH-1:0] data);
 begin
-	memory[addr] = data;
+	mem_b3[addr] = data[31:24];
+	mem_b2[addr] = data[23:16];
+	mem_b1[addr] = data[15:8];
+	mem_b0[addr] = data[7:0];
 end
 endtask
 
 task read(input integer addr, output [S_AXI_DATA_WIDTH-1:0] data);
 begin
-	data = memory[addr];
+	data[31:24] = mem_b3[addr];
+	data[23:16] = mem_b2[addr];
+	data[15:8] = mem_b1[addr];
+	data[7:0] = mem_b0[addr];
 end
 endtask
 
@@ -95,7 +105,10 @@ task clear;
 reg [S_AXI_DATA_WIDTH-1:0] i;
 begin
 	for(i=0;i<MEMORY_DEPTH;i=i+1) begin
-		memory[i] = INITIAL_VALUE;
+		mem_b3[i] = INITIAL_VALUE[31:24];
+		mem_b2[i] = INITIAL_VALUE[23:16];
+		mem_b1[i] = INITIAL_VALUE[15:8];
+		mem_b0[i] = INITIAL_VALUE[7:0];
 	end
 end
 endtask
@@ -146,14 +159,10 @@ begin
 			write_id <= s_axi_awid;
 	end
 	else if(s_axi_wvalid && s_axi_wready) begin:DATA_WRITE
-		/*
-		integer i;
-		for(i=0;i<S_AXI_STRB_WIDTH;i=i+1) begin
-			if(s_axi_wstrb[i])
-				memory[write_addr[31:MEM_ADDR_LSB]][8*i+7:8*i] <= s_axi_wdata[8*i+7:8*i];
-		end
-		*/
-		memory[write_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]] <= s_axi_wdata;
+		if(s_axi_wstrb[3]) mem_b3[write_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]] <= s_axi_wdata[31:24];
+		if(s_axi_wstrb[2]) mem_b2[write_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]] <= s_axi_wdata[24:16];
+		if(s_axi_wstrb[1]) mem_b1[write_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]] <= s_axi_wdata[15:8];
+		if(s_axi_wstrb[0]) mem_b0[write_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]] <= s_axi_wdata[7:0];
 		write_addr <= write_addr + S_AXI_STRB_WIDTH;
 		//write_cnt <= write_cnt + 1;
 	end
@@ -199,8 +208,11 @@ begin
 		s_axi_rresp <= 2'b0;
 	end
 	else if(s_axi_arvalid && s_axi_arready) begin
+		s_axi_rdata[31:24] <= mem_b3[s_axi_araddr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
+		s_axi_rdata[23:16] <= mem_b2[s_axi_araddr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
+		s_axi_rdata[15:8] <= mem_b1[s_axi_araddr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
+		s_axi_rdata[7:0] <= mem_b0[s_axi_araddr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
 
-		s_axi_rdata <= memory[s_axi_araddr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
 		s_axi_rlast <= s_axi_arlen==0;
 		s_axi_rvalid <= 1'b1;
 		s_axi_rid <= s_axi_arid;
@@ -211,7 +223,11 @@ begin
 		read_id <= s_axi_arid;
 	end
 	else if(s_axi_rvalid && s_axi_rready) begin
-		s_axi_rdata <= memory[read_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
+		s_axi_rdata[31:24] <= mem_b3[read_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
+		s_axi_rdata[23:16] <= mem_b2[read_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
+		s_axi_rdata[15:8] <= mem_b1[read_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
+		s_axi_rdata[7:0] <= mem_b0[read_addr[MEM_ADDR_MSB:MEM_ADDR_LSB]];
+
 		s_axi_rlast <= read_cnt+1==read_len;
 		if(s_axi_rlast) begin
 			s_axi_rvalid <= 1'b0;

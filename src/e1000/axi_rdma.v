@@ -104,6 +104,8 @@ begin
 		S_INCR: begin
 			if(remain_dwords>0)
 				state_next = S_CALC;
+			else if(dout_tvalid && dout_tlast && dout_tready)
+				state_next = S_IDLE;
 			else
 				state_next = S_WAIT;
 		end
