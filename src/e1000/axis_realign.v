@@ -11,8 +11,8 @@ module axis_realign(
 
 	output	[31:0] m_tdata,
 	output	[3:0] m_tkeep,
-	output reg m_tlast,
-	output reg m_tvalid,
+	output  m_tlast,
+	output  m_tvalid,
 	input	m_tready
 );
 
@@ -66,6 +66,19 @@ reg [3:0] be_mask;
 reg s_busy;
 wire reload;
 
+wire	[31:0] buf_tdata;
+wire	[3:0] buf_tkeep;
+reg buf_tlast;
+reg buf_tvalid;
+wire  buf_tready;
+
+wire [36:0] fifo_din;
+wire fifo_wr;
+wire fifo_full;
+wire [36:0] fifo_dout;
+wire fifo_rd;
+wire fifo_empty;
+
 generate
 if(INPUT_BIG_ENDIAN=="TRUE") begin
 	assign {in_b0,in_b1,in_b2,in_b3} = s_tdata;
@@ -79,17 +92,41 @@ endgenerate
 
 generate
 if(OUTPUT_BIG_ENDIAN=="TRUE") begin
-	assign m_tdata = {out_b0, out_b1, out_b2, out_b3};
-	assign m_tkeep = out_be;
+	assign buf_tdata = {out_b0, out_b1, out_b2, out_b3};
+	assign buf_tkeep = out_be;
 end
 else begin
-	assign m_tdata = {out_b3, out_b2, out_b1, out_b0};
-	assign m_tkeep = {out_be[0],out_be[1],out_be[2],out_be[3]};
+	assign buf_tdata = {out_b3, out_b2, out_b1, out_b0};
+	assign buf_tkeep = {out_be[0],out_be[1],out_be[2],out_be[3]};
 end
 endgenerate
 
-assign reload = !s_busy && (!m_tvalid || (m_tvalid&&m_tlast&&m_tready));
-assign s_tready = !s_busy?1'b0:m_tready;
+assign reload = !s_busy && (!buf_tvalid || (buf_tvalid&&buf_tlast&&buf_tready));
+assign s_tready = !s_busy?1'b0:buf_tready;
+
+assign m_tdata = fifo_dout[31:0];
+assign m_tkeep = fifo_dout[35:32];
+assign m_tlast = fifo_dout[36];
+assign m_tvalid = !fifo_empty;
+assign fifo_rd = m_tvalid && m_tready;
+
+assign fifo_din = {buf_tlast, buf_tkeep, buf_tdata};
+assign fifo_wr = buf_tvalid && buf_tready;
+assign buf_tready = !fifo_full;
+
+// FIXME: replace with synchronous FIFO
+fifo_async #(.DSIZE(32+4+1),.ASIZE(4),.MODE("FWFT")) fifo_i(
+	.wr_rst(!aresetn),
+	.wr_clk(aclk),
+	.din(fifo_din),
+	.wr_en(fifo_wr),
+	.full(fifo_full),
+	.rd_rst(!aresetn),
+	.rd_clk(aclk),
+	.dout(fifo_dout),
+	.rd_en(fifo_rd),
+	.empty(fifo_empty)
+);
 
 always @(*)
 begin
@@ -127,14 +164,14 @@ end
 always @(*)
 begin
 	if(s_tvalid && s_tready)
-		if(m_tvalid && m_tready)
+		if(buf_tvalid && buf_tready)
 			if(sum>4)
 				b_next = sum-4;
 			else
 				b_next = 0;
 		else
 			b_next = b+l;
-	else if(m_tvalid && m_tready)
+	else if(buf_tvalid && buf_tready)
 		if(b>4)
 			b_next = b-4;
 		else
@@ -178,34 +215,34 @@ begin
 		more <= 1'b0;
 	else if(s_tvalid && s_tlast && s_tready && b_next>4)
 		more <= 1'b1;
-	else if(m_tvalid && m_tlast && m_tready)
+	else if(buf_tvalid && buf_tlast && buf_tready)
 		more <= 1'b0;
 end
 
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn)
-		m_tvalid <= 1'b0;
+		buf_tvalid <= 1'b0;
 	else if(b_next>=4)
-		m_tvalid <= 1;
+		buf_tvalid <= 1;
 	else if(s_tvalid && s_tlast && s_tready)
-		m_tvalid <= 1;
+		buf_tvalid <= 1;
 	else if(b_next>0 && more)
-		m_tvalid <= 1;
+		buf_tvalid <= 1;
 	else
-		m_tvalid <= 0;
+		buf_tvalid <= 0;
 end
 
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn)
-		m_tlast <= 1'b0;
+		buf_tlast <= 1'b0;
 	else if(s_tvalid && s_tlast && s_tready && b_next<=4)
-		m_tlast <= 1;
-	else if(!m_tlast && more)
-		m_tlast <= 1;
-	else if(m_tready)
-		m_tlast <= 0;
+		buf_tlast <= 1;
+	else if(!buf_tlast && more)
+		buf_tlast <= 1;
+	else if(buf_tready)
+		buf_tlast <= 0;
 end
 
 always @(*)
@@ -233,7 +270,7 @@ end
 
 always @(*)
 begin
-	if(m_tvalid && m_tready) // output valid
+	if(buf_tvalid && buf_tready) // output valid
 		if(b>4) // load buffered bytes
 			out_b0_next = out_b4;
 		else // load input bytes
@@ -256,7 +293,7 @@ end
 
 always @(*)
 begin
-	if(m_tvalid && m_tready)
+	if(buf_tvalid && buf_tready)
 		if(b>5)
 			out_b1_next = out_b5;
 		else
@@ -279,7 +316,7 @@ end
 
 always @(*)
 begin
-	if(m_tvalid && m_tready)
+	if(buf_tvalid && buf_tready)
 		if(b>6)
 			out_b2_next = out_b6;
 		else
@@ -302,7 +339,7 @@ end
 
 always @(*)
 begin
-	if(m_tvalid && m_tready)
+	if(buf_tvalid && buf_tready)
 		case(b3_sel_a)/* synthesis full_case */
 			0:out_b3_next = in_b0;
 			1:out_b3_next = in_b1;
@@ -365,7 +402,7 @@ begin
 		s_busy <= 1'b0;
 	else if(s_tvalid && s_tready && s_tlast)
 		s_busy <= 1'b0;
-	else if(s_tvalid && (!more || (m_tvalid && m_tready && m_tlast)))
+	else if(s_tvalid && (!more || (buf_tvalid && buf_tready && buf_tlast)))
 		s_busy <= 1'b1;
 end
 

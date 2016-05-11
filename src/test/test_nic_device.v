@@ -1,6 +1,6 @@
 `timescale 1ns/10ps
-`define TEST_TX
-`undef TEST_RX
+`undef TEST_TX
+`define TEST_RX
 
 `define REPORT_PCI_FETCH
 `define REPORT_PCI_WRITE_BACK
@@ -221,19 +221,19 @@ pulldown (p0_int);
 pullup (p1_mdio);
 pulldown (p1_int);
 
-assign p0_rxsclk = p0_gtxsclk;
-assign p0_rxdat = p0_txdat;
-assign p0_rxdv = p0_txen;
-assign p0_rxer = p0_txer;
+//assign p0_rxsclk = p0_gtxsclk;
+//assign p0_rxdat = p0_txdat;
+//assign p0_rxdv = p0_txen;
+//assign p0_rxer = p0_txer;
 assign p0_crs = p0_txen;
-assign p0_col = 0;
+assign p0_col = 1'b0;
 
-assign p1_rxsclk = p0_gtxsclk;
-assign p1_rxdat = p0_txdat;
-assign p1_rxdv = p0_txen;
-assign p1_rxer = p0_txer;
-assign p1_crs = p0_txen;
-assign p1_col = 0;
+assign p1_rxsclk = 1'b0;
+assign p1_rxdat = 8'b0;
+assign p1_rxdv = 1'b0;
+assign p1_rxer = 1'b0;
+assign p1_crs = 1'b0;
+assign p1_col = 1'b0;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Modules
@@ -390,6 +390,14 @@ pci_blue_arbiter arbiter(
     .pci_reset_comb(!RST_N)
 );
 ////////////////////////////////////////////////////////////////////////////////
+
+eth_pkt_gen pkt_gen(
+	.clk(p0_gtxsclk),
+	.tx_clk(p0_rxsclk),
+	.tx_dat(p0_rxdat),
+	.tx_en(p0_rxdv),
+	.tx_er(p0_rxer)
+);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Utilities
@@ -878,9 +886,9 @@ begin
 	$dumpvars(1);
 	$dumpvars(1,dut_i);
 	$dumpvars(1,dut_i.e1000_i);
-	$dumpvars(1,dut_i.e1000_i.rx_path_i);
-	$dumpvars(1,dut_i.e1000_i.tx_path_i);
-	$dumpvars(0,dut_i.e1000_i.tx_path_i.tx_frame_i);
+	$dumpvars(0,dut_i.e1000_i.rx_path_i);
+	//$dumpvars(1,dut_i.e1000_i.tx_path_i);
+	//$dumpvars(1,dut_i.e1000_i.tx_path_i.tx_frame_i);
 	//$dumpvars(0,dut_i.e1000_i.mac_i);
 	#1_000_000_000;
 	$finish;
@@ -1075,8 +1083,16 @@ task test_rx_desc_queue();
 	begin
 		dbg_msg = "Test RX Desc Quque";
 		rx_host_base = RX_DESC_BASE;
+		rx_host_dptr = RX_DATA_BASE;
+
+		PARAM_BSEX = 0;
+		PARAM_BSIZE = 3'b011;
+
 
 		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,0/*wth*/,8/*lwth*/);
+
+		repeat(8) pkt_gen.send(60);
+
 		rx_add_desc(8);
 
 		rx_check_done();

@@ -119,7 +119,12 @@ fifo_async #(.DSIZE(16),.ASIZE(4),.MODE("FWFT")) addr_fifo_i(
 	.empty(addr_fifo_empty)
 );
 
-axi_wdma #(.ADDRESS_BITS(16), .LENGTH_BITS(16)) wdma_i(
+axi_wdma #(
+	.ADDRESS_BITS(16), 
+	.LENGTH_BITS(16),
+	.STREAM_BIG_ENDIAN("TRUE"),
+	.MEM_BIG_ENDIAN("FALSE")
+) wdma_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 

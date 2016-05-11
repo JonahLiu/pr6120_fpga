@@ -116,8 +116,6 @@ reg [15:0] pkt_address;
 reg [15:0] desc_length;
 
 reg [11:0] fetch_dwords;
-reg [15:0] remain_dwords;
-reg [15:0] remain_dwords_init;
 reg [11:0] fetch_dwords_next;
 reg [63:0] host_address;
 reg [15:0] local_start;
@@ -247,9 +245,9 @@ begin
 		end
 		S_PROCESS: begin
 			if(done_fetch_data)
-				state_next = S_PROCESS;
-			else
 				state_next = S_WRITE_ASTB;
+			else
+				state_next = S_PROCESS;
 		end
 		S_WRITE_ASTB: begin
 			if(ram_m_awready)
@@ -303,6 +301,7 @@ begin
 		ram_m_rready <= 1'b1;
 		ram_m_awaddr <= 'bx;
 		ram_m_wdata <= 'bx;
+		start_fetch_data <= 1'b0;
 	end
 	else case(state_next)
 		S_IDLE: begin
@@ -323,6 +322,7 @@ begin
 			start_fetch_data <= 1'b1;
 		end
 		S_WRITE_ASTB: begin
+			start_fetch_data <= 1'b0;
 			ram_m_awvalid <= 1'b1;
 			ram_m_awaddr <= {local_addr[15:4],4'h8};
 			wback_dw2 <= pkt_desc_dw2;
@@ -386,7 +386,7 @@ begin
 			if(start_fetch_data)
 				s2_next = S2_WBAK_CALC;
 			else
-				s2_next = S2_IDLE;
+				s2_next = S2_GET_DESC;
 		end
 		S2_WBAK_CALC: begin
 			s2_next = S2_WBAK_0;
@@ -417,7 +417,7 @@ begin
 		end
 		S2_FREE: begin
 			if(frm_m_tready)
-				if(remain_dwords > 0)
+				if(remain_bytes> 0)
 					if(host_available > 0)
 						s2_next = S2_WBAK_CALC;
 					else
@@ -523,10 +523,10 @@ begin
 			frm_m_tdata[31:16] <= fetch_bytes;
 			frm_m_tvalid <= 1'b1;
 			frm_m_tlast <= 1'b1;
-			if(remain_dwords == 0 || host_available==0) begin
+			if(remain_bytes == 0 || host_available==0) begin
 				done_fetch_data <= 1'b1;
 			end
-			pkt_desc_dw2[9] <= (remain_dwords==0);//EOP
+			pkt_desc_dw2[9] <= (remain_bytes==0);//EOP
 			pkt_desc_dw2[7:0] <= desc_length;
 			pkt_desc_dw2[8] <= 1'b1; //DD;
 		end

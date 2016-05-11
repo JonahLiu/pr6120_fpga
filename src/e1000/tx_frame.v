@@ -137,7 +137,12 @@ assign dram_m_wlast = 1'bx;
 assign dram_m_wvalid = 1'b0;
 assign dram_m_bready = 1'b1;
 
-axi_rdma #(.ADDRESS_BITS(16), .LENGTH_BITS(16)) rdma_i(
+axi_rdma #(
+	.ADDRESS_BITS(16), 
+	.LENGTH_BITS(16),
+	.STREAM_BIG_ENDIAN("TRUE"),
+	.MEM_BIG_ENDIAN("FALSE")
+) rdma_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
@@ -169,7 +174,7 @@ axi_rdma #(.ADDRESS_BITS(16), .LENGTH_BITS(16)) rdma_i(
 );
 
 axis_realign #(
-	.INPUT_BIG_ENDIAN("FALSE"), 
+	.INPUT_BIG_ENDIAN("TRUE"), 
 	.OUTPUT_BIG_ENDIAN("TRUE")
 ) tx_align_i(
 	.aclk(aclk),

@@ -9,6 +9,7 @@ set vcom_opts {-93}
 vlib work
 
 vlog $vlog_opts ../../src/test/test_nic_device.v
+vlog $vlog_opts ../../src/test/eth_pkt_gen.v
 
 vlog $vlog_opts ../../src/test/pci_behavioral_master.v
 vlog $vlog_opts ../../src/test/pci_behavioral_target.v
