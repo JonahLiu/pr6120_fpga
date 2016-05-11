@@ -29,7 +29,7 @@ reg    			Line_loop_en			;
 				//Rx user interface 
 wire	[31:0]	rx_mac_tdata			;
 wire	[3:0]	rx_mac_tkeep			;
-//wire 	[15:0]  rx_mac_tuser			; // packet length
+wire 	[15:0]  rx_mac_tuser			; // packet length
 wire			rx_mac_tlast			;
 wire			rx_mac_tvalid			;
 wire			rx_mac_tready			;
@@ -135,7 +135,7 @@ mac_axis dut_1_i(
  //user interface               (//user interface           ),
  .rx_mac_tdata					(),
  .rx_mac_tkeep					(),
-// .rx_mac_tuser					(),
+ .rx_mac_tuser					(),
  .rx_mac_tlast					(),
  .rx_mac_tvalid					(),
  .rx_mac_tready					(1'b1),
@@ -185,7 +185,7 @@ mac_axis dut_2_i(
  //user interface               (//user interface           ),
  .rx_mac_tdata					(rx_mac_tdata				),
  .rx_mac_tkeep					(rx_mac_tkeep				),
-// .rx_mac_tuser					(rx_mac_tuser				),
+ .rx_mac_tuser					(rx_mac_tuser				),
  .rx_mac_tlast					(rx_mac_tlast				),
  .rx_mac_tvalid					(rx_mac_tvalid				),
  .rx_mac_tready					(rx_mac_tready				),

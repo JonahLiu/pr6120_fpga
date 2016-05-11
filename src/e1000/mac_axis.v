@@ -23,7 +23,7 @@ input			Line_loop_en			,
 //Rx user interface 
 output	[31:0]	rx_mac_tdata			,
 output	[3:0]	rx_mac_tkeep			,
-//output  [15:0]  rx_mac_tuser			, // packet length
+output  [15:0]  rx_mac_tuser			, // packet length
 output			rx_mac_tlast			,
 output			rx_mac_tvalid			,
 input			rx_mac_tready			,
@@ -71,9 +71,9 @@ wire   [1:0]   Tx_mac_BE               ;//big endian
 wire           Tx_mac_sop              ;
 wire           Tx_mac_eop              ;
 
-//wire 			Pkg_lgth_fifo_rd        ;
-//wire          Pkg_lgth_fifo_ra        ;
-//wire  [15:0]  Pkg_lgth_fifo_data      ;
+wire 			Pkg_lgth_fifo_rd        ;
+wire          Pkg_lgth_fifo_ra        ;
+wire  [15:0]  Pkg_lgth_fifo_data      ;
 
                 //RMON interface
 wire    [15:0]  Rx_pkt_length_rmon      ;
@@ -196,8 +196,10 @@ assign rx_mac_tvalid = !rx_fifo_empty;
 assign rx_mac_tlast = rx_fifo_dout[34];
 assign rx_mac_tkeep = rx_keep;
 //assign rx_mac_tuser = rx_length;
+assign rx_mac_tuser = Pkg_lgth_fifo_data;
 
-assign Pkg_lgth_fifo_rd = rx_rd_lgth;
+//assign Pkg_lgth_fifo_rd = rx_rd_lgth;
+assign Pkg_lgth_fifo_rd = rx_mac_tvalid && rx_mac_tlast && rx_mac_tready;
 
 assign MAC_rx_add_chk_en = 1'b0;
 assign MAC_rx_add_prom_data = 'b0;
@@ -340,24 +342,23 @@ fifo_async #(.DSIZE(36),.ASIZE(4),.MODE("FWFT")) tx_fifo_i(
 	.rd_en(Tx_mac_wr)
 );
 
-/*
 assign Pkg_lgth_fifo_ra=!Pkg_lgth_fifo_empty;
-always @ (posedge Reset or posedge MAC_rx_clk_div)
-    if (Reset)
+always @ (posedge Rst_rx or posedge MAC_rx_clk_div)
+    if (Rst_rx)
         rx_pkg_lgth_fifo_wr_tmp <=0;    
     else if(Rx_apply_rmon&&Rx_pkt_err_type_rmon==3'b100)
         rx_pkg_lgth_fifo_wr_tmp <=1;
     else
         rx_pkg_lgth_fifo_wr_tmp <=0;  
 
-always @ (posedge Reset or posedge MAC_rx_clk_div)
-    if (Reset)
+always @ (posedge Rst_rx or posedge MAC_rx_clk_div)
+    if (Rst_rx)
         rx_pkg_lgth_fifo_wr_tmp_pl1 <=0;    
     else
         rx_pkg_lgth_fifo_wr_tmp_pl1 <=rx_pkg_lgth_fifo_wr_tmp;         
 
-always @ (posedge Reset or posedge MAC_rx_clk_div)
-    if (Reset)
+always @ (posedge Rst_rx or posedge MAC_rx_clk_div)
+    if (Rst_rx)
         rx_pkg_lgth_fifo_wr <=0;    
     else if(rx_pkg_lgth_fifo_wr_tmp&!rx_pkg_lgth_fifo_wr_tmp_pl1)
         rx_pkg_lgth_fifo_wr <=1; 
@@ -368,17 +369,16 @@ fifo_async #(.DSIZE(16),.ASIZE(8),.MODE("FWFT")) U_rx_pkg_lgth_fifo (
 .din                        (RX_APPEND_CRC?Rx_pkt_length_rmon:Rx_pkt_length_rmon-16'd4),
 .wr_en                      (rx_pkg_lgth_fifo_wr        ),
 .wr_clk                     (MAC_rx_clk_div             ),
-.wr_rst						(Reset                      ),
+.wr_rst						(Rst_rx						),
 .rd_en                      (Pkg_lgth_fifo_rd           ),
-.rd_clk                     (Clk_user                   ),
-.rd_rst						(Reset                      ),
+.rd_clk                     (aclk						),
+.rd_rst						(areset						),
 .dout                       (Pkg_lgth_fifo_data         ),
 .full                       (                           ),
 .empty                      (Pkg_lgth_fifo_empty        ),
 .wr_count                   (                           ),
 .rd_count                   (                           )
 );
-*/
 
 /*
 RMON U_RMON(
@@ -576,8 +576,8 @@ begin
 	else begin
 		case(rx_state) /* synthesis full_case */
 			0: begin
-				//if(Pkg_lgth_fifo_ra) begin
-				if(Rx_mac_ra) begin
+				if(Pkg_lgth_fifo_ra) begin
+				//if(Rx_mac_ra) begin
 					rx_rd <= rx_fifo_wr_count<10;
 					rx_state <= 1;
 					//rx_length <= Pkg_lgth_fifo_data;
