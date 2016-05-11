@@ -4,12 +4,12 @@ module test_axi_wdma;
 reg aclk;
 reg aresetn;
 
-reg [15:0] wcmd_address;
+reg [31:0] wcmd_address;
 reg [15:0] wcmd_bytes;
 reg wcmd_valid;
 wire wcmd_ready;
 
-reg [15:0] rcmd_address;
+reg [31:0] rcmd_address;
 reg [15:0] rcmd_bytes;
 reg rcmd_valid;
 wire rcmd_ready;
@@ -61,11 +61,8 @@ wire dout_tready;
 
 assign dout_tready = 1'b1;
 
-assign ram_s_awaddr[31:16] = 'b0;
-assign ram_s_araddr[31:16] = 'b0;
-
 axi_wdma #(
-	.ADDRESS_BITS(16), 
+	.ADDRESS_BITS(32), 
 	.LENGTH_BITS(16),
 	.STREAM_BIG_ENDIAN("TRUE"),
 	.MEM_BIG_ENDIAN("FALSE")
@@ -105,7 +102,12 @@ axi_wdma #(
 	.din_tready(din_tready)
 );
 
-axi_rdma #(.ADDRESS_BITS(16), .LENGTH_BITS(16)) rdma_i(
+axi_rdma #(
+	.ADDRESS_BITS(32), 
+	.LENGTH_BITS(16),
+	.STREAM_BIG_ENDIAN("TRUE"),
+	.MEM_BIG_ENDIAN("FALSE")
+) rdma_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
@@ -136,44 +138,44 @@ axi_rdma #(.ADDRESS_BITS(16), .LENGTH_BITS(16)) rdma_i(
 	.dout_tready(dout_tready)
 );
 
-axi_memory_model #(.MEMORY_DEPTH(1024)) mem_i(
-	.s_axi_aresetn(aresetn),
-	.s_axi_aclk(aclk),
+axi_ram #(.MEMORY_DEPTH(4096)) mem_i(
+	.aresetn(aresetn),
+	.aclk(aclk),
 
-	.s_axi_awid(ram_s_awid),
-	.s_axi_awaddr(ram_s_awaddr),
-	.s_axi_awlen(ram_s_awlen),
-	.s_axi_awsize(ram_s_awsize),
-	.s_axi_awburst(ram_s_awburst),
-	.s_axi_awvalid(ram_s_awvalid),
-	.s_axi_awready(ram_s_awready),
+	.s_awid(ram_s_awid),
+	.s_awaddr(ram_s_awaddr),
+	.s_awlen(ram_s_awlen),
+	.s_awsize(ram_s_awsize),
+	.s_awburst(ram_s_awburst),
+	.s_awvalid(ram_s_awvalid),
+	.s_awready(ram_s_awready),
 
-	.s_axi_wid(ram_s_wid),
-	.s_axi_wdata(ram_s_wdata),
-	.s_axi_wstrb(ram_s_wstrb),
-	.s_axi_wlast(ram_s_wlast),
-	.s_axi_wvalid(ram_s_wvalid),
-	.s_axi_wready(ram_s_wready),
+	.s_wid(ram_s_wid),
+	.s_wdata(ram_s_wdata),
+	.s_wstrb(ram_s_wstrb),
+	.s_wlast(ram_s_wlast),
+	.s_wvalid(ram_s_wvalid),
+	.s_wready(ram_s_wready),
 
-	.s_axi_bid(ram_s_bid),
-	.s_axi_bresp(ram_s_bresp),
-	.s_axi_bvalid(ram_s_bvalid),
-	.s_axi_bready(ram_s_bready),
+	.s_bid(ram_s_bid),
+	.s_bresp(ram_s_bresp),
+	.s_bvalid(ram_s_bvalid),
+	.s_bready(ram_s_bready),
 
-	.s_axi_arid(ram_s_arid),
-	.s_axi_araddr(ram_s_araddr),
-	.s_axi_arlen(ram_s_arlen),
-	.s_axi_arsize(ram_s_arsize),
-	.s_axi_arburst(ram_s_arburst),
-	.s_axi_arvalid(ram_s_arvalid),
-	.s_axi_arready(ram_s_arready),
+	.s_arid(ram_s_arid),
+	.s_araddr(ram_s_araddr),
+	.s_arlen(ram_s_arlen),
+	.s_arsize(ram_s_arsize),
+	.s_arburst(ram_s_arburst),
+	.s_arvalid(ram_s_arvalid),
+	.s_arready(ram_s_arready),
 
-	.s_axi_rid(ram_s_rid),
-	.s_axi_rresp(ram_s_rresp),
-	.s_axi_rdata(ram_s_rdata),
-	.s_axi_rlast(ram_s_rlast),
-	.s_axi_rvalid(ram_s_rvalid),
-	.s_axi_rready(ram_s_rready)
+	.s_rid(ram_s_rid),
+	.s_rresp(ram_s_rresp),
+	.s_rdata(ram_s_rdata),
+	.s_rlast(ram_s_rlast),
+	.s_rvalid(ram_s_rvalid),
+	.s_rready(ram_s_rready)
 );
 
 initial
@@ -188,7 +190,7 @@ initial begin
 	aresetn = 0;
 	@(posedge aclk) aresetn <= 1;
 
-	#100000;
+	#200000;
 	$finish();
 end
 
@@ -252,6 +254,7 @@ initial begin
 	test_wdma(8,15);
 	test_wdma(23,16);
 	test_wdma(39,1024);
+	test_wdma(1063,2047);
 
 	test_rdma(0,1);
 	test_rdma(1,3);
@@ -259,8 +262,9 @@ initial begin
 	test_rdma(8,15);
 	test_rdma(23,16);
 	test_rdma(39,1024);
+	test_rdma(1063,2047);
 
-	#10000;
+	#100000;
 	$finish();
 end
 endmodule

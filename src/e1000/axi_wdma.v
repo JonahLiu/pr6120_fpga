@@ -57,7 +57,6 @@ wire ia_s_tready;
 
 wire [31:0] ia_m_tdata;
 wire [3:0] ia_m_tkeep;
-reg [1:0] ia_m_tuser;
 wire ia_m_tlast;
 wire ia_m_tvalid;
 wire ia_m_tready;
@@ -181,7 +180,7 @@ begin
 	else
 		length = 0;
 
-	remain_dwords_init = length[ADDRESS_BITS-1:2]+(|length[1:0]);
+	remain_dwords_init = length[LENGTH_BITS-1:2]+(|length[1:0]);
 end
 
 always @(*)
