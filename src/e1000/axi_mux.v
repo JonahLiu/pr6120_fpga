@@ -201,8 +201,10 @@ endfunction
 
 reg [SELECT_BITS-1:0] wi;
 reg write_busy;
+reg write_disable;
 reg [SELECT_BITS-1:0] ri;
 reg read_busy;
+reg read_disable;
 
 // Write Stage
 always @(posedge aclk, negedge aresetn)
@@ -215,6 +217,19 @@ begin
 	end
 	else if(write_busy && m_bvalid && m_bready) begin
 		write_busy <= 1'b0;
+	end
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		write_disable <= 1'b0;
+	end
+	else if(m_awvalid && m_awready) begin
+		write_disable <= 1'b1;
+	end
+	else if(m_bvalid && m_bready) begin
+		write_disable <= 1'b0;
 	end
 end
 
@@ -246,7 +261,7 @@ begin:WRITE_SEL
 	for(i=0;i<2;i=i+1) 
 		m_awburst[i] = s_awburst[2*wi+i];
 
-	m_awvalid = write_busy & s_awvalid[wi];
+	m_awvalid = write_busy & s_awvalid[wi] & !write_disable;
 
 	for(i=0;i<ID_WIDTH;i=i+1) 
 		m_wid[i] = s_wid[ID_WIDTH*wi+i];
@@ -264,7 +279,7 @@ begin:WRITE_SEL
 	m_bready = s_bready[wi];
 
 	for(i=0;i<SLAVE_NUM;i=i+1) begin 
-		s_awready[i] = write_busy & (wi==i) & m_awready;
+		s_awready[i] = write_busy & (wi==i) & m_awready & !write_disable;
 		s_wready[i] = write_busy & (wi==i) & m_wready;
 		s_bvalid[i] = write_busy & (wi==i) & m_bvalid;
 	end
@@ -284,6 +299,19 @@ begin
 	end
 	else if(read_busy && m_rvalid && m_rready && m_rlast) begin
 		read_busy <= 1'b0;
+	end
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		read_disable <= 1'b0;
+	end
+	else if(m_arvalid && m_arready) begin
+		read_disable <= 1'b1;
+	end
+	else if(m_rvalid && m_rready && m_rlast) begin
+		read_disable <= 1'b0;
 	end
 end
 
@@ -315,11 +343,11 @@ begin:READ_SEL
 	for(i=0;i<2;i=i+1) 
 		m_arburst[i] = s_arburst[2*ri+i];
 
-	m_arvalid = read_busy & s_arvalid[ri];
+	m_arvalid = read_busy & s_arvalid[ri] & !read_disable;
 	m_rready = s_rready[ri];
 
 	for(i=0;i<SLAVE_NUM;i=i+1) begin
-		s_arready[i] = read_busy & (ri==i) & m_arready;
+		s_arready[i] = read_busy & (ri==i) & m_arready & !read_disable;
 		s_rvalid[i] = read_busy & (ri==i) & m_rvalid;
 	end
 
