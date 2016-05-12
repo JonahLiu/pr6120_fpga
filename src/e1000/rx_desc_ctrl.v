@@ -24,21 +24,33 @@ module rx_desc_ctrl(
 	//output reg RXO_req,
 	output reg RXT0_req,
 
-	// idma command port
-	// C1: [31]=R(0)/W(1),[30:28]=RSV, [27:16]=Bytes, [15:0]=Local Address
-	// C2: Lower 32-bit address
-	// C3: Upper 32-bit address
-	output reg [31:0] idma_m_tdata,
-	output reg idma_m_tvalid,
-	output reg idma_m_tlast,
-	input idma_m_tready,
+	// Input DMA command port
+	output reg [63:0] idma_src_addr,
+	output reg [15:0] idma_dst_addr,
+	output reg [15:0] idma_bytes,
+	output reg idma_valid,
+	input	idma_ready,
 
-	// idma response port
-	// tdata content ignored
-	input [31:0] idma_s_tdata,
-	input idma_s_tvalid,
-	input idma_s_tlast,
-	output reg idma_s_tready,
+	// Input DMA report port
+	input [63:0] irpt_src_addr,
+	input [15:0] irpt_dst_addr,
+	input [15:0] irpt_bytes,
+	input irpt_valid,
+	output irpt_ready,
+
+	// Output DMA command port
+	output reg [15:0] odma_src_addr,
+	output reg [63:0] odma_dst_addr,
+	output reg [15:0] odma_bytes,
+	output reg odma_valid,
+	input	odma_ready,
+
+	// Output DMA report port
+	input [15:0] orpt_src_addr,
+	input [63:0] orpt_dst_addr,
+	input [15:0] orpt_bytes,
+	input orpt_valid,
+	output orpt_ready,
 
 	// rx engine command port
 	// [31:16]=RSV, [15:0]=Local Address
@@ -70,34 +82,8 @@ localparam CYCLES_1024NS = 1024/CLK_PERIOD_NS;
 localparam DESC_MAX_NUM = DESC_RAM_DWORDS/4;
 localparam DESC_NUM_BITS = clogb2(DESC_MAX_NUM);
 
-////////////////////////////////////////////////////////////////////////////////
-// Stub module
-//assign RDH_fb = RDH;
-//
-//always @(*)
-//begin
-//	RXDMT0_req = 0;
-//	//RXO_req = 0;
-//	RXT0_req = 0;
-//	idma_m_tdata = 'bx;
-//	idma_m_tvalid = 1'b0;
-//	idma_m_tlast = 1'bx;
-//	idma_s_tready = 1'b1;
-//	reng_m_tdata = 'bx;
-//	reng_m_tvalid = 1'b0;
-//	reng_m_tlast = 1'bx;
-//	reng_s_tready = 1'b1;
-//end
-
-////////////////////////////////////////////////////////////////////////////////
-
 // Flag memory for RS and IDE
-//reg [1:0] flag_mem[0:DESC_MAX_NUM-1];
-//reg [1:0] flag_current;
 reg [3:0] delay_cnt;
-
-//wire flag_report_status;
-//wire flag_delay_interrupt;
 
 // Host addresses
 reg [63:0] host_wb_address;
@@ -192,28 +178,22 @@ reg flush_req;
 integer s1, s1_next;
 integer s2, s2_next;
 
-localparam S1_IDLE=0, S1_READY=1, S1_WRITE_BACK_0=2, S1_WRITE_BACK_1=3,
-	S1_WRITE_BACK_2=4, S1_WRITE_BACK_ACK=5, S1_DEQUEUE=6, S1_FETCH_0=7,
-	S1_FETCH_1=8, S1_FETCH_2=9, S1_FETCH_ACK=10, S1_ENQUQUE=11, S1_DELAY=12,
-	S1_SET_SIZE=13;
+localparam S1_IDLE=0, S1_READY=1, S1_WRITE_BACK_0=2, S1_WRITE_BACK_ACK=3, 
+	S1_DEQUEUE=4, S1_FETCH_0=5, S1_FETCH_ACK=6, S1_ENQUQUE=7, S1_DELAY=8,
+	S1_SET_SIZE=9;
 
 localparam S2_IDLE=0, S2_READY=1, S2_CMD=2, S2_DEQUEUE=3, S2_ACK=4, S2_ENQUEUE=5;
 
-
-//always @(posedge aclk)
-//	flag_current <= flag_mem[out_head];
-//
-//assign flag_report_status = flag_current[0];
-//assign flag_delay_interrupt = flag_current[1];
-
 assign fetch_bytes = {fetch_num,4'h0};
-
 
 assign local_wb_address = {16'b0, out_head, 4'b0};
 assign local_rd_address = {16'b0, in_tail, 4'b0};
 assign local_reng_address = {16'b0, in_head, 4'b0};
 
 assign host_length = {RDLEN, 3'b0};
+
+assign irpt_ready = 1'b1;
+assign orpt_ready = 1'b1;
 
 always @(*)
 begin
@@ -224,12 +204,6 @@ begin
 		2'b11: host_watermark = {4'b0,RDLEN[12:1]};
 	endcase
 end
-
-//always @(posedge aclk)
-//begin
-//	if(reng_s_tvalid && reng_s_tlast && reng_s_tready)
-//		flag_mem[out_tail] <= reng_s_tdata[17:16];
-//end
 
 always @(posedge aclk, negedge aresetn)
 begin
@@ -544,7 +518,6 @@ begin
 		delay_prescale <= 'b0;
 		delay_tick <= 1'b0;
 	end
-	//else if(out_dequeue && flag_report_status && flag_delay_interrupt) begin
 	else if(out_dequeue) begin
 		delay_prescale <= 'b0;
 		delay_tick <= 1'b0;
@@ -565,7 +538,6 @@ begin
 	if(!aresetn) begin
 		delay_timer <= 0;
 	end
-	//else if(out_dequeue && flag_report_status && flag_delay_interrupt) begin
 	else if(out_dequeue) begin
 		// reload timer each write-back
 		delay_timer <= RDTR;
@@ -585,7 +557,6 @@ begin
 		absolute_prescale <= 'b0;
 		absolute_tick <= 1'b0;
 	end
-	//else if(absolute_timer==0 && out_dequeue && flag_report_status && flag_delay_interrupt) begin
 	else if(absolute_timer==0 && out_dequeue) begin
 		absolute_prescale <= 'b0;
 		absolute_tick <= 1'b0;
@@ -606,7 +577,6 @@ begin
 	if(!aresetn) begin
 		absolute_timer <= 0;
 	end
-	//else if(absolute_timer==0 && out_dequeue && flag_report_status && flag_delay_interrupt) begin
 	else if(absolute_timer==0 && out_dequeue) begin
 		// reload timer on first write-back
 		absolute_timer <= RADV;
@@ -626,7 +596,6 @@ begin
 	if(!aresetn) begin
 		RXT0_req <= 1'b0;
 	end
-	//else if(out_dequeue && flag_report_status && !flag_delay_interrupt) begin
 	else if(out_dequeue && RDTR==0 && RADV==0) begin
 		// immedieate interrupt
 		RXT0_req <= 1'b1;
@@ -675,10 +644,7 @@ begin
 	else
 		fetch_num_s1 = local_available;
 
-	if(fetch_num_s1 > 64) // Max length limited by AXI bus
-		fetch_num_s2 = 64;
-	else 
-		fetch_num_s2 = fetch_num_s1;
+	fetch_num_s2 = fetch_num_s1;
 end
 
 always @(*)
@@ -687,11 +653,8 @@ begin
 		wback_num_s1 = wback_limit;
 	else
 		wback_num_s1 = out_num;
-
-	if(wback_num_s1 > 64) // Max length limited by AXI bus
-		wback_num_s2 = 64;
-	else
-		wback_num_s2 = wback_num_s1;
+	
+	wback_num_s2 = wback_num_s1;
 
 	wback_bytes_s2 = {wback_num_s2,4'b0};
 end
@@ -733,25 +696,13 @@ begin
 				s1_next = S1_READY;
 		end
 		S1_WRITE_BACK_0: begin // issue write-back DMA command
-			if(idma_m_tready)
-				s1_next = S1_WRITE_BACK_1;
+			if(odma_ready)
+				s1_next = S1_WRITE_BACK_ACK;
 			else
 				s1_next = S1_WRITE_BACK_0;
 		end
-		S1_WRITE_BACK_1: begin
-			if(idma_m_tready)
-				s1_next = S1_WRITE_BACK_2;
-			else
-				s1_next = S1_WRITE_BACK_1;
-		end
-		S1_WRITE_BACK_2: begin
-			if(idma_m_tready)
-				s1_next = S1_WRITE_BACK_ACK;
-			else
-				s1_next = S1_WRITE_BACK_2;
-		end
 		S1_WRITE_BACK_ACK: begin
-			if(idma_s_tvalid)
+			if(orpt_valid)
 				s1_next = S1_DEQUEUE;
 			else
 				s1_next = S1_WRITE_BACK_ACK;
@@ -763,25 +714,13 @@ begin
 			s1_next = S1_FETCH_0;
 		end
 		S1_FETCH_0: begin // Issue fetch DMA command
-			if(idma_m_tready)
-				s1_next = S1_FETCH_1;
+			if(idma_ready)
+				s1_next = S1_FETCH_ACK;
 			else
 				s1_next = S1_FETCH_0;
 		end
-		S1_FETCH_1: begin
-			if(idma_m_tready)
-				s1_next = S1_FETCH_2;
-			else
-				s1_next = S1_FETCH_1;
-		end
-		S1_FETCH_2: begin
-			if(idma_m_tready)
-				s1_next = S1_FETCH_ACK;
-			else
-				s1_next = S1_FETCH_2;
-		end
 		S1_FETCH_ACK: begin
-			if(idma_s_tvalid && idma_s_tlast)
+			if(irpt_valid)
 				s1_next = S1_ENQUQUE;
 			else
 				s1_next = S1_FETCH_ACK;
@@ -804,10 +743,15 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
-		idma_m_tdata <= 'bx;
-		idma_m_tvalid <= 1'b0;
-		idma_m_tlast <= 1'b0;
-		idma_s_tready <= 1'b0;
+		idma_src_addr <= 'bx;
+		idma_dst_addr <= 'bx;
+		idma_bytes <= 'bx;
+		idma_valid <= 1'b0;
+
+		odma_src_addr <= 'bx;
+		odma_dst_addr <= 'bx;
+		odma_bytes <= 'bx;
+		odma_valid <= 1'b0;
 
 		host_dequeue <= 1'b0;
 		host_deq_incr <= 1'b1;
@@ -832,28 +776,15 @@ begin
 		S1_WRITE_BACK_0: begin
 			// iDMA Command
 			wback_num <= wback_num_s2;
-			idma_m_tdata[31:28] <= 4'h8;
-			idma_m_tdata[27:16] <= wback_bytes_s2;
-			idma_m_tdata[15:0] <= {local_wb_address[15:4],4'h0};
-			idma_m_tvalid <= 1'b1;
-			idma_m_tlast <= 1'b0;
-		end
-		S1_WRITE_BACK_1: begin
-			// Lower 32-bit address
-			// Starts from the third DWORD
-			idma_m_tdata <= {host_wb_address[31:4],4'h0};
-		end
-		S1_WRITE_BACK_2: begin
-			// Upper 32-bit address
-			idma_m_tdata <= host_wb_address[63:32];
-			idma_m_tlast <= 1'b1;
+			odma_src_addr <= local_wb_address;
+			odma_dst_addr <= host_wb_address;
+			odma_bytes <= wback_bytes_s2;
+			odma_valid <= 1'b1;
 		end
 		S1_WRITE_BACK_ACK: begin
-			idma_m_tvalid <= 1'b0;
-			idma_s_tready <= 1'b1;
+			odma_valid <= 1'b0;
 		end
 		S1_DEQUEUE: begin
-			idma_s_tready <= 1'b0;
 			host_dequeue <= 1'b1;
 			host_deq_incr <= wback_num;
 			out_dequeue <= 1'b1;
@@ -864,23 +795,15 @@ begin
 			fetch_num <= fetch_num_s2;
 		end
 		S1_FETCH_0: begin
-			idma_m_tdata <= {4'h0,fetch_bytes,local_rd_address}; 
-			idma_m_tvalid <= 1'b1;
-			idma_m_tlast <= 1'b0;
-		end
-		S1_FETCH_1: begin
-			idma_m_tdata <= host_rd_address[31:0];
-		end
-		S1_FETCH_2: begin
-			idma_m_tdata <= host_rd_address[63:32];
-			idma_m_tlast <= 1'b1;
+			idma_src_addr <= host_rd_address;
+			idma_dst_addr <= local_rd_address;
+			idma_bytes <= fetch_bytes;
+			idma_valid <= 1'b1;
 		end
 		S1_FETCH_ACK: begin
-			idma_m_tvalid <= 1'b0;
-			idma_s_tready <= 1'b1;
+			idma_valid <= 1'b0;
 		end
 		S1_ENQUQUE: begin
-			idma_s_tready <= 1'b0;
 			in_enqueue <= 1'b1;
 			in_enq_incr <= fetch_num;
 			host_forward <= 1'b1;

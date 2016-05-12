@@ -53,21 +53,18 @@ module tx_engine(
 	output reg ram_m_rready,
 
 	// iDMA Command Port
-	// C1: [31]=IN(0)/OUT(1),[30:28]=RSV, [27:16]=Bytes, 
-	//     [15:0]=Local Address
-	// C2: Lower 32-bit address
-	// C3: Upper 32-bit address
-	output reg [31:0] idma_m_tdata,
-	output reg idma_m_tvalid,
-	output reg idma_m_tlast,
-	input idma_m_tready,
+	output reg [63:0] idma_src_addr,
+	output reg [15:0] idma_dst_addr,
+	output reg [15:0] idma_bytes,
+	output reg idma_valid,
+	input	idma_ready,
 
 	// iDMA Response Port
-	// [31:18]=RSV, [17]=IDE, [16]=RS, [15:0]=Local Address
-	input [31:0] idma_s_tdata,
-	input idma_s_tvalid,
-	input idma_s_tlast,
-	output reg idma_s_tready,
+	input [63:0] irpt_src_addr,
+	input [15:0] irpt_dst_addr,
+	input [15:0] irpt_bytes,
+	input irpt_valid,
+	output irpt_ready,
 
 	// Frame Process Command Port
 	// C1: [31:16]=Length, [15:0]=Local Address 
@@ -96,7 +93,7 @@ begin
 end
 endfunction
 
-localparam DATA_IDX_BITS = clogb2(DATA_RAM_DWORDS);
+localparam DRAM_ADDR_BITS = clogb2(DATA_RAM_DWORDS*4);
 
 reg [15:0] local_addr;
 reg [1:0] fetch_cnt;
@@ -108,16 +105,9 @@ reg [31:0] desc_dw3;
 
 reg start_fetch_data;
 reg busy_fetch_data;
-reg [11:0] fetch_dwords;
-reg [15:0] remain_dwords;
-reg [DATA_IDX_BITS-1:0] dram_head;
-reg [DATA_IDX_BITS-1:0] dram_tail;
-reg [DATA_IDX_BITS:0] dram_available;
-reg [15:0] remain_dwords_init;
-reg [11:0] fetch_dwords_next;
-reg [63:0] host_address;
-reg [DATA_IDX_BITS-1:0] dram_head_next;
-reg [15:0] local_start;
+reg [DRAM_ADDR_BITS-1:0] dram_head;
+reg [DRAM_ADDR_BITS-1:0] dram_tail;
+reg [DRAM_ADDR_BITS-1:0] dram_available;
 
 // Legacy Descriptor Layout
 wire [63:0] desc_buf_addr;
@@ -164,7 +154,10 @@ localparam S_IDLE=0, S_FETCH_ASTB=1, S_FETCH_DLATCH=2, S_PROCESS=3,
 	S_CHECK_RS=4, S_WRITE_STROBE=5, S_WRITE_ACK=6, S_REPORT=7;
 
 integer s2, s2_next;
-localparam S2_IDLE=0, S2_FETCH_CALC=1, S2_FETCH_C1=2, S2_FETCH_C2=3, S2_FETCH_C3=4, S2_FETCH_INCR=5, S2_FETCH_ACK=6, S2_CMD_C1=7, S2_CMD_C2=8, S2_CMD_C3=9, S2_UNSUPPORT=10;
+localparam S2_IDLE=0, S2_FETCH_CALC=1, S2_FETCH_C1=2,  S2_FETCH_ACK=6, 
+	S2_CMD_C1=7, S2_CMD_C2=8, S2_CMD_C3=9, S2_INCR=10, S2_UNSUPPORT=11;
+
+assign irpt_ready = 1'b1;
 
 assign desc_buf_addr = {desc_dw1, desc_dw0};
 assign desc_length = desc_dw2[15:0];
@@ -208,6 +201,9 @@ assign desc_dcmd = desc_dw2[31:24];
 assign desc_ports = desc_dw3[15:8];
 assign desc_ixsm = desc_ports[0];
 assign desc_txsm = desc_ports[1];
+
+////////////////////////////////////////////////////////////////////////////////
+// Stage 1 Descriptor fetching
 
 always @(*) 
 begin
@@ -368,6 +364,9 @@ begin
 	endcase
 end
 
+////////////////////////////////////////////////////////////////////////////////
+// Stage 2 - Data Packet Fetching
+
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn)
@@ -389,8 +388,8 @@ begin
 				s2_next = S2_IDLE;
 		end
 		S2_FETCH_CALC: begin
-			if(fetch_dwords>0 && host_address!=0) // 0 is null pointer
-				if(dram_available >= fetch_dwords)
+			if(desc_length>0 && desc_buf_addr!=64'b0) // 0 is null pointer
+				if(dram_available >= desc_length)
 					s2_next = S2_FETCH_C1;
 				else
 					s2_next = S2_FETCH_CALC;
@@ -398,29 +397,14 @@ begin
 				s2_next = S2_IDLE;
 		end
 		S2_FETCH_C1: begin
-			if(idma_m_tready)
-				s2_next = S2_FETCH_C2;
+			if(idma_ready)
+				s2_next = S2_FETCH_ACK;
 			else
 				s2_next = S2_FETCH_C1;
 		end
-		S2_FETCH_C2: begin
-			if(idma_m_tready)
-				s2_next = S2_FETCH_C3;
-			else
-				s2_next = S2_FETCH_C2;
-		end
-		S2_FETCH_C3: begin
-			if(idma_m_tready)
-				s2_next = S2_FETCH_INCR;
-			else
-				s2_next = S2_FETCH_C3;
-		end
-		S2_FETCH_INCR,S2_FETCH_ACK: begin
-			if(idma_s_tvalid)
-				if(remain_dwords>0)
-					s2_next = S2_FETCH_CALC;
-				else
-					s2_next = S2_CMD_C1;
+		S2_FETCH_ACK: begin
+			if(irpt_valid)
+				s2_next = S2_CMD_C1;
 			else
 				s2_next = S2_FETCH_ACK;
 		end
@@ -438,9 +422,12 @@ begin
 		end
 		S2_CMD_C3: begin
 			if(frm_m_tready)
-				s2_next = S2_IDLE;
+				s2_next = S2_INCR;
 			else
 				s2_next = S2_CMD_C3;
+		end
+		S2_INCR: begin
+			s2_next = S2_IDLE;
 		end
 		S2_UNSUPPORT: begin // TODO: add other process 
 			s2_next = S2_IDLE;
@@ -455,56 +442,34 @@ always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
 		busy_fetch_data <= 1'b0;
-		idma_m_tdata <= 1'bx;
-		idma_m_tvalid <= 1'b0;
-		idma_m_tlast <= 1'bx;
-		idma_s_tready <= 1'b1;
+		idma_src_addr <= 'bx;
+		idma_dst_addr <= 'bx;
+		idma_bytes <= 'bx;
+		idma_valid <= 1'b0;
 		frm_m_tvalid <= 1'b0;
 		frm_m_tlast <= 1'bx;
 		frm_s_tready <= 1'b1;
 		dram_tail <= 'b0;
-		remain_dwords <= 'bx;
-		fetch_dwords <= 'bx;
-		local_start <= 'bx;
 	end
 	else case(s2_next)
 		S2_IDLE: begin
 			busy_fetch_data <= 1'b0;
-			remain_dwords <= remain_dwords_init;
-			host_address <= {desc_buf_addr[63:2],2'b0};
-			local_start <= {15'b0, dram_tail, desc_buf_addr[1:0]};
 			frm_m_tvalid <= 1'b0;
 		end
 		S2_FETCH_CALC: begin
 			busy_fetch_data <= 1'b1;
-			fetch_dwords <= fetch_dwords_next;
 		end
 		S2_FETCH_C1: begin
-			idma_m_tvalid <= 1'b1;
-			idma_m_tdata[15:0] <= {dram_tail,2'b0};
-			idma_m_tdata[27:16] <= {fetch_dwords,2'b0};
-			idma_m_tdata[30:28] <= 'b0;
-			idma_m_tdata[31] <= 0;
-			idma_m_tlast <= 1'b0;
-		end
-		S2_FETCH_C2: begin
-			idma_m_tdata <= host_address[31:0];
-		end
-		S2_FETCH_C3: begin
-			idma_m_tdata <= host_address[63:32];
-			idma_m_tlast <= 1'b1;
-		end
-		S2_FETCH_INCR: begin
-			remain_dwords <= remain_dwords-fetch_dwords;
-			idma_s_tready <= 1'b1;
-			dram_tail <= dram_tail+fetch_dwords;
-			host_address <= host_address+{fetch_dwords,2'b0};
+			idma_src_addr <= desc_buf_addr;
+			idma_dst_addr <= dram_tail;
+			idma_bytes <= desc_length;
+			idma_valid <= 1'b1;
 		end
 		S2_FETCH_ACK: begin
-			idma_m_tvalid <= 1'b0;
+			idma_valid <= 1'b0;
 		end
 		S2_CMD_C1: begin
-			frm_m_tdata[15:0] <= local_start; 
+			frm_m_tdata[15:0] <= dram_tail; 
 			frm_m_tdata[31:16] <= desc_length;
 			frm_m_tvalid <= 1'b1;
 			frm_m_tlast <= 1'b0;
@@ -516,38 +481,18 @@ begin
 			frm_m_tdata <= desc_dw3;
 			frm_m_tlast <= 1'b1;
 		end
+		S2_INCR: begin
+			frm_m_tvalid <= 1'b0;
+			dram_tail <= dram_tail+desc_length;
+		end
 		S2_UNSUPPORT: begin
 			busy_fetch_data <= 1'b1;
 		end
 	endcase
 end
 
-always @(*)
-begin:DATA_REMAIN_INIT_CALC
-	reg [15:0] length;
-	if(desc_length!=0)
-		length = desc_length+desc_buf_addr[1:0];
-	else
-		length = 0;
-
-	remain_dwords_init = length[15:2]+(|length[1:0]);
-
-end
-
-always @(*)
-begin
-	if(remain_dwords > 256)
-		fetch_dwords_next = 256;
-	else
-		fetch_dwords_next = remain_dwords;
-end
-
-always @(*)
-begin:BRAM_HEAD_NEXT_CALC
-	reg [15:0] address;
-	address = frm_s_tdata[15:0]+frm_s_tdata[31:16];
-	dram_head_next = address[15:2]+(|address[1:0]);
-end
+////////////////////////////////////////////////////////////////////////////////
+// Stage 3 - Collect Data RAM space
 
 always @(posedge aclk, negedge aresetn)
 begin
@@ -555,7 +500,7 @@ begin
 		dram_head <= 'b0;
 	end
 	else if(frm_s_tvalid && frm_s_tlast && frm_s_tready) begin
-		dram_head <= dram_head_next;
+		dram_head <= frm_s_tdata[15:0] + frm_s_tdata[31:16];
 	end
 end
 

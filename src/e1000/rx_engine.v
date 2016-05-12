@@ -56,21 +56,18 @@ module rx_engine(
 	output reg ram_m_rready,
 
 	// iDMA Command Port
-	// C1: [31]=IN(0)/OUT(1),[30:28]=RSV, [27:16]=Bytes, 
-	//     [15:0]=Local Address
-	// C2: Lower 32-bit address
-	// C3: Upper 32-bit address
-	output reg [31:0] idma_m_tdata,
-	output reg idma_m_tvalid,
-	output reg idma_m_tlast,
-	input idma_m_tready,
+	output reg [15:0] dma_src_addr,
+	output reg [63:0] dma_dst_addr,
+	output reg [15:0] dma_bytes,
+	output reg dma_valid,
+	input	dma_ready,
 
 	// iDMA Response Port
-	// [31:18]=RSV, [17]=IDE, [16]=RS, [15:0]=Local Address
-	input [31:0] idma_s_tdata,
-	input idma_s_tvalid,
-	input idma_s_tlast,
-	output reg idma_s_tready,
+	input [15:0] rpt_src_addr,
+	input [63:0] rpt_dst_addr,
+	input [15:0] rpt_bytes,
+	input rpt_valid,
+	output rpt_ready,
 
 	// Frame Process Command Port
 	// C1: [31:16]=Length, [15:0]=Local Address (Free Buffer)
@@ -138,7 +135,10 @@ localparam S_IDLE=0, S_FETCH_ASTB=1, S_FETCH_DLATCH=2, S_PROCESS=3,
 	S_CHECK_NULL=4, S_WRITE_ASTB=5, S_WRITE_DW2=6, S_WRITE_DW3=7, S_REPORT=8;
 
 integer s2, s2_next;
-localparam S2_IDLE=0, S2_GET_PKT_0=1, S2_GET_PKT_1=2, S2_GET_PKT_2=3, S2_GET_DESC=4, S2_WBAK_CALC=5, S2_WBAK_0=6, S2_WBAK_1=7, S2_WBAK_2=8, S2_WBAK_INCR=9, S2_WBAK_ACK=10, S2_FREE=11;
+localparam S2_IDLE=0, S2_GET_PKT_0=1, S2_GET_PKT_1=2, S2_GET_PKT_2=3, S2_GET_DESC=4, S2_WBAK_CALC=5, S2_WBAK_0=6, 
+	S2_WBAK_INCR=7, S2_WBAK_ACK=8, S2_FREE=9;
+
+assign rpt_ready = 1'b1;
 
 assign host_buf_addr = {desc_dw1, desc_dw0};
 
@@ -173,6 +173,9 @@ begin
 		3'b111: host_buf_size = 4096;
 	endcase
 end
+
+////////////////////////////////////////////////////////////////////////////////
+// Stage 1 Descriptor fetching
 
 always @(*) 
 begin
@@ -294,7 +297,7 @@ begin
 		ram_m_awvalid <= 1'b0;
 		ram_m_wid <= 'b0;
 		ram_m_wvalid <= 1'b0;
-		ram_m_wstrb <= 4'b0001;
+		ram_m_wstrb <= 4'b1111;
 		ram_m_wlast <= 1'b0;
 		stat_m_tlast <= 1'b1;
 		ram_m_bready <= 1'b1;
@@ -347,6 +350,9 @@ begin
 	endcase
 end
 
+////////////////////////////////////////////////////////////////////////////////
+// Stage 2 - Data Packet Fetching
+
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn)
@@ -392,37 +398,25 @@ begin
 			s2_next = S2_WBAK_0;
 		end
 		S2_WBAK_0: begin
-			if(idma_m_tready)
-				s2_next = S2_WBAK_1;
+			if(dma_ready)
+				s2_next = S2_WBAK_INCR;
 			else
 				s2_next = S2_WBAK_0;
 		end
-		S2_WBAK_1: begin
-			if(idma_m_tready)
-				s2_next = S2_WBAK_2;
-			else
-				s2_next = S2_WBAK_1;
-		end
-		S2_WBAK_2: begin
-			if(idma_m_tready)
-				s2_next = S2_WBAK_INCR;
-			else
-				s2_next = S2_WBAK_2;
-		end
 		S2_WBAK_INCR,S2_WBAK_ACK: begin
-			if(idma_s_tvalid)
+			if(rpt_valid)
 				s2_next = S2_FREE;
 			else
 				s2_next = S2_WBAK_ACK;
 		end
 		S2_FREE: begin
 			if(frm_m_tready)
-				if(remain_bytes> 0)
+				if(remain_bytes > 0)
 					if(host_available > 0)
 						s2_next = S2_WBAK_CALC;
 					else
 						s2_next = S2_GET_DESC;
-				else 
+				else
 					s2_next = S2_IDLE;
 			else
 				s2_next = S2_FREE;
@@ -440,20 +434,17 @@ begin
 	else
 		fetch_bytes_s1 = remain_bytes;
 
-	if(fetch_bytes_s1 > 1024) // limit by AXI bus
-		fetch_bytes_next = 1024;
-	else
-		fetch_bytes_next = fetch_bytes_s1;
+	fetch_bytes_next = fetch_bytes_s1;
 end
 
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
 		done_fetch_data <= 1'b0;
-		idma_m_tdata <= 1'bx;
-		idma_m_tvalid <= 1'b0;
-		idma_m_tlast <= 1'bx;
-		idma_s_tready <= 1'b1;
+		dma_src_addr <= 'bx;
+		dma_dst_addr <= 'bx;
+		dma_bytes <= 'bx;
+		dma_valid <= 1'b0;
 		frm_m_tvalid <= 1'b0;
 		frm_m_tlast <= 1'b1;
 		pkt_address <= 'b0;
@@ -474,16 +465,20 @@ begin
 		end
 		S2_GET_PKT_0: begin
 			pkt_fifo_rd <= 1'b1;
-			pkt_address <= pkt_fifo_dout[15:0];
-			remain_bytes <= pkt_fifo_dout[31:16];
 		end
 		S2_GET_PKT_1: begin
-			pkt_desc_dw2 <= pkt_fifo_dout;
+			if(!pkt_fifo_empty) begin
+				pkt_address <= pkt_fifo_dout[15:0];
+				remain_bytes <= pkt_fifo_dout[31:16];
+			end
 		end
 		S2_GET_PKT_2: begin
-			pkt_desc_dw3 <= pkt_fifo_dout;
+			if(!pkt_fifo_empty) 
+				pkt_desc_dw2 <= pkt_fifo_dout;
 		end
 		S2_GET_DESC: begin
+			if(pkt_fifo_rd)
+				pkt_desc_dw3 <= pkt_fifo_dout;
 			pkt_fifo_rd <= 1'b0;
 			host_address <= host_buf_addr;
 			host_available <= host_buf_size;
@@ -493,22 +488,13 @@ begin
 			fetch_bytes <= fetch_bytes_next;
 		end
 		S2_WBAK_0: begin
-			idma_m_tvalid <= 1'b1;
-			idma_m_tdata[15:0] <= pkt_address;
-			idma_m_tdata[27:16] <= fetch_bytes;
-			idma_m_tdata[30:28] <= 'b0;
-			idma_m_tdata[31] <= 1'b1;
-			idma_m_tlast <= 1'b0;
-		end
-		S2_WBAK_1: begin
-			idma_m_tdata <= host_address[31:0];
-		end
-		S2_WBAK_2: begin
-			idma_m_tdata <= host_address[63:32];
-			idma_m_tlast <= 1'b1;
+			dma_src_addr <= pkt_address;
+			dma_dst_addr <= host_address;
+			dma_bytes <= fetch_bytes;
+			dma_valid <= 1'b1;
 		end
 		S2_WBAK_INCR: begin
-			idma_s_tready <= 1'b1;
+			dma_valid <= 1'b0;
 			remain_bytes <= remain_bytes-fetch_bytes;
 			pkt_address <= pkt_address+fetch_bytes;
 			host_address <= host_address+fetch_bytes;
@@ -516,7 +502,6 @@ begin
 			desc_length <= desc_length+fetch_bytes;
 		end
 		S2_WBAK_ACK: begin
-			idma_m_tvalid <= 1'b0;
 		end
 		S2_FREE: begin
 			frm_m_tdata[15:0] <= pkt_address; 
@@ -526,9 +511,9 @@ begin
 			if(remain_bytes == 0 || host_available==0) begin
 				done_fetch_data <= 1'b1;
 			end
-			pkt_desc_dw2[9] <= (remain_bytes==0);//EOP
-			pkt_desc_dw2[7:0] <= desc_length;
-			pkt_desc_dw2[8] <= 1'b1; //DD;
+			pkt_desc_dw2[15:0] <= desc_length;
+			pkt_desc_dw3[1] <= (remain_bytes==0);//EOP
+			pkt_desc_dw3[0] <= 1'b1; //DD;
 		end
 	endcase
 end

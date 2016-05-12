@@ -59,7 +59,7 @@ read_verilog ../../src/e1000/rx_engine.v
 read_verilog ../../src/e1000/rx_frame.v
 read_verilog ../../src/e1000/rx_checksum.v
 read_verilog ../../src/e1000/axis_realign.v
-read_verilog ../../src/e1000/axi_idma.v
+read_verilog ../../src/e1000/axi_mdma.v
 read_verilog ../../src/e1000/axi_rdma.v
 read_verilog ../../src/e1000/axi_wdma.v
 read_verilog ../../src/e1000/axi_mux.v

@@ -108,34 +108,18 @@ endfunction
 localparam DESC_RAM_AW = clogb2(DESC_RAM_DWORDS)+2;
 localparam DATA_RAM_AW = clogb2(DATA_RAM_DWORDS)+2;
 
-wire [31:0] i0_cmd_tdata;
-wire i0_cmd_tvalid;
-wire i0_cmd_tlast;
-wire i0_cmd_tready;
+wire [63:0] i0_cmd_src;
+wire [15:0] i0_cmd_dst;
+wire [15:0] i0_cmd_bytes;
+wire i0_cmd_valid;
+wire i0_cmd_ready;
 
-wire [31:0] i0_rpt_tdata;
-wire i0_rpt_tvalid;
-wire i0_rpt_tlast;
-wire i0_rpt_tready;
+wire [63:0] i0_rpt_src;
+wire [15:0] i0_rpt_dst;
+wire [15:0] i0_rpt_bytes;
+wire i0_rpt_valid;
+wire i0_rpt_ready;
 
-wire [3:0] i0_ext_awid;
-wire [63:0] i0_ext_awaddr;
-wire [7:0] i0_ext_awlen;
-wire [2:0] i0_ext_awsize;
-wire [1:0] i0_ext_awburst;
-wire [3:0] i0_ext_awcache;
-wire i0_ext_awvalid;
-wire i0_ext_awready;
-wire [3:0] i0_ext_wid;
-wire [31:0] i0_ext_wdata;
-wire [3:0] i0_ext_wstrb;
-wire i0_ext_wlast;
-wire i0_ext_wvalid;
-wire i0_ext_wready;
-wire [3:0] i0_ext_bid;
-wire [1:0] i0_ext_bresp;
-wire i0_ext_bvalid;
-wire i0_ext_bready;
 wire [3:0] i0_ext_arid;
 wire [63:0] i0_ext_araddr;
 wire [7:0] i0_ext_arlen;
@@ -150,7 +134,6 @@ wire [1:0] i0_ext_rresp;
 wire i0_ext_rlast;
 wire i0_ext_rvalid;
 wire i0_ext_rready;
-
 wire [3:0] i0_desc_awid;
 wire [15:0] i0_desc_awaddr;
 wire [7:0] i0_desc_awlen;
@@ -169,31 +152,33 @@ wire [3:0] i0_desc_bid;
 wire [1:0] i0_desc_bresp;
 wire i0_desc_bvalid;
 wire i0_desc_bready;
-wire [3:0] i0_desc_arid;
-wire [15:0] i0_desc_araddr;
-wire [7:0] i0_desc_arlen;
-wire [2:0] i0_desc_arsize;
-wire [1:0] i0_desc_arburst;
-wire [3:0] i0_desc_arcache;
-wire i0_desc_arvalid;
-wire i0_desc_arready;
-wire [3:0] i0_desc_rid;
-wire [31:0] i0_desc_rdata;
-wire [1:0] i0_desc_rresp;
-wire i0_desc_rlast;
-wire i0_desc_rvalid;
-wire i0_desc_rready;
 
-wire [31:0] i1_cmd_tdata;
-wire i1_cmd_tvalid;
-wire i1_cmd_tlast;
-wire i1_cmd_tready;
+wire [15:0] i1_cmd_src;
+wire [63:0] i1_cmd_dst;
+wire [15:0] i1_cmd_bytes;
+wire i1_cmd_valid;
+wire i1_cmd_ready;
 
-wire [31:0] i1_rpt_tdata;
-wire i1_rpt_tvalid;
-wire i1_rpt_tlast;
-wire i1_rpt_tready;
+wire [15:0] i1_rpt_src;
+wire [63:0] i1_rpt_dst;
+wire [15:0] i1_rpt_bytes;
+wire i1_rpt_valid;
+wire i1_rpt_ready;
 
+wire [3:0] i1_desc_arid;
+wire [15:0] i1_desc_araddr;
+wire [7:0] i1_desc_arlen;
+wire [2:0] i1_desc_arsize;
+wire [1:0] i1_desc_arburst;
+wire [3:0] i1_desc_arcache;
+wire i1_desc_arvalid;
+wire i1_desc_arready;
+wire [3:0] i1_desc_rid;
+wire [31:0] i1_desc_rdata;
+wire [1:0] i1_desc_rresp;
+wire i1_desc_rlast;
+wire i1_desc_rvalid;
+wire i1_desc_rready;
 wire [3:0] i1_ext_awid;
 wire [63:0] i1_ext_awaddr;
 wire [7:0] i1_ext_awlen;
@@ -212,53 +197,51 @@ wire [3:0] i1_ext_bid;
 wire [1:0] i1_ext_bresp;
 wire i1_ext_bvalid;
 wire i1_ext_bready;
-wire [3:0] i1_ext_arid;
-wire [63:0] i1_ext_araddr;
-wire [7:0] i1_ext_arlen;
-wire [2:0] i1_ext_arsize;
-wire [1:0] i1_ext_arburst;
-wire [3:0] i1_ext_arcache;
-wire i1_ext_arvalid;
-wire i1_ext_arready;
-wire [3:0] i1_ext_rid;
-wire [31:0] i1_ext_rdata;
-wire [1:0] i1_ext_rresp;
-wire i1_ext_rlast;
-wire i1_ext_rvalid;
-wire i1_ext_rready;
 
-wire [3:0] i1_dram_awid;
-wire [15:0] i1_dram_awaddr;
-wire [7:0] i1_dram_awlen;
-wire [2:0] i1_dram_awsize;
-wire [1:0] i1_dram_awburst;
-wire [3:0] i1_dram_awcache;
-wire i1_dram_awvalid;
-wire i1_dram_awready;
-wire [3:0] i1_dram_wid;
-wire [31:0] i1_dram_wdata;
-wire [3:0] i1_dram_wstrb;
-wire i1_dram_wlast;
-wire i1_dram_wvalid;
-wire i1_dram_wready;
-wire [3:0] i1_dram_bid;
-wire [1:0] i1_dram_bresp;
-wire i1_dram_bvalid;
-wire i1_dram_bready;
-wire [3:0] i1_dram_arid;
-wire [15:0] i1_dram_araddr;
-wire [7:0] i1_dram_arlen;
-wire [2:0] i1_dram_arsize;
-wire [1:0] i1_dram_arburst;
-wire [3:0] i1_dram_arcache;
-wire i1_dram_arvalid;
-wire i1_dram_arready;
-wire [3:0] i1_dram_rid;
-wire [31:0] i1_dram_rdata;
-wire [1:0] i1_dram_rresp;
-wire i1_dram_rlast;
-wire i1_dram_rvalid;
-wire i1_dram_rready;
+wire [15:0] i2_cmd_src;
+wire [63:0] i2_cmd_dst;
+wire [15:0] i2_cmd_bytes;
+wire i2_cmd_valid;
+wire i2_cmd_ready;
+
+wire [15:0] i2_rpt_src;
+wire [63:0] i2_rpt_dst;
+wire [15:0] i2_rpt_bytes;
+wire i2_rpt_valid;
+wire i2_rpt_ready;
+
+wire [3:0] i2_dram_arid;
+wire [15:0] i2_dram_araddr;
+wire [7:0] i2_dram_arlen;
+wire [2:0] i2_dram_arsize;
+wire [1:0] i2_dram_arburst;
+wire [3:0] i2_dram_arcache;
+wire i2_dram_arvalid;
+wire i2_dram_arready;
+wire [3:0] i2_dram_rid;
+wire [31:0] i2_dram_rdata;
+wire [1:0] i2_dram_rresp;
+wire i2_dram_rlast;
+wire i2_dram_rvalid;
+wire i2_dram_rready;
+wire [3:0] i2_ext_awid;
+wire [63:0] i2_ext_awaddr;
+wire [7:0] i2_ext_awlen;
+wire [2:0] i2_ext_awsize;
+wire [1:0] i2_ext_awburst;
+wire [3:0] i2_ext_awcache;
+wire i2_ext_awvalid;
+wire i2_ext_awready;
+wire [3:0] i2_ext_wid;
+wire [31:0] i2_ext_wdata;
+wire [3:0] i2_ext_wstrb;
+wire i2_ext_wlast;
+wire i2_ext_wvalid;
+wire i2_ext_wready;
+wire [3:0] i2_ext_bid;
+wire [1:0] i2_ext_bresp;
+wire i2_ext_bvalid;
+wire i2_ext_bready;
 
 wire [31:0] re_cmd_tdata;
 wire re_cmd_tvalid;
@@ -412,184 +395,247 @@ wire dram_s_rlast;
 wire dram_s_rvalid;
 wire dram_s_rready;
 
-// DMA controller between external bus and local ram 
-axi_idma re_desc_idma_i(
+wire [3:0] null_dram_arid = 4'b0;
+wire [15:0] null_dram_araddr = 16'b0;
+wire [7:0] null_dram_arlen = 8'b0;
+wire [2:0] null_dram_arsize = 3'b0;
+wire [1:0] null_dram_arburst = 2'b0;
+wire [3:0] null_dram_arcache = 4'b0;
+wire null_dram_arvalid = 1'b0;
+wire null_dram_arready = 1'b0;
+wire [3:0] null_dram_rid = 4'b0;
+wire [31:0] null_dram_rdata = 32'b0;
+wire [1:0] null_dram_rresp = 2'b0;
+wire null_dram_rlast = 1'b0;
+wire null_dram_rvalid = 1'b0;
+wire null_dram_rready = 1'b0;
+wire [3:0] null_dram_awid = 4'b0;
+wire [15:0] null_dram_awaddr = 16'b0;
+wire [7:0] null_dram_awlen = 8'b0;
+wire [2:0] null_dram_awsize = 3'b0;
+wire [1:0] null_dram_awburst = 2'b0;
+wire [3:0] null_dram_awcache = 4'b0;
+wire null_dram_awvalid = 1'b0;
+wire null_dram_awready = 1'b0;
+wire [3:0] null_dram_wid = 4'b0;
+wire [31:0] null_dram_wdata = 32'b0;
+wire [3:0] null_dram_wstrb = 4'b0;
+wire null_dram_wlast = 1'b0;
+wire null_dram_wvalid = 1'b0;
+wire null_dram_wready = 1'b0;
+wire [3:0] null_dram_bid = 4'b0;
+wire [1:0] null_dram_bresp = 2'b0;
+wire null_dram_bvalid = 1'b0;
+wire null_dram_bready = 1'b0;
+
+wire [3:0] null_ext_arid = 4'b0;
+wire [63:0] null_ext_araddr = 64'b0;
+wire [7:0] null_ext_arlen = 8'b0;
+wire [2:0] null_ext_arsize = 3'b0;
+wire [1:0] null_ext_arburst = 2'b0;
+wire [3:0] null_ext_arcache = 4'b0;
+wire null_ext_arvalid = 1'b0;
+wire null_ext_arready = 1'b0;
+wire [3:0] null_ext_rid = 4'b0;
+wire [31:0] null_ext_rdata = 32'b0;
+wire [1:0] null_ext_rresp = 2'b0;
+wire null_ext_rlast = 1'b0;
+wire null_ext_rvalid = 1'b0;
+wire null_ext_rready = 1'b0;
+wire [3:0] null_ext_awid = 4'b0;
+wire [63:0] null_ext_awaddr = 64'b0;
+wire [7:0] null_ext_awlen = 8'b0;
+wire [2:0] null_ext_awsize = 3'b0;
+wire [1:0] null_ext_awburst = 2'b0;
+wire [3:0] null_ext_awcache = 4'b0;
+wire null_ext_awvalid = 1'b0;
+wire null_ext_awready = 1'b0;
+wire [3:0] null_ext_wid = 4'b0;
+wire [31:0] null_ext_wdata = 32'b0;
+wire [3:0] null_ext_wstrb = 4'b0;
+wire null_ext_wlast = 1'b0;
+wire null_ext_wvalid = 1'b0;
+wire null_ext_wready = 1'b0;
+wire [3:0] null_ext_bid = 4'b0;
+wire [1:0] null_ext_bresp = 2'b0;
+wire null_ext_bvalid = 1'b0;
+wire null_ext_bready = 1'b0;
+
+axi_mdma #(
+	.SRC_ADDRESS_BITS(64), 
+	.SRC_BIG_ENDIAN("FALSE"),
+	.DST_ADDRESS_BITS(16), 
+	.DST_BIG_ENDIAN("FALSE"),
+	.LENGTH_BITS(16)
+) i0_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
-	// DMA Command Port
-	.cmd_s_tdata(i0_cmd_tdata),
-	.cmd_s_tvalid(i0_cmd_tvalid),
-	.cmd_s_tlast(i0_cmd_tlast),
-	.cmd_s_tready(i0_cmd_tready),
+	.cmd_src_addr(i0_cmd_src),
+	.cmd_dst_addr(i0_cmd_dst),
+	.cmd_bytes(i0_cmd_bytes),
+	.cmd_valid(i0_cmd_valid),
+	.cmd_ready(i0_cmd_ready),
 
-	// DMA Status Port
-	.stat_m_tdata(i0_rpt_tdata),
-	.stat_m_tvalid(i0_rpt_tvalid),
-	.stat_m_tlast(i0_rpt_tlast),
-	.stat_m_tready(i0_rpt_tready),
+	.rpt_src_addr(i0_rpt_src),
+	.rpt_dst_addr(i0_rpt_dst),
+	.rpt_status(i0_rpt_status),
+	.rpt_bytes(i0_rpt_bytes),
+	.rpt_valid(i0_rpt_valid),
+	.rpt_ready(i0_rpt_ready),
 
-	// External Bus Access Port
-	.ext_m_awid(i0_ext_awid),
-	.ext_m_awaddr(i0_ext_awaddr),
-	.ext_m_awlen(i0_ext_awlen),
-	.ext_m_awsize(i0_ext_awsize),
-	.ext_m_awburst(i0_ext_awburst),
-	.ext_m_awvalid(i0_ext_awvalid),
-	.ext_m_awready(i0_ext_awready),
+	.src_m_arid(i0_ext_arid),
+	.src_m_araddr(i0_ext_araddr),
+	.src_m_arlen(i0_ext_arlen),
+	.src_m_arsize(i0_ext_arsize),
+	.src_m_arburst(i0_ext_arburst),
+	.src_m_arvalid(i0_ext_arvalid),
+	.src_m_arready(i0_ext_arready),
 
-	.ext_m_wid(i0_ext_wid),
-	.ext_m_wdata(i0_ext_wdata),
-	.ext_m_wstrb(i0_ext_wstrb),
-	.ext_m_wlast(i0_ext_wlast),
-	.ext_m_wvalid(i0_ext_wvalid),
-	.ext_m_wready(i0_ext_wready),
+	.src_m_rid(i0_ext_rid),
+	.src_m_rdata(i0_ext_rdata),
+	.src_m_rresp(i0_ext_rresp),
+	.src_m_rlast(i0_ext_rlast),
+	.src_m_rvalid(i0_ext_rvalid),
+	.src_m_rready(i0_ext_rready),
 
-	.ext_m_bid(i0_ext_bid),
-	.ext_m_bresp(i0_ext_bresp),
-	.ext_m_bvalid(i0_ext_bvalid),
-	.ext_m_bready(i0_ext_bready),
+	.dst_m_awid(i0_desc_awid),
+	.dst_m_awaddr(i0_desc_awaddr),
+	.dst_m_awlen(i0_desc_awlen),
+	.dst_m_awsize(i0_desc_awsize),
+	.dst_m_awburst(i0_desc_awburst),
+	.dst_m_awvalid(i0_desc_awvalid),
+	.dst_m_awready(i0_desc_awready),
 
-	.ext_m_arid(i0_ext_arid),
-	.ext_m_araddr(i0_ext_araddr),
-	.ext_m_arlen(i0_ext_arlen),
-	.ext_m_arsize(i0_ext_arsize),
-	.ext_m_arburst(i0_ext_arburst),
-	.ext_m_arvalid(i0_ext_arvalid),
-	.ext_m_arready(i0_ext_arready),
+	.dst_m_wid(i0_desc_wid),
+	.dst_m_wdata(i0_desc_wdata),
+	.dst_m_wstrb(i0_desc_wstrb),
+	.dst_m_wlast(i0_desc_wlast),
+	.dst_m_wvalid(i0_desc_wvalid),
+	.dst_m_wready(i0_desc_wready),
 
-	.ext_m_rid(i0_ext_rid),
-	.ext_m_rdata(i0_ext_rdata),
-	.ext_m_rresp(i0_ext_rresp),
-	.ext_m_rlast(i0_ext_rlast),
-	.ext_m_rvalid(i0_ext_rvalid),
-	.ext_m_rready(i0_ext_rready),
-
-	// Internal RAM Access Port
-	.int_m_awid(i0_desc_awid),
-	.int_m_awaddr(i0_desc_awaddr),
-	.int_m_awlen(i0_desc_awlen),
-	.int_m_awsize(i0_desc_awsize),
-	.int_m_awburst(i0_desc_awburst),
-	.int_m_awvalid(i0_desc_awvalid),
-	.int_m_awready(i0_desc_awready),
-
-	.int_m_wid(i0_desc_wid),
-	.int_m_wdata(i0_desc_wdata),
-	.int_m_wstrb(i0_desc_wstrb),
-	.int_m_wlast(i0_desc_wlast),
-	.int_m_wvalid(i0_desc_wvalid),
-	.int_m_wready(i0_desc_wready),
-
-	.int_m_bid(i0_desc_bid),
-	.int_m_bresp(i0_desc_bresp),
-	.int_m_bvalid(i0_desc_bvalid),
-	.int_m_bready(i0_desc_bready),
-
-	.int_m_arid(i0_desc_arid),
-	.int_m_araddr(i0_desc_araddr),
-	.int_m_arlen(i0_desc_arlen),
-	.int_m_arsize(i0_desc_arsize),
-	.int_m_arburst(i0_desc_arburst),
-	.int_m_arvalid(i0_desc_arvalid),
-	.int_m_arready(i0_desc_arready),
-
-	.int_m_rid(i0_desc_rid),
-	.int_m_rdata(i0_desc_rdata),
-	.int_m_rresp(i0_desc_rresp),
-	.int_m_rlast(i0_desc_rlast),
-	.int_m_rvalid(i0_desc_rvalid),
-	.int_m_rready(i0_desc_rready)
+	.dst_m_bid(i0_desc_bid),
+	.dst_m_bresp(i0_desc_bresp),
+	.dst_m_bvalid(i0_desc_bvalid),
+	.dst_m_bready(i0_desc_bready)
 );
 
-//% Data idma
-axi_idma tx_data_idma_i(
+axi_mdma #(
+	.SRC_ADDRESS_BITS(16), 
+	.SRC_BIG_ENDIAN("FALSE"),
+	.DST_ADDRESS_BITS(64), 
+	.DST_BIG_ENDIAN("FALSE"),
+	.LENGTH_BITS(16)
+) i1_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
-	// DMA Command Port
-	.cmd_s_tdata(i1_cmd_tdata),
-	.cmd_s_tvalid(i1_cmd_tvalid),
-	.cmd_s_tlast(i1_cmd_tlast),
-	.cmd_s_tready(i1_cmd_tready),
+	.cmd_src_addr(i1_cmd_src),
+	.cmd_dst_addr(i1_cmd_dst),
+	.cmd_bytes(i1_cmd_bytes),
+	.cmd_valid(i1_cmd_valid),
+	.cmd_ready(i1_cmd_ready),
 
-	// DMA Status Port
-	.stat_m_tdata(i1_rpt_tdata),
-	.stat_m_tvalid(i1_rpt_tvalid),
-	.stat_m_tlast(i1_rpt_tlast),
-	.stat_m_tready(i1_rpt_tready),
+	.rpt_src_addr(i1_rpt_src),
+	.rpt_dst_addr(i1_rpt_dst),
+	.rpt_status(i1_rpt_status),
+	.rpt_bytes(i1_rpt_bytes),
+	.rpt_valid(i1_rpt_valid),
+	.rpt_ready(i1_rpt_ready),
 
-	// External Bus Access Port
-	.ext_m_awid(i1_ext_awid),
-	.ext_m_awaddr(i1_ext_awaddr),
-	.ext_m_awlen(i1_ext_awlen),
-	.ext_m_awsize(i1_ext_awsize),
-	.ext_m_awburst(i1_ext_awburst),
-	.ext_m_awvalid(i1_ext_awvalid),
-	.ext_m_awready(i1_ext_awready),
+	.src_m_arid(i1_desc_arid),
+	.src_m_araddr(i1_desc_araddr),
+	.src_m_arlen(i1_desc_arlen),
+	.src_m_arsize(i1_desc_arsize),
+	.src_m_arburst(i1_desc_arburst),
+	.src_m_arvalid(i1_desc_arvalid),
+	.src_m_arready(i1_desc_arready),
 
-	.ext_m_wid(i1_ext_wid),
-	.ext_m_wdata(i1_ext_wdata),
-	.ext_m_wstrb(i1_ext_wstrb),
-	.ext_m_wlast(i1_ext_wlast),
-	.ext_m_wvalid(i1_ext_wvalid),
-	.ext_m_wready(i1_ext_wready),
+	.src_m_rid(i1_desc_rid),
+	.src_m_rdata(i1_desc_rdata),
+	.src_m_rresp(i1_desc_rresp),
+	.src_m_rlast(i1_desc_rlast),
+	.src_m_rvalid(i1_desc_rvalid),
+	.src_m_rready(i1_desc_rready),
 
-	.ext_m_bid(i1_ext_bid),
-	.ext_m_bresp(i1_ext_bresp),
-	.ext_m_bvalid(i1_ext_bvalid),
-	.ext_m_bready(i1_ext_bready),
+	.dst_m_awid(i1_ext_awid),
+	.dst_m_awaddr(i1_ext_awaddr),
+	.dst_m_awlen(i1_ext_awlen),
+	.dst_m_awsize(i1_ext_awsize),
+	.dst_m_awburst(i1_ext_awburst),
+	.dst_m_awvalid(i1_ext_awvalid),
+	.dst_m_awready(i1_ext_awready),
 
-	.ext_m_arid(i1_ext_arid),
-	.ext_m_araddr(i1_ext_araddr),
-	.ext_m_arlen(i1_ext_arlen),
-	.ext_m_arsize(i1_ext_arsize),
-	.ext_m_arburst(i1_ext_arburst),
-	.ext_m_arvalid(i1_ext_arvalid),
-	.ext_m_arready(i1_ext_arready),
+	.dst_m_wid(i1_ext_wid),
+	.dst_m_wdata(i1_ext_wdata),
+	.dst_m_wstrb(i1_ext_wstrb),
+	.dst_m_wlast(i1_ext_wlast),
+	.dst_m_wvalid(i1_ext_wvalid),
+	.dst_m_wready(i1_ext_wready),
 
-	.ext_m_rid(i1_ext_rid),
-	.ext_m_rdata(i1_ext_rdata),
-	.ext_m_rresp(i1_ext_rresp),
-	.ext_m_rlast(i1_ext_rlast),
-	.ext_m_rvalid(i1_ext_rvalid),
-	.ext_m_rready(i1_ext_rready),
+	.dst_m_bid(i1_ext_bid),
+	.dst_m_bresp(i1_ext_bresp),
+	.dst_m_bvalid(i1_ext_bvalid),
+	.dst_m_bready(i1_ext_bready)
+);
 
-	// Internal RAM Access Port
-	.int_m_awid(i1_dram_awid),
-	.int_m_awaddr(i1_dram_awaddr),
-	.int_m_awlen(i1_dram_awlen),
-	.int_m_awsize(i1_dram_awsize),
-	.int_m_awburst(i1_dram_awburst),
-	.int_m_awvalid(i1_dram_awvalid),
-	.int_m_awready(i1_dram_awready),
+axi_mdma #(
+	.SRC_ADDRESS_BITS(16), 
+	.SRC_BIG_ENDIAN("FALSE"),
+	.DST_ADDRESS_BITS(64), 
+	.DST_BIG_ENDIAN("FALSE"),
+	.LENGTH_BITS(16)
+) i2_i(
+	.aclk(aclk),
+	.aresetn(aresetn),
 
-	.int_m_wid(i1_dram_wid),
-	.int_m_wdata(i1_dram_wdata),
-	.int_m_wstrb(i1_dram_wstrb),
-	.int_m_wlast(i1_dram_wlast),
-	.int_m_wvalid(i1_dram_wvalid),
-	.int_m_wready(i1_dram_wready),
+	.cmd_src_addr(i2_cmd_src),
+	.cmd_dst_addr(i2_cmd_dst),
+	.cmd_bytes(i2_cmd_bytes),
+	.cmd_valid(i2_cmd_valid),
+	.cmd_ready(i2_cmd_ready),
 
-	.int_m_bid(i1_dram_bid),
-	.int_m_bresp(i1_dram_bresp),
-	.int_m_bvalid(i1_dram_bvalid),
-	.int_m_bready(i1_dram_bready),
+	.rpt_src_addr(i2_rpt_src),
+	.rpt_dst_addr(i2_rpt_dst),
+	.rpt_status(i2_rpt_status),
+	.rpt_bytes(i2_rpt_bytes),
+	.rpt_valid(i2_rpt_valid),
+	.rpt_ready(i2_rpt_ready),
 
-	.int_m_arid(i1_dram_arid),
-	.int_m_araddr(i1_dram_araddr),
-	.int_m_arlen(i1_dram_arlen),
-	.int_m_arsize(i1_dram_arsize),
-	.int_m_arburst(i1_dram_arburst),
-	.int_m_arvalid(i1_dram_arvalid),
-	.int_m_arready(i1_dram_arready),
+	.src_m_arid(i2_dram_arid),
+	.src_m_araddr(i2_dram_araddr),
+	.src_m_arlen(i2_dram_arlen),
+	.src_m_arsize(i2_dram_arsize),
+	.src_m_arburst(i2_dram_arburst),
+	.src_m_arvalid(i2_dram_arvalid),
+	.src_m_arready(i2_dram_arready),
 
-	.int_m_rid(i1_dram_rid),
-	.int_m_rdata(i1_dram_rdata),
-	.int_m_rresp(i1_dram_rresp),
-	.int_m_rlast(i1_dram_rlast),
-	.int_m_rvalid(i1_dram_rvalid),
-	.int_m_rready(i1_dram_rready)
+	.src_m_rid(i2_dram_rid),
+	.src_m_rdata(i2_dram_rdata),
+	.src_m_rresp(i2_dram_rresp),
+	.src_m_rlast(i2_dram_rlast),
+	.src_m_rvalid(i2_dram_rvalid),
+	.src_m_rready(i2_dram_rready),
+
+	.dst_m_awid(i2_ext_awid),
+	.dst_m_awaddr(i2_ext_awaddr),
+	.dst_m_awlen(i2_ext_awlen),
+	.dst_m_awsize(i2_ext_awsize),
+	.dst_m_awburst(i2_ext_awburst),
+	.dst_m_awvalid(i2_ext_awvalid),
+	.dst_m_awready(i2_ext_awready),
+
+	.dst_m_wid(i2_ext_wid),
+	.dst_m_wdata(i2_ext_wdata),
+	.dst_m_wstrb(i2_ext_wstrb),
+	.dst_m_wlast(i2_ext_wlast),
+	.dst_m_wvalid(i2_ext_wvalid),
+	.dst_m_wready(i2_ext_wready),
+
+	.dst_m_bid(i2_ext_bid),
+	.dst_m_bresp(i2_ext_bresp),
+	.dst_m_bvalid(i2_ext_bvalid),
+	.dst_m_bready(i2_ext_bready)
 );
 
 //% Descriptor Processor
@@ -623,16 +669,32 @@ rx_desc_ctrl #(
 	.RXT0_req(RXT0_req),
 
 	// idma Command Port
-	.idma_m_tdata(i0_cmd_tdata),
-	.idma_m_tvalid(i0_cmd_tvalid),
-	.idma_m_tlast(i0_cmd_tlast),
-	.idma_m_tready(i0_cmd_tready),
+	.idma_src_addr(i0_cmd_src),
+	.idma_dst_addr(i0_cmd_dst),
+	.idma_bytes(i0_cmd_bytes),
+	.idma_valid(i0_cmd_valid),
+	.idma_ready(i0_cmd_ready),
 
 	// idma Response Port
-	.idma_s_tdata(i0_rpt_tdata),
-	.idma_s_tvalid(i0_rpt_tvalid),
-	.idma_s_tlast(i0_rpt_tlast),
-	.idma_s_tready(i0_rpt_tready),
+	.irpt_src_addr(i0_rpt_src),
+	.irpt_dst_addr(i0_rpt_dst),
+	.irpt_bytes(i0_rpt_bytes),
+	.irpt_valid(i0_rpt_valid),
+	.irpt_ready(i0_rpt_ready),
+
+	// odma Command Port
+	.odma_src_addr(i1_cmd_src),
+	.odma_dst_addr(i1_cmd_dst),
+	.odma_bytes(i1_cmd_bytes),
+	.odma_valid(i1_cmd_valid),
+	.odma_ready(i1_cmd_ready),
+
+	// odma Response Port
+	.orpt_src_addr(i1_rpt_src),
+	.orpt_dst_addr(i1_rpt_dst),
+	.orpt_bytes(i1_rpt_bytes),
+	.orpt_valid(i1_rpt_valid),
+	.orpt_ready(i1_rpt_ready),
 
 	// RX Engine 
 	.reng_m_tdata(re_cmd_tdata),
@@ -702,16 +764,19 @@ rx_engine rx_engine_i(
 	.ram_m_rvalid(re_desc_rvalid),
 	.ram_m_rready(re_desc_rready),
 
-	// Data idma Command Port
-	.idma_m_tdata(i1_cmd_tdata),
-	.idma_m_tvalid(i1_cmd_tvalid),
-	.idma_m_tlast(i1_cmd_tlast),
-	.idma_m_tready(i1_cmd_tready),
+	// dma Command Port
+	.dma_src_addr(i2_cmd_src),
+	.dma_dst_addr(i2_cmd_dst),
+	.dma_bytes(i2_cmd_bytes),
+	.dma_valid(i2_cmd_valid),
+	.dma_ready(i2_cmd_ready),
 
-	.idma_s_tdata(i1_rpt_tdata),
-	.idma_s_tvalid(i1_rpt_tvalid),
-	.idma_s_tlast(i1_rpt_tlast),
-	.idma_s_tready(i1_rpt_tready),
+	// dma Response Port
+	.rpt_src_addr(i2_rpt_src),
+	.rpt_dst_addr(i2_rpt_dst),
+	.rpt_bytes(i2_rpt_bytes),
+	.rpt_valid(i2_rpt_valid),
+	.rpt_ready(i2_rpt_ready),
 
 	.frm_m_tdata(frm_cmd_tdata),
 	.frm_m_tvalid(frm_cmd_tvalid),
@@ -909,20 +974,20 @@ axi_mux #(
 	.s_bvalid({re_desc_bvalid,i0_desc_bvalid}),
 	.s_bready({re_desc_bready,i0_desc_bready}),
 
-	.s_arid({re_desc_arid,i0_desc_arid}),
-	.s_araddr({re_desc_araddr,i0_desc_araddr}),
-	.s_arlen({re_desc_arlen,i0_desc_arlen}),
-	.s_arsize({re_desc_arsize,i0_desc_arsize}),
-	.s_arburst({re_desc_arburst,i0_desc_arburst}),
-	.s_arvalid({re_desc_arvalid,i0_desc_arvalid}),
-	.s_arready({re_desc_arready,i0_desc_arready}),
+	.s_arid({re_desc_arid,i1_desc_arid}),
+	.s_araddr({re_desc_araddr,i1_desc_araddr}),
+	.s_arlen({re_desc_arlen,i1_desc_arlen}),
+	.s_arsize({re_desc_arsize,i1_desc_arsize}),
+	.s_arburst({re_desc_arburst,i1_desc_arburst}),
+	.s_arvalid({re_desc_arvalid,i1_desc_arvalid}),
+	.s_arready({re_desc_arready,i1_desc_arready}),
 
-	.s_rid({re_desc_rid,i0_desc_rid}),
-	.s_rdata({re_desc_rdata,i0_desc_rdata}),
-	.s_rresp({re_desc_rresp,i0_desc_rresp}),
-	.s_rlast({re_desc_rlast,i0_desc_rlast}),
-	.s_rvalid({re_desc_rvalid,i0_desc_rvalid}),
-	.s_rready({re_desc_rready,i0_desc_rready}),
+	.s_rid({re_desc_rid,i1_desc_rid}),
+	.s_rdata({re_desc_rdata,i1_desc_rdata}),
+	.s_rresp({re_desc_rresp,i1_desc_rresp}),
+	.s_rlast({re_desc_rlast,i1_desc_rlast}),
+	.s_rvalid({re_desc_rvalid,i1_desc_rvalid}),
+	.s_rready({re_desc_rready,i1_desc_rready}),
 
 	.m_awid(desc_s_awid),
 	.m_awaddr(desc_s_awaddr),
@@ -970,40 +1035,40 @@ axi_mux #(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
-	.s_awid({frm_dram_awid,i1_dram_awid}),
-	.s_awaddr({frm_dram_awaddr,i1_dram_awaddr}),
-	.s_awlen({frm_dram_awlen,i1_dram_awlen}),
-	.s_awsize({frm_dram_awsize,i1_dram_awsize}),
-	.s_awburst({frm_dram_awburst,i1_dram_awburst}),
-	.s_awvalid({frm_dram_awvalid,i1_dram_awvalid}),
-	.s_awready({frm_dram_awready,i1_dram_awready}),
+	.s_awid({frm_dram_awid,null_dram_awid}),
+	.s_awaddr({frm_dram_awaddr,null_dram_awaddr}),
+	.s_awlen({frm_dram_awlen,null_dram_awlen}),
+	.s_awsize({frm_dram_awsize,null_dram_awsize}),
+	.s_awburst({frm_dram_awburst,null_dram_awburst}),
+	.s_awvalid({frm_dram_awvalid,null_dram_awvalid}),
+	.s_awready({frm_dram_awready,null_dram_awready}),
 
-	.s_wid({frm_dram_wid,i1_dram_wid}),
-	.s_wdata({frm_dram_wdata,i1_dram_wdata}),
-	.s_wstrb({frm_dram_wstrb,i1_dram_wstrb}),
-	.s_wlast({frm_dram_wlast,i1_dram_wlast}),
-	.s_wvalid({frm_dram_wvalid,i1_dram_wvalid}),
-	.s_wready({frm_dram_wready,i1_dram_wready}),
+	.s_wid({frm_dram_wid,null_dram_wid}),
+	.s_wdata({frm_dram_wdata,null_dram_wdata}),
+	.s_wstrb({frm_dram_wstrb,null_dram_wstrb}),
+	.s_wlast({frm_dram_wlast,null_dram_wlast}),
+	.s_wvalid({frm_dram_wvalid,null_dram_wvalid}),
+	.s_wready({frm_dram_wready,null_dram_wready}),
 
-	.s_bid({frm_dram_bid,i1_dram_bid}),
-	.s_bresp({frm_dram_bresp,i1_dram_bresp}),
-	.s_bvalid({frm_dram_bvalid,i1_dram_bvalid}),
-	.s_bready({frm_dram_bready,i1_dram_bready}),
+	.s_bid({frm_dram_bid,null_dram_bid}),
+	.s_bresp({frm_dram_bresp,null_dram_bresp}),
+	.s_bvalid({frm_dram_bvalid,null_dram_bvalid}),
+	.s_bready({frm_dram_bready,null_dram_bready}),
 
-	.s_arid({frm_dram_arid,i1_dram_arid}),
-	.s_araddr({frm_dram_araddr,i1_dram_araddr}),
-	.s_arlen({frm_dram_arlen,i1_dram_arlen}),
-	.s_arsize({frm_dram_arsize,i1_dram_arsize}),
-	.s_arburst({frm_dram_arburst,i1_dram_arburst}),
-	.s_arvalid({frm_dram_arvalid,i1_dram_arvalid}),
-	.s_arready({frm_dram_arready,i1_dram_arready}),
+	.s_arid({frm_dram_arid,i2_dram_arid}),
+	.s_araddr({frm_dram_araddr,i2_dram_araddr}),
+	.s_arlen({frm_dram_arlen,i2_dram_arlen}),
+	.s_arsize({frm_dram_arsize,i2_dram_arsize}),
+	.s_arburst({frm_dram_arburst,i2_dram_arburst}),
+	.s_arvalid({frm_dram_arvalid,i2_dram_arvalid}),
+	.s_arready({frm_dram_arready,i2_dram_arready}),
 
-	.s_rid({frm_dram_rid,i1_dram_rid}),
-	.s_rdata({frm_dram_rdata,i1_dram_rdata}),
-	.s_rresp({frm_dram_rresp,i1_dram_rresp}),
-	.s_rlast({frm_dram_rlast,i1_dram_rlast}),
-	.s_rvalid({frm_dram_rvalid,i1_dram_rvalid}),
-	.s_rready({frm_dram_rready,i1_dram_rready}),
+	.s_rid({frm_dram_rid,i2_dram_rid}),
+	.s_rdata({frm_dram_rdata,i2_dram_rdata}),
+	.s_rresp({frm_dram_rresp,i2_dram_rresp}),
+	.s_rlast({frm_dram_rlast,i2_dram_rlast}),
+	.s_rvalid({frm_dram_rvalid,i2_dram_rvalid}),
+	.s_rready({frm_dram_rready,i2_dram_rready}),
 
 	.m_awid(dram_s_awid),
 	.m_awaddr(dram_s_awaddr),
@@ -1051,40 +1116,40 @@ axi_mux #(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
-	.s_awid({i1_ext_awid,i0_ext_awid}),
-	.s_awaddr({i1_ext_awaddr,i0_ext_awaddr}),
-	.s_awlen({i1_ext_awlen,i0_ext_awlen}),
-	.s_awsize({i1_ext_awsize,i0_ext_awsize}),
-	.s_awburst({i1_ext_awburst,i0_ext_awburst}),
-	.s_awvalid({i1_ext_awvalid,i0_ext_awvalid}),
-	.s_awready({i1_ext_awready,i0_ext_awready}),
+	.s_awid({i2_ext_awid,i1_ext_awid}),
+	.s_awaddr({i2_ext_awaddr,i1_ext_awaddr}),
+	.s_awlen({i2_ext_awlen,i1_ext_awlen}),
+	.s_awsize({i2_ext_awsize,i1_ext_awsize}),
+	.s_awburst({i2_ext_awburst,i1_ext_awburst}),
+	.s_awvalid({i2_ext_awvalid,i1_ext_awvalid}),
+	.s_awready({i2_ext_awready,i1_ext_awready}),
 
-	.s_wid({i1_ext_wid,i0_ext_wid}),
-	.s_wdata({i1_ext_wdata,i0_ext_wdata}),
-	.s_wstrb({i1_ext_wstrb,i0_ext_wstrb}),
-	.s_wlast({i1_ext_wlast,i0_ext_wlast}),
-	.s_wvalid({i1_ext_wvalid,i0_ext_wvalid}),
-	.s_wready({i1_ext_wready,i0_ext_wready}),
+	.s_wid({i2_ext_wid,i1_ext_wid}),
+	.s_wdata({i2_ext_wdata,i1_ext_wdata}),
+	.s_wstrb({i2_ext_wstrb,i1_ext_wstrb}),
+	.s_wlast({i2_ext_wlast,i1_ext_wlast}),
+	.s_wvalid({i2_ext_wvalid,i1_ext_wvalid}),
+	.s_wready({i2_ext_wready,i1_ext_wready}),
 
-	.s_bid({i1_ext_bid,i0_ext_bid}),
-	.s_bresp({i1_ext_bresp,i0_ext_bresp}),
-	.s_bvalid({i1_ext_bvalid,i0_ext_bvalid}),
-	.s_bready({i1_ext_bready,i0_ext_bready}),
+	.s_bid({i2_ext_bid,i1_ext_bid}),
+	.s_bresp({i2_ext_bresp,i1_ext_bresp}),
+	.s_bvalid({i2_ext_bvalid,i1_ext_bvalid}),
+	.s_bready({i2_ext_bready,i1_ext_bready}),
 
-	.s_arid({i1_ext_arid,i0_ext_arid}),
-	.s_araddr({i1_ext_araddr,i0_ext_araddr}),
-	.s_arlen({i1_ext_arlen,i0_ext_arlen}),
-	.s_arsize({i1_ext_arsize,i0_ext_arsize}),
-	.s_arburst({i1_ext_arburst,i0_ext_arburst}),
-	.s_arvalid({i1_ext_arvalid,i0_ext_arvalid}),
-	.s_arready({i1_ext_arready,i0_ext_arready}),
+	.s_arid({null_ext_arid,i0_ext_arid}),
+	.s_araddr({null_ext_araddr,i0_ext_araddr}),
+	.s_arlen({null_ext_arlen,i0_ext_arlen}),
+	.s_arsize({null_ext_arsize,i0_ext_arsize}),
+	.s_arburst({null_ext_arburst,i0_ext_arburst}),
+	.s_arvalid({null_ext_arvalid,i0_ext_arvalid}),
+	.s_arready({null_ext_arready,i0_ext_arready}),
 
-	.s_rid({i1_ext_rid,i0_ext_rid}),
-	.s_rdata({i1_ext_rdata,i0_ext_rdata}),
-	.s_rresp({i1_ext_rresp,i0_ext_rresp}),
-	.s_rlast({i1_ext_rlast,i0_ext_rlast}),
-	.s_rvalid({i1_ext_rvalid,i0_ext_rvalid}),
-	.s_rready({i1_ext_rready,i0_ext_rready}),
+	.s_rid({null_ext_rid,i0_ext_rid}),
+	.s_rdata({null_ext_rdata,i0_ext_rdata}),
+	.s_rresp({null_ext_rresp,i0_ext_rresp}),
+	.s_rlast({null_ext_rlast,i0_ext_rlast}),
+	.s_rvalid({null_ext_rvalid,i0_ext_rvalid}),
+	.s_rready({null_ext_rready,i0_ext_rready}),
 
 	.m_awid(axi_m_awid),
 	.m_awaddr(axi_m_awaddr),
