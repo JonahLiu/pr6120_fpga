@@ -479,6 +479,7 @@ begin
 		end
 		S2_GET_DESC: begin
 			done_fetch_data <= 1'b0;
+			frm_m_tvalid <= 1'b0;
 			if(pkt_fifo_rd)
 				pkt_desc_dw3 <= pkt_fifo_dout;
 			pkt_fifo_rd <= 1'b0;
@@ -487,6 +488,7 @@ begin
 		end
 		S2_WBAK_CALC: begin
 			done_fetch_data <= 1'b0;
+			frm_m_tvalid <= 1'b0;
 			fetch_bytes <= fetch_bytes_next;
 		end
 		S2_WBAK_0: begin
