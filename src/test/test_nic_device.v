@@ -1,5 +1,5 @@
 `timescale 1ns/10ps
-`define TEST_TX
+`undef TEST_TX
 `define TEST_RX
 
 `define REPORT_PCI_FETCH
@@ -99,7 +99,7 @@ parameter E1000_TSPMT_TSPBP_MASK 	= 32'hFF;
 parameter E1000_RCTL			=	16'h0100;
 parameter E1000_RCTL_EN			=	(1<<1);
 parameter E1000_RCTL_LPE		=	(1<<5);
-parameter E1000_RCTL_BSIZE_SHIFT	=	(1<<16);
+parameter E1000_RCTL_BSIZE_SHIFT	=	(16);
 parameter E1000_RCTL_BSIZE_MASK		= 2'b11;
 parameter E1000_RCTL_BSEX		=	(1<<25);
 
@@ -456,10 +456,10 @@ reg [31:0] intr_state;
 
 reg [0:511] dbg_msg;
 
-integer PARAM_RS;
-integer PARAM_IDE;
-integer PARAM_BSIZE;
-integer PARAM_BSEX;
+reg PARAM_RS;
+reg PARAM_IDE;
+reg [1:0] PARAM_BSIZE;
+reg PARAM_BSEX;
 
 localparam REPORT_NONE=0, REPORT_ALL=1, REPORT_EOP=2;
 
@@ -563,7 +563,8 @@ task initialize_nic(input integer octlen, input integer tidv, input integer tadv
 
 		e1000_write(E1000_IMC, 32'hFFFF_FFFF);
 		e1000_write(E1000_ICR, 32'hFFFF_FFFF);
-		e1000_write(E1000_IMS, E1000_INTR_TXDW|E1000_INTR_TXQE|E1000_INTR_TXD_LOW);
+		e1000_write(E1000_IMS, E1000_INTR_TXDW|E1000_INTR_TXQE|E1000_INTR_TXD_LOW
+			|E1000_INTR_RXDMT0|E1000_INTR_RXDO|E1000_INTR_RXT0);
 
 		e1000_write(E1000_TDBAL, tx_host_base);
 		e1000_write(E1000_TDBAH, 32'h0);
@@ -606,9 +607,12 @@ task initialize_nic(input integer octlen, input integer tidv, input integer tadv
 		data=data|E1000_RCTL_LPE|E1000_RCTL_EN;
 		if(PARAM_BSEX)
 			data=data|E1000_RCTL_BSEX;
+		else
+			data=data&(~E1000_RCTL_BSEX);
+
 		data=data|((PARAM_BSIZE&E1000_RCTL_BSIZE_MASK)<<E1000_RCTL_BSIZE_SHIFT);
 
-		e1000_write(E1000_RCTL, data|E1000_RCTL_LPE|E1000_RCTL_EN);
+		e1000_write(E1000_RCTL, data);
 	end
 endtask
 
@@ -738,7 +742,7 @@ task rx_add_desc(input integer num);
 			end
 
 			desc_daddr = rx_host_dptr;
-			case({PARAM_BSEX[0],PARAM_BSIZE[1:0]})
+			case({PARAM_BSEX,PARAM_BSIZE})
 				3'b000: desc_length = 2048;
 				3'b001: desc_length = 1024;
 				3'b010: desc_length = 512;
@@ -827,12 +831,64 @@ endtask
 //% Generate Receive requests
 //%
 //% @num: number of descriptors to generate
-task generate_rx_traffic(input integer num);
-	integer i;
+task generate_rx_traffic(input integer length, input integer num);
+	reg stop;
 begin
-	for(i=0;i<num;i=i+1) begin
-	// FIXME: Add code here
-	end
+	stop=0;
+	fork
+		begin:DESC
+			reg [15:0] prev_head;
+			integer diff;
+			integer trans;
+			reg [15:0] desc_length;
+			integer expected;
+			case({PARAM_BSEX,PARAM_BSIZE})
+				3'b000: desc_length = 2048;
+				3'b001: desc_length = 1024;
+				3'b010: desc_length = 512;
+				3'b011: desc_length = 256;
+				3'b100: desc_length = 32768; // illegal
+				3'b101: desc_length = 16384;
+				3'b110: desc_length = 8192;
+				3'b111: desc_length = 4096;
+			endcase
+			expected = length/desc_length;
+			if(length%desc_length)
+				expected = expected+1;
+			expected=expected*num;
+			rx_update_head();
+			prev_head=rx_host_head;
+			trans=0;
+			while(!stop) begin
+				update_interrupt();
+				rx_update_head();
+				diff = rx_host_head-prev_head;
+				prev_head = rx_host_head;
+				if(diff<0) diff=diff+rx_host_len;
+
+				trans=trans+diff;
+				if(trans==expected) begin
+					$display($time,,,"OK - All %d packet in %d desc received",
+						num, expected);
+					stop=1;
+				end
+				else if(trans>expected) begin
+					$display($time,,,"ERROR - redundant packet received, expect %d desc, got %d",
+						expected, trans);
+				end
+				else begin
+					rx_add_desc(queue_spare(rx_host_head, rx_host_tail, rx_host_len));
+					#10000;
+				end
+			end
+		end
+		begin:DATA
+			integer i;
+			for(i=0;i<num;i=i+1) begin
+				pkt_gen.send(length);
+			end
+		end
+	join
 end
 endtask
 
@@ -886,7 +942,7 @@ begin
 	$dumpvars(1);
 	$dumpvars(1,dut_i);
 	$dumpvars(1,dut_i.e1000_i);
-	//$dumpvars(0,dut_i.e1000_i.rx_path_i);
+	$dumpvars(0,dut_i.e1000_i.rx_path_i);
 	//$dumpvars(0,dut_i.e1000_i.tx_path_i);
 	//$dumpvars(1,dut_i.e1000_i.tx_path_i.tx_frame_i);
 	//$dumpvars(0,dut_i.e1000_i.mac_i);
@@ -1091,11 +1147,32 @@ task test_rx_desc_queue();
 
 		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,0/*wth*/,8/*lwth*/);
 
-		repeat(8) pkt_gen.send(60);
+		generate_rx_traffic(60,16);
 
-		rx_add_desc(8);
+		#10000;
+	end
+endtask
 
-		rx_check_done();
+task test_rx_packet_size();
+	begin
+		dbg_msg = "Test RX Packet Size";
+		rx_host_base = RX_DESC_BASE;
+		rx_host_dptr = RX_DATA_BASE;
+
+		PARAM_BSEX = 0;
+		PARAM_BSIZE = 3'b011;
+
+
+		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,0/*wth*/,8/*lwth*/);
+
+		generate_rx_traffic(60,1);
+		generate_rx_traffic(61,1);
+		generate_rx_traffic(1500,1);
+		generate_rx_traffic(9596,1);
+		generate_rx_traffic(16380,1);
+		generate_rx_traffic(60,1);
+
+		#10000;
 	end
 endtask
 
@@ -1132,7 +1209,8 @@ begin:T0
 `endif
 
 `ifdef TEST_RX
-	test_rx_desc_queue();
+	//test_rx_desc_queue();
+	test_rx_packet_size();
 	#100_000;
 `endif
 
