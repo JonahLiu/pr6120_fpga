@@ -1,5 +1,5 @@
 `timescale 1ns/10ps
-`undef TEST_TX
+`define TEST_TX
 `define TEST_RX
 
 `define REPORT_PCI_FETCH
@@ -886,8 +886,8 @@ begin
 	$dumpvars(1);
 	$dumpvars(1,dut_i);
 	$dumpvars(1,dut_i.e1000_i);
-	$dumpvars(0,dut_i.e1000_i.rx_path_i);
-	//$dumpvars(1,dut_i.e1000_i.tx_path_i);
+	$dumpvars(1,dut_i.e1000_i.rx_path_i);
+	$dumpvars(1,dut_i.e1000_i.tx_path_i);
 	//$dumpvars(1,dut_i.e1000_i.tx_path_i.tx_frame_i);
 	//$dumpvars(0,dut_i.e1000_i.mac_i);
 	#1_000_000_000;
