@@ -19,7 +19,8 @@ module axi_mdma #(
 	// Status Port
 	output [SRC_ADDRESS_BITS-1:0] rpt_src_addr,
 	output [DST_ADDRESS_BITS-1:0] rpt_dst_addr,
-	output rpt_status,
+	output [LENGTH_BITS-1:0] rpt_bytes,
+	output [1:0] rpt_status,
 	output reg rpt_valid,
 	input rpt_ready,
 
@@ -84,6 +85,7 @@ localparam S_IDLE=0, S_RCMD=1, S_WCMD=2, S_WAIT=3, S_RPT=4;
 
 assign rpt_src_addr = src_address;
 assign rpt_dst_addr = dst_address;
+assign rpt_bytes = bytes;
 assign rpt_status = 'b0;
 
 assign rcmd_address = src_address;
@@ -106,20 +108,20 @@ axi_rdma #(
 	.cmd_valid(rcmd_valid),
 	.cmd_ready(rcmd_ready),
 
-	.axi_m_arid(rx_m_arid),
-	.axi_m_araddr(rx_m_araddr),
-	.axi_m_arlen(rx_m_arlen),
-	.axi_m_arsize(rx_m_arsize),
-	.axi_m_arburst(rx_m_arburst),
-	.axi_m_arvalid(rx_m_arvalid),
-	.axi_m_arready(rx_m_arready),
+	.axi_m_arid(src_m_arid),
+	.axi_m_araddr(src_m_araddr),
+	.axi_m_arlen(src_m_arlen),
+	.axi_m_arsize(src_m_arsize),
+	.axi_m_arburst(src_m_arburst),
+	.axi_m_arvalid(src_m_arvalid),
+	.axi_m_arready(src_m_arready),
 
-	.axi_m_rid(rx_m_rid),
-	.axi_m_rdata(rx_m_rdata),
-	.axi_m_rresp(rx_m_rresp),
-	.axi_m_rlast(rx_m_rlast),
-	.axi_m_rvalid(rx_m_rvalid),
-	.axi_m_rready(rx_m_rready),
+	.axi_m_rid(src_m_rid),
+	.axi_m_rdata(src_m_rdata),
+	.axi_m_rresp(src_m_rresp),
+	.axi_m_rlast(src_m_rlast),
+	.axi_m_rvalid(src_m_rvalid),
+	.axi_m_rready(src_m_rready),
 
 	.dout_tdata(stream_tdata),
 	.dout_tkeep(stream_tkeep),
@@ -179,7 +181,7 @@ end
 
 always @(*)
 begin
-	case(state_next)
+	case(state)
 		S_IDLE: begin
 			if(cmd_valid)
 				state_next = S_RCMD;
@@ -247,7 +249,7 @@ begin
 			wcmd_valid <= 1'b0;
 		end
 		S_RPT: begin
-			rpt_valid <= 1'b0;
+			rpt_valid <= 1'b1;
 		end
 	endcase
 end
