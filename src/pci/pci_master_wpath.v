@@ -70,8 +70,8 @@ wire w3_fifo_empty;
 wire w3_fifo_rd;
 
 reg [7:0] w1_len;
-reg [10:0] w1_widx;
-reg [10:0] w1_ridx;
+reg [9:0] w1_widx;
+reg [9:0] w1_ridx;
 reg [4+32-1:0] w1_mem[0:1023];
 
 assign mst_s_awready = !w1_addr_full;
