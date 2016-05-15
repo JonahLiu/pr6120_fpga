@@ -90,7 +90,9 @@ module rx_path(
 	input [15:0] mac_s_tuser,
 	input mac_s_tvalid,
 	input mac_s_tlast,
-	output mac_s_tready	
+	output mac_s_tready,
+
+	output [16:0] dbg_dram_available
 );
 
 parameter CLK_PERIOD_NS = 8;
@@ -796,6 +798,8 @@ rx_frame #(
 	.aresetn(aresetn),
 	
 	.PCSS(PCSS),
+
+	.dbg_ram_available(dbg_dram_available),
 
 	// Frame Command Port
 	.cmd_s_tdata(frm_cmd_tdata),

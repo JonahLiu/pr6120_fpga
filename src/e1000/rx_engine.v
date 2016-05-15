@@ -94,8 +94,8 @@ reg [31:0] desc_dw1;
 reg [31:0] desc_dw2;
 reg [31:0] desc_dw3;
 
-reg start_fetch_data;
-reg done_fetch_data;
+reg host_buf_ready;
+reg host_buf_filled;
 
 reg [31:0] wback_dw2;
 reg [31:0] wback_dw3;
@@ -247,7 +247,7 @@ begin
 				state_next = S_PROCESS;
 		end
 		S_PROCESS: begin
-			if(done_fetch_data)
+			if(host_buf_filled)
 				state_next = S_WRITE_ASTB;
 			else
 				state_next = S_PROCESS;
@@ -304,7 +304,7 @@ begin
 		ram_m_rready <= 1'b1;
 		ram_m_awaddr <= 'bx;
 		ram_m_wdata <= 'bx;
-		start_fetch_data <= 1'b0;
+		host_buf_ready <= 1'b0;
 	end
 	else case(state_next)
 		S_IDLE: begin
@@ -322,10 +322,10 @@ begin
 		S_CHECK_NULL: begin
 		end
 		S_PROCESS: begin
-			start_fetch_data <= 1'b1;
+			host_buf_ready <= 1'b1;
 		end
 		S_WRITE_ASTB: begin
-			start_fetch_data <= 1'b0;
+			host_buf_ready <= 1'b0;
 			ram_m_awvalid <= 1'b1;
 			ram_m_awaddr <= {local_addr[15:4],4'h8};
 			wback_dw2 <= pkt_desc_dw2;
@@ -389,7 +389,7 @@ begin
 				s2_next = S2_GET_PKT_2;
 		end
 		S2_GET_DESC: begin
-			if(start_fetch_data)
+			if(host_buf_ready)
 				s2_next = S2_WBAK_CALC;
 			else
 				s2_next = S2_GET_DESC;
@@ -440,7 +440,7 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
-		done_fetch_data <= 1'b0;
+		host_buf_filled <= 1'b0;
 		dma_src_addr <= 'bx;
 		dma_dst_addr <= 'bx;
 		dma_bytes <= 'bx;
@@ -461,7 +461,7 @@ begin
 		S2_IDLE: begin
 			remain_bytes <= 'b0;
 			frm_m_tvalid <= 1'b0;
-			done_fetch_data <= 1'b0;
+			host_buf_filled <= 1'b0;
 		end
 		S2_GET_PKT_0: begin
 			pkt_fifo_rd <= 1'b1;
@@ -478,7 +478,7 @@ begin
 			desc_length <= 'b0;
 		end
 		S2_GET_DESC: begin
-			done_fetch_data <= 1'b0;
+			host_buf_filled <= 1'b0;
 			frm_m_tvalid <= 1'b0;
 			if(pkt_fifo_rd)
 				pkt_desc_dw3 <= pkt_fifo_dout;
@@ -487,7 +487,7 @@ begin
 			host_available <= host_buf_size;
 		end
 		S2_WBAK_CALC: begin
-			done_fetch_data <= 1'b0;
+			host_buf_filled <= 1'b0;
 			frm_m_tvalid <= 1'b0;
 			fetch_bytes <= fetch_bytes_next;
 		end
@@ -512,9 +512,10 @@ begin
 			frm_m_tdata[31:16] <= fetch_bytes;
 			frm_m_tvalid <= 1'b1;
 			frm_m_tlast <= 1'b1;
-			if(remain_bytes == 0 || host_available==0) begin
-				done_fetch_data <= 1'b1;
-			end
+			if(state!=S2_FREE) 
+				host_buf_filled <= (remain_bytes == 0 || host_available==0);
+			else 
+				host_buf_filled <= 1'b0;
 			pkt_desc_dw2[15:0] <= desc_length;
 			pkt_desc_dw3[1] <= (remain_bytes==0);//EOP
 			pkt_desc_dw3[0] <= 1'b1; //DD;

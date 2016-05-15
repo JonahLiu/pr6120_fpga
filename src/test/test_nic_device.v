@@ -121,6 +121,10 @@ parameter E1000_RXDCTL_GRAN 			= (1<<24);
 
 parameter E1000_RADV				=   16'h282C;
 
+parameter E1000_RXCSUM			=	16'h5000;
+parameter E1000_RXCSUM_PCSS_SHIFT = 0;
+parameter E1000_RXCSUM_PCSS_MASK = 32'h000000FF;
+
 localparam DESC_SIZE=16;
 localparam HOST_MASK=HOST_SIZE-1;
 
@@ -460,6 +464,7 @@ reg PARAM_RS;
 reg PARAM_IDE;
 reg [1:0] PARAM_BSIZE;
 reg PARAM_BSEX;
+reg [7:0] PARAM_PCSS;
 
 localparam REPORT_NONE=0, REPORT_ALL=1, REPORT_EOP=2;
 
@@ -601,6 +606,8 @@ task initialize_nic(input integer octlen, input integer tidv, input integer tadv
 			((wthresh&E1000_RXDCTL_WTHRESH_MASK)<<E1000_RXDCTL_WTHRESH_SHIFT) |
 			E1000_RXDCTL_GRAN
 		); 
+
+		e1000_write(E1000_RXCSUM, ((PARAM_PCSS&E1000_RXCSUM_PCSS_MASK)<<E1000_RXCSUM_PCSS_SHIFT));
 
 		e1000_read(E1000_RCTL, data);
 
@@ -938,6 +945,7 @@ begin
 
 	PARAM_RS = REPORT_ALL;
 	PARAM_IDE = 0;
+	PARAM_PCSS = 0;
 
 	$dumpfile("test_nic_device.vcd");
 	$dumpvars(1);
@@ -1146,6 +1154,7 @@ task test_rx_desc_queue();
 
 		PARAM_BSEX = 0;
 		PARAM_BSIZE = 3'b011;
+		PARAM_PCSS = 14;
 
 
 		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,0/*wth*/,8/*lwth*/);
@@ -1164,6 +1173,7 @@ task test_rx_packet_size();
 
 		PARAM_BSEX = 0;
 		PARAM_BSIZE = 3'b011;
+		PARAM_PCSS = 14;
 
 
 		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,0/*wth*/,8/*lwth*/);
@@ -1172,8 +1182,7 @@ task test_rx_packet_size();
 		generate_rx_traffic(61,1);
 		generate_rx_traffic(1500,1);
 		generate_rx_traffic(9596,1);
-		generate_rx_traffic(16380,1);
-		generate_rx_traffic(16380,1);
+		generate_rx_traffic(16380,4);
 		generate_rx_traffic(60,1);
 
 		#10000;

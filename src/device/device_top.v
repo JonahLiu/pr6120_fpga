@@ -1135,7 +1135,7 @@ if(DEBUG=="TRUE") begin
 ila_0 ila_mst_i0(
 	.clk(mst_s_aclk), // input wire clk
 	.probe0({
-		mst_s_awaddr,
+		mst_s_awaddr[31:0],
 		mst_s_awlen,
 		mst_s_awvalid,
 		mst_s_awready,
@@ -1150,7 +1150,7 @@ ila_0 ila_mst_i0(
 		mst_s_bvalid,
 		mst_s_bready,
 
-		mst_s_araddr,
+		mst_s_araddr[31:0],
 		mst_s_arlen,
 		mst_s_arvalid,
 		mst_s_arready,
@@ -1166,7 +1166,7 @@ ila_0 ila_mst_i0(
 ila_0 ila_tgt_i1(
 	.clk(tgt_m_aclk), // input wire clk
 	.probe0({
-		tgt_m_awaddr,
+		tgt_m_awaddr[15:0],
 		tgt_m_awvalid,
 		tgt_m_awready,
 
@@ -1179,7 +1179,7 @@ ila_0 ila_tgt_i1(
 		tgt_m_bvalid,
 		tgt_m_bready,
 
-		tgt_m_araddr,
+		tgt_m_araddr[15:0],
 		tgt_m_arvalid,
 		tgt_m_arready,
 

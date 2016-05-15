@@ -289,6 +289,8 @@ wire reset;
 
 reg [1:0] phy_int_sync;
 
+wire [16:0] dbg_rx_dram_available;
+
 assign reset = !aresetn;
 assign phy_reset_out = CTRL_PHY_RST || reset;
 assign PHYINT_req = phy_int_sync[1];
@@ -484,6 +486,8 @@ rx_path #(
 )rx_path_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
+
+	.dbg_dram_available(dbg_rx_dram_available),
 
 	// Parameters
 	.EN(RCTL_EN),
@@ -818,8 +822,37 @@ if(DEBUG == "TRUE") begin
 ila_0 ila_mac_i0(
 	.clk(aclk), // input wire clk
 	.probe0({
+		CTRL_RST,
+		CTRL_PHY_RST,
+
+		TCTL_EN,
+		TDLEN,
+		TDH_fb,
+		TDT,
+		TDT_set,
+		DPP,
+		TXDW_req,
+		TXQE_req,
+		TXD_LOW_req,
+
+		RCTL_EN,
+		RDLEN,
+		RDH_fb,
+		RDT,
+		RDT_set,
+		BSIZE,
+		BSEX,
+		SECRC,
+		FPD,
+		FPD_set,
+		RXDMT0_req,
+		RXO_req,
+		RXT0_req,
+
+		dbg_rx_dram_available,
 		
 		mac_rx_m_tdata,
+		mac_rx_m_tuser,
 		mac_rx_m_tkeep,
 		mac_rx_m_tlast,
 		mac_rx_m_tvalid,

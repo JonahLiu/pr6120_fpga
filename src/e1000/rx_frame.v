@@ -61,7 +61,9 @@ module rx_frame(
 	input [15:0] mac_s_tuser,
 	input mac_s_tvalid,
 	input mac_s_tlast,
-	output mac_s_tready	
+	output mac_s_tready,
+
+	output [16:0] dbg_ram_available
 );
 
 parameter DATA_RAM_DWORDS=8192;
@@ -104,6 +106,8 @@ assign dram_m_rready = 1'b1;
 assign addr_fifo_din = cmd_s_tdata[31:16];
 assign addr_fifo_wr = cmd_s_tvalid && cmd_s_tready;
 assign cmd_s_tready = !addr_fifo_full;
+
+assign dbg_ram_available = ram_available;
 
 // FIXME: replace with fifo_sync
 fifo_async #(.DSIZE(16),.ASIZE(4),.MODE("FWFT")) addr_fifo_i(
@@ -164,7 +168,6 @@ rx_checksum csum_i(
 	.clk(aclk),
 	.rst(!aresetn),
 	.PCSS(PCSS),
-	.clr((state_next==S_IDLE)),
 	.data(mac_s_tdata),
 	.keep(mac_s_tkeep),
 	.last(mac_s_tlast),
@@ -273,7 +276,7 @@ begin
 			stat_m_tdata[15:0] <= cmd_bytes;
 		end
 		S_RPT_C2: begin
-			stat_m_tdata <= 'b0;
+			stat_m_tdata <= 32'h00000004; // IXSM=1
 			stat_m_tlast <= 1'b1;
 		end
 		S_COLLECT: begin
