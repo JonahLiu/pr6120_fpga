@@ -875,6 +875,7 @@ begin
 				else if(trans>expected) begin
 					$display($time,,,"ERROR - redundant packet received, expect %d desc, got %d",
 						expected, trans);
+					stop=1;
 				end
 				else begin
 					rx_add_desc(queue_spare(rx_host_head, rx_host_tail, rx_host_len));
@@ -941,6 +942,8 @@ begin
 	$dumpfile("test_nic_device.vcd");
 	$dumpvars(1);
 	$dumpvars(1,dut_i);
+	//$dumpvars(1,dut_i.pci_axi_i);
+	//$dumpvars(0,dut_i.pci_axi_i.pci_master_i);
 	$dumpvars(1,dut_i.e1000_i);
 	$dumpvars(0,dut_i.e1000_i.rx_path_i);
 	//$dumpvars(0,dut_i.e1000_i.tx_path_i);
@@ -1165,10 +1168,11 @@ task test_rx_packet_size();
 
 		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,0/*wth*/,8/*lwth*/);
 
-		generate_rx_traffic(60,1);
+		generate_rx_traffic(60,16);
 		generate_rx_traffic(61,1);
 		generate_rx_traffic(1500,1);
 		generate_rx_traffic(9596,1);
+		generate_rx_traffic(16380,1);
 		generate_rx_traffic(16380,1);
 		generate_rx_traffic(60,1);
 
@@ -1209,7 +1213,7 @@ begin:T0
 `endif
 
 `ifdef TEST_RX
-	//test_rx_desc_queue();
+	test_rx_desc_queue();
 	test_rx_packet_size();
 	#100_000;
 `endif

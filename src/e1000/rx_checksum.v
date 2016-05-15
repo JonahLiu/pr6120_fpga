@@ -86,7 +86,8 @@ begin
 		csum_valid <= 1'b0;
 	end
 	else if(valid_1) begin
-		csum <= csum + data_1[31:16] + data_1[15:0];
+		//csum <= csum + data_1[31:16] + data_1[15:0];
+		csum <= csum + {data_1[23:16],data_1[31:24]} + {data_1[7:0],data_1[15:8]};
 		csum_valid <= last_1;
 	end
 end
