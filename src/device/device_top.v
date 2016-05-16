@@ -542,7 +542,10 @@ nic_clk_gen nic_clk_gen_i(
 );
 
 // PCI to AXI interface controller
-pci_axi_top #(.HARDWIRE_IDSEL(HARDWIRE_IDSEL))pci_axi_i(
+pci_axi_top #(
+	.HARDWIRE_IDSEL(HARDWIRE_IDSEL),
+	.DEBUG(DEBUG)
+)pci_axi_i(
 	// PCI Local Bus
 	.AD(AD),
 	.CBE(CBE),
@@ -1132,9 +1135,34 @@ master_crossbar master_crossbar_i(
 
 generate
 if(DEBUG=="TRUE") begin
-ila_0 ila_mst_i0(
+ila_0 ila_axi_i0(
 	.clk(mst_s_aclk), // input wire clk
 	.probe0({
+		tgt_m_rdata,
+		tgt_m_wdata,
+		tgt_m_wstrb,
+
+		tgt_m_rresp,
+		tgt_m_rvalid,
+		tgt_m_rready,
+
+		tgt_m_bresp,
+		tgt_m_bvalid,
+		tgt_m_bready,
+
+		tgt_m_wvalid,
+		tgt_m_wready,
+
+		tgt_m_araddr[15:0],
+		tgt_m_arvalid,
+		tgt_m_arready,
+
+		tgt_m_awaddr[15:0],
+		tgt_m_awvalid,
+		tgt_m_awready,
+
+		intr_request,
+
 		mst_s_awaddr[31:0],
 		mst_s_awlen,
 		mst_s_awvalid,
@@ -1160,35 +1188,6 @@ ila_0 ila_mst_i0(
 		mst_s_rlast,
 		mst_s_rvalid,
 		mst_s_rready
-	})
-);
-
-ila_0 ila_tgt_i1(
-	.clk(tgt_m_aclk), // input wire clk
-	.probe0({
-		tgt_m_awaddr[15:0],
-		tgt_m_awvalid,
-		tgt_m_awready,
-
-		tgt_m_wdata,
-		tgt_m_wstrb,
-		tgt_m_wvalid,
-		tgt_m_wready,
-
-		tgt_m_bresp,
-		tgt_m_bvalid,
-		tgt_m_bready,
-
-		tgt_m_araddr[15:0],
-		tgt_m_arvalid,
-		tgt_m_arready,
-
-		tgt_m_rdata,
-		tgt_m_rresp,
-		tgt_m_rvalid,
-		tgt_m_rready,
-
-		intr_request
 	})
 );
 end

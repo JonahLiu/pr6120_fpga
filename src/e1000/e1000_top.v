@@ -106,7 +106,7 @@ parameter TX_DESC_RAM_DWORDS=1024;
 parameter TX_DATA_RAM_DWORDS=8192;
 parameter RX_DESC_RAM_DWORDS=1024;
 parameter RX_DATA_RAM_DWORDS=16384;
-parameter DEBUG="TRUE";
+parameter DEBUG="FALSE";
 
 wire [31:0] mac_tx_s_tdata;
 wire [3:0] mac_tx_s_tkeep;
@@ -290,6 +290,14 @@ wire reset;
 reg [1:0] phy_int_sync;
 
 wire [16:0] dbg_rx_dram_available;
+wire [3:0] dbg_i0_state;
+wire [3:0] dbg_i1_state;
+wire [3:0] dbg_i2_state;
+wire [3:0] dbg_desc_s1;
+wire [2:0] dbg_desc_s2;
+wire [3:0] dbg_re_s1;
+wire [3:0] dbg_re_s2;
+wire [2:0] dbg_frm_state;
 
 assign reset = !aresetn;
 assign phy_reset_out = CTRL_PHY_RST || reset;
@@ -488,6 +496,18 @@ rx_path #(
 	.aresetn(aresetn),
 
 	.dbg_dram_available(dbg_rx_dram_available),
+	.dbg_i0_state(dbg_rx_i0_state),
+	.dbg_i1_state(dbg_rx_i1_state),
+	.dbg_i2_state(dbg_rx_i2_state),
+	.dbg_desc_s1(dbg_desc_s1),
+	.dbg_desc_s2(dbg_desc_s2),
+	.dbg_re_s1(dbg_re_s1),
+	.dbg_re_s2(dbg_re_s2),
+	.dbg_frm_state(dbg_frm_state),
+	.dbg_ext_mux_wr_busy(dbg_rx_ext_mux_wr_busy),
+	.dbg_ext_mux_rd_busy(dbg_rx_ext_mux_rd_busy),
+	.dbg_desc_mux_wr_busy(dbg_rx_desc_mux_wr_busy),
+	.dbg_desc_mux_rd_busy(dbg_rx_desc_mux_rd_busy),
 
 	// Parameters
 	.EN(RCTL_EN),
@@ -746,6 +766,9 @@ axi_mux #(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
+	.dbg_wr_busy(dbg_ext_mux_wr_busy),
+	.dbg_rd_busy(dbg_ext_mux_rd_busy),
+
 	.s_awid({rx_m_awid,tx_m_awid}),
 	.s_awaddr({rx_m_awaddr,tx_m_awaddr}),
 	.s_awlen({rx_m_awlen,tx_m_awlen}),
@@ -850,6 +873,20 @@ ila_0 ila_mac_i0(
 		RXT0_req,
 
 		dbg_rx_dram_available,
+		dbg_i0_state,
+		dbg_i1_state,
+		dbg_i2_state,
+		dbg_desc_s1,
+		dbg_desc_s2,
+		dbg_re_s1,
+		dbg_re_s2,
+		dbg_frm_state,
+		dbg_ext_mux_wr_busy,
+		dbg_ext_mux_rd_busy,
+		dbg_rx_ext_mux_wr_busy,
+		dbg_rx_ext_mux_rd_busy,
+		dbg_rx_desc_mux_wr_busy,
+		dbg_rx_desc_mux_rd_busy,
 		
 		mac_rx_m_tdata,
 		mac_rx_m_tuser,

@@ -57,7 +57,9 @@ module axi_mdma #(
 	input [3:0] dst_m_bid,
 	input [1:0] dst_m_bresp,
 	input dst_m_bvalid,
-	output dst_m_bready
+	output dst_m_bready,
+
+	output [3:0] dbg_state
 );
 
 wire [31:0] stream_tdata;
@@ -93,6 +95,8 @@ assign rcmd_bytes = bytes;
 
 assign wcmd_address = dst_address;
 assign wcmd_bytes = bytes;
+
+assign dbg_state = state;
 
 axi_rdma #(
 	.ADDRESS_BITS(SRC_ADDRESS_BITS), 

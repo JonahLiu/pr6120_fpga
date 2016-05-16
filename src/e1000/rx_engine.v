@@ -83,7 +83,10 @@ module rx_engine(
 	input [31:0] frm_s_tdata,
 	input frm_s_tvalid,
 	input frm_s_tlast,
-	output frm_s_tready
+	output frm_s_tready,
+
+	output [3:0] dbg_s1,
+	output [3:0] dbg_s2
 );
 
 reg [15:0] local_addr;
@@ -145,6 +148,9 @@ assign host_buf_addr = {desc_dw1, desc_dw0};
 assign pkt_fifo_wr = frm_s_tvalid & frm_s_tready;
 assign frm_s_tready = !pkt_fifo_full;
 assign pkt_fifo_din = frm_s_tdata;
+
+assign dbg_s1 = state;
+assign dbg_s2 = s2;
 
 // FIXME: replace with fifo_sync
 fifo_async #(.DSIZE(32),.ASIZE(10),.MODE("FWFT")) pkt_fifo_i(

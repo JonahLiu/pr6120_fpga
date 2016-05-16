@@ -3,6 +3,9 @@ module axi_mux(
 	aresetn,
 	aclk,
 
+	dbg_wr_busy,
+	dbg_rd_busy,
+
 	// AXI Slave Write Address
 	s_awid,
 	s_awaddr,
@@ -174,6 +177,10 @@ input [DATA_WIDTH-1:0]	m_rdata;
 input [1:0]	m_rresp;
 input m_rlast;
 input m_rvalid;
+
+output dbg_wr_busy;
+output dbg_rd_busy;
+
 
 function integer clogb2 (input integer size);
 begin
@@ -356,6 +363,9 @@ begin:READ_SEL
 	s_rresp = {SLAVE_NUM{m_rresp}};
 	s_rlast = {SLAVE_NUM{m_rlast}};
 end
+
+assign dbg_wr_busy = write_busy;
+assign dbg_rd_busy = read_busy;
 
 endmodule
 

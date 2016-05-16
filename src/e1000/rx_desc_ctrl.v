@@ -64,7 +64,10 @@ module rx_desc_ctrl(
 	input [31:0] reng_s_tdata,
 	input reng_s_tvalid,
 	input reng_s_tlast,
-	output reg reng_s_tready
+	output reg reng_s_tready,
+
+	output [3:0] dbg_s1,
+	output [2:0] dbg_s2
 );
 
 parameter DESC_RAM_DWORDS = 1024;
@@ -194,6 +197,9 @@ assign host_length = {RDLEN, 3'b0};
 
 assign irpt_ready = 1'b1;
 assign orpt_ready = 1'b1;
+
+assign dbg_s1 = s1;
+assign dbg_s2 = s2;
 
 always @(*)
 begin

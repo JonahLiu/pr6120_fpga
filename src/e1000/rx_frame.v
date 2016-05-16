@@ -63,7 +63,8 @@ module rx_frame(
 	input mac_s_tlast,
 	output mac_s_tready,
 
-	output [16:0] dbg_ram_available
+	output [16:0] dbg_ram_available,
+	output [2:0] dbg_state
 );
 
 parameter DATA_RAM_DWORDS=8192;

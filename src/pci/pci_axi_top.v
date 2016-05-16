@@ -1,6 +1,7 @@
 module pci_axi_top #(
 	parameter TARGET_ADDR_BITS=24,
-	parameter HARDWIRE_IDSEL=0
+	parameter HARDWIRE_IDSEL=0,
+	parameter DEBUG="FALSE"
 )
 (
 	// PCI Bus Signals
@@ -389,5 +390,55 @@ always @(posedge CLK)
 begin
 	intr_n_sync <= !intr_request;
 end
+
+generate
+if(DEBUG=="TRUE") begin
+ila_0 ila_pci_i0(
+	.clk(CLK), // input wire clk
+	.probe0({
+		BACKOFF,
+		FRAMEQ_N,
+		TRDYQ_N,
+		IRDYQ_N,
+		STOPQ_N,
+		DEVSELQ_N,
+		PERRQ_N,
+		SERRQ_N,
+		PCI_CMD,
+		I_IDLE,
+		IDLE,
+		DR_BUS,
+		B_BUSY,
+
+		M_ADIO_IN,
+		ADIO_OUT,
+		REQUESET,
+		REQUESTHOLD,
+		COMPLETE,
+		TIME_OUT,
+		M_CBE,
+		M_WRDN,
+		M_READY,
+		M_ADDR_N,
+		M_SRC_EN,
+		M_DATA_VLD,
+		M_DATA,
+
+		ADDR,
+		S_ADIO_IN,
+		ADIO_OUT,
+		ADDR_VLD,
+		S_TERM,
+		S_READY,
+		S_ABORT,
+		S_WRDN,
+		S_SRC_EN,
+		S_DATA,
+		S_DATA_VLD,
+		S_CBE
+	})
+);
+end
+endgenerate
 
 endmodule

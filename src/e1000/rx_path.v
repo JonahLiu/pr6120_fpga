@@ -92,7 +92,19 @@ module rx_path(
 	input mac_s_tlast,
 	output mac_s_tready,
 
-	output [16:0] dbg_dram_available
+	output [16:0] dbg_dram_available,
+	output [3:0] dbg_i0_state,
+	output [3:0] dbg_i1_state,
+	output [3:0] dbg_i2_state,
+	output [3:0] dbg_desc_s1,
+	output [2:0] dbg_desc_s2,
+	output [3:0] dbg_re_s1,
+	output [3:0] dbg_re_s2,
+	output [2:0] dbg_frm_state,
+	output dbg_ext_mux_wr_busy,
+	output dbg_ext_mux_rd_busy,
+	output dbg_desc_mux_wr_busy,
+	output dbg_desc_mux_rd_busy
 );
 
 parameter CLK_PERIOD_NS = 8;
@@ -519,7 +531,9 @@ axi_mdma #(
 	.dst_m_bid(i0_desc_bid),
 	.dst_m_bresp(i0_desc_bresp),
 	.dst_m_bvalid(i0_desc_bvalid),
-	.dst_m_bready(i0_desc_bready)
+	.dst_m_bready(i0_desc_bready),
+
+	.dbg_state(dbg_i0_state)
 );
 
 axi_mdma #(
@@ -578,7 +592,9 @@ axi_mdma #(
 	.dst_m_bid(i1_ext_bid),
 	.dst_m_bresp(i1_ext_bresp),
 	.dst_m_bvalid(i1_ext_bvalid),
-	.dst_m_bready(i1_ext_bready)
+	.dst_m_bready(i1_ext_bready),
+
+	.dbg_state(dbg_i1_state)
 );
 
 axi_mdma #(
@@ -637,7 +653,9 @@ axi_mdma #(
 	.dst_m_bid(i2_ext_bid),
 	.dst_m_bresp(i2_ext_bresp),
 	.dst_m_bvalid(i2_ext_bvalid),
-	.dst_m_bready(i2_ext_bready)
+	.dst_m_bready(i2_ext_bready),
+
+	.dbg_state(dbg_i2_state)
 );
 
 //% Descriptor Processor
@@ -707,7 +725,10 @@ rx_desc_ctrl #(
 	.reng_s_tdata(re_rpt_tdata),
 	.reng_s_tvalid(re_rpt_tvalid),
 	.reng_s_tlast(re_rpt_tlast),
-	.reng_s_tready(re_rpt_tready)
+	.reng_s_tready(re_rpt_tready),
+
+	.dbg_s1(dbg_desc_s1),
+	.dbg_s2(dbg_desc_s2)
 );
 
 // Receiver state machine
@@ -788,7 +809,10 @@ rx_engine rx_engine_i(
 	.frm_s_tdata(frm_rpt_tdata),
 	.frm_s_tvalid(frm_rpt_tvalid),
 	.frm_s_tlast(frm_rpt_tlast),
-	.frm_s_tready(frm_rpt_tready)
+	.frm_s_tready(frm_rpt_tready),
+
+	.dbg_s1(dbg_re_s1),
+	.dbg_s2(dbg_re_s2)
 );
 
 rx_frame #(
@@ -800,6 +824,7 @@ rx_frame #(
 	.PCSS(PCSS),
 
 	.dbg_ram_available(dbg_dram_available),
+	.dbg_state(dbg_frm_state),
 
 	// Frame Command Port
 	.cmd_s_tdata(frm_cmd_tdata),
@@ -957,6 +982,9 @@ axi_mux #(
 ) desc_mux_i (
 	.aclk(aclk),
 	.aresetn(aresetn),
+
+	.dbg_wr_busy(dbg_desc_mux_wr_busy),
+	.dbg_rd_busy(dbg_desc_mux_rd_busy),
 
 	.s_awid({re_desc_awid,i0_desc_awid}),
 	.s_awaddr({re_desc_awaddr,i0_desc_awaddr}),
@@ -1119,6 +1147,9 @@ axi_mux #(
 ) ext_mux_i (
 	.aclk(aclk),
 	.aresetn(aresetn),
+	
+	.dbg_wr_busy(dbg_ext_mux_wr_busy),
+	.dbg_rd_busy(dbg_ext_mux_rd_busy),
 
 	.s_awid({i2_ext_awid,i1_ext_awid}),
 	.s_awaddr({i2_ext_awaddr,i1_ext_awaddr}),
