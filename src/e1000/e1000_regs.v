@@ -1,3 +1,8 @@
+// IMPORTANT: address[31:24] is BAR selector
+// address[24]==1 - Memory Mapped Register Map
+// address[25]==1 - Memory Mapped Flash 
+// address[26]==1 - IO Mapped Indirect Access to Register Map
+// FIXME: Memory mapped flash access space is not implemented
 module e1000_regs(
 	input aclk,
 	input aresetn,
@@ -129,6 +134,9 @@ reg [31:0] read_data;
 reg read_enable;
 reg read_ready;
 
+reg [15:0] reg_ioaddr;
+reg ioaddr_en;
+
 wire reset;
 assign reset = !aresetn;
 
@@ -190,10 +198,38 @@ begin
 end
 
 //% Data write 
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		ioaddr_en <= 1'b0;
+	end
+	else if(axi_s_awvalid && axi_s_awready) begin
+		if(axi_s_awaddr[26] && axi_s_awaddr[2:0]==3'h0)
+			// IOADDR
+			ioaddr_en <= 1'b1;
+	end
+	else if(ioaddr_en && axi_s_bvalid && axi_s_bready) begin
+		ioaddr_en <= 1'b0;
+	end
+end
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		reg_ioaddr <= 'b0;
+	end
+	else if(ioaddr_en && axi_s_wvalid && axi_s_wready) begin
+		reg_ioaddr <= axi_s_wdata;
+	end
+end
+
 always @(posedge aclk)
 begin
 	if(axi_s_awvalid && axi_s_awready) begin
-		write_addr <= axi_s_awaddr;
+		if(axi_s_awaddr[24]) // Memory Mapped Register MAP
+			write_addr <= axi_s_awaddr;
+		else if(axi_s_awaddr[26] && axi_s_awaddr[2:0]==3'h4)
+			// IO Mapped Indirect Register Access
+			write_addr <= reg_ioaddr;
 	end
 	if(axi_s_wvalid && axi_s_wready) begin
 		write_data <= axi_s_wdata;
@@ -207,7 +243,11 @@ begin
 		write_enable <= 1'b0;
 	end
 	else if(axi_s_wvalid && axi_s_wready) begin
-		write_enable <= 1'b1;
+		if(axi_s_awaddr[24]) // Memory Mapped Register MAP
+			write_enable <= 1'b1;
+		else if(axi_s_awaddr[26] && axi_s_awaddr[2:0]==3'h04) 
+			// IO Mapped Indirect Register Access
+			write_enable <= 1'b1;
 	end
 	else begin
 		write_enable <= 1'b0;
@@ -236,9 +276,13 @@ begin
 		rvalid_r <= 1'b0;
 		rresp_r <= 2'b0;
 		rdata_r <= 'bx;
+		read_enable <= 1'b0;
 	end
 	else if(arready_r && axi_s_arvalid) begin
-		read_addr <= axi_s_araddr;
+		if(axi_s_araddr[24]) // Memory Mapped Register Map
+			read_addr <= axi_s_araddr;
+		else if(axi_s_araddr[26] && axi_s_araddr[2:0]==3'h04)
+			read_addr <= reg_ioaddr;
 		read_enable <= 1'b1;
 	end
 	else if(read_enable) begin
