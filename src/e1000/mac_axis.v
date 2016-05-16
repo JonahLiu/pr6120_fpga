@@ -595,7 +595,8 @@ begin
 				end
 			end
 			2: begin
-				rx_state <= 0;
+				if(rx_mac_tvalid && rx_mac_tlast && rx_mac_tready)
+					rx_state <= 0;
 			end
 		endcase
 	end
