@@ -496,9 +496,9 @@ rx_path #(
 	.aresetn(aresetn),
 
 	.dbg_dram_available(dbg_rx_dram_available),
-	.dbg_i0_state(dbg_rx_i0_state),
-	.dbg_i1_state(dbg_rx_i1_state),
-	.dbg_i2_state(dbg_rx_i2_state),
+	.dbg_i0_state(dbg_i0_state),
+	.dbg_i1_state(dbg_i1_state),
+	.dbg_i2_state(dbg_i2_state),
 	.dbg_desc_s1(dbg_desc_s1),
 	.dbg_desc_s2(dbg_desc_s2),
 	.dbg_re_s1(dbg_re_s1),

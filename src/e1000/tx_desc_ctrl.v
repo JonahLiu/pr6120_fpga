@@ -624,7 +624,7 @@ begin
 					s1_next = S1_DEQUEUE;
 			else if((!DPP && (PTHRESH==0 || local_pending < PTHRESH) && 
 					host_fresh > HTHRESH) ||
-				(local_pending == 0 && host_fresh > 0))
+				(local_pending == 0))
 				s1_next = S1_SET_SIZE;
 			else
 				s1_next = S1_READY;
@@ -645,7 +645,10 @@ begin
 			s1_next = S1_DELAY;
 		end
 		S1_SET_SIZE: begin
-			s1_next = S1_FETCH_0;
+			if(fetch_num>0)
+				s1_next = S1_FETCH_0;
+			else
+				s1_next = S1_READY;
 		end
 		S1_FETCH_0: begin // Issue fetch DMA command
 			if(idma_ready)
