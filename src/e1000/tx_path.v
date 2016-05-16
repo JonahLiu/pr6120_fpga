@@ -2,6 +2,8 @@ module tx_path(
 	input aclk,
 	input aresetn,
 
+	output dbg_te_desc_dext,
+
 	// Parameters
 	input EN, // Transmit Enable
 	input PSP, // Pad Short Packets
@@ -690,6 +692,8 @@ tx_engine #(
 )tx_engine_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
+
+	.dbg_desc_dext(dbg_te_desc_dext),
 
 	// Command Port
 	.cmd_s_tdata(te_cmd_tdata),

@@ -2,6 +2,8 @@ module tx_engine(
 	input aclk,
 	input aresetn,
 
+	output dbg_desc_dext,
+
 	// Command Port
 	// [31:16]=RSV, [15:0]=Local Address
 	input [31:0] cmd_s_tdata,
@@ -201,6 +203,8 @@ assign desc_dcmd = desc_dw2[31:24];
 assign desc_ports = desc_dw3[15:8];
 assign desc_ixsm = desc_ports[0];
 assign desc_txsm = desc_ports[1];
+
+assign dbg_te_desc_dext = desc_dext;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Stage 1 Descriptor fetching

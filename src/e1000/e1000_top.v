@@ -607,6 +607,8 @@ tx_path #(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
+	.dbg_te_desc_dext(dbg_te_desc_dext),
+
 	// Parameters
 	.EN(TCTL_EN),
 	.PSP(TCTL_PSP),
@@ -850,8 +852,6 @@ ila_0 ila_mac_i0(
 
 		TCTL_EN,
 		TDLEN,
-		TDH_fb,
-		TDT,
 		TDT_set,
 		DPP,
 		TXDW_req,
@@ -860,8 +860,6 @@ ila_0 ila_mac_i0(
 
 		RCTL_EN,
 		RDLEN,
-		RDH_fb,
-		RDT,
 		RDT_set,
 		BSIZE,
 		BSEX,
@@ -871,6 +869,8 @@ ila_0 ila_mac_i0(
 		RXDMT0_req,
 		RXO_req,
 		RXT0_req,
+
+		dbg_te_desc_dext,
 
 		dbg_rx_dram_available,
 		dbg_i0_state,
@@ -887,6 +887,11 @@ ila_0 ila_mac_i0(
 		dbg_rx_ext_mux_rd_busy,
 		dbg_rx_desc_mux_wr_busy,
 		dbg_rx_desc_mux_rd_busy,
+
+		TDH_fb,
+		TDT,
+		RDH_fb,
+		RDT,
 		
 		mac_rx_m_tdata,
 		mac_rx_m_tuser,

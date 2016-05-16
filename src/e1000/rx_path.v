@@ -475,6 +475,8 @@ wire [1:0] null_ext_bresp = 2'b0;
 wire null_ext_bvalid = 1'b0;
 wire null_ext_bready = 1'b0;
 
+assign RXO_req = 1'b0;
+
 axi_mdma #(
 	.SRC_ADDRESS_BITS(64), 
 	.SRC_BIG_ENDIAN("FALSE"),

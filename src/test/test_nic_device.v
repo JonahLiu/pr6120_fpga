@@ -125,6 +125,9 @@ parameter E1000_RXCSUM			=	16'h5000;
 parameter E1000_RXCSUM_PCSS_SHIFT = 0;
 parameter E1000_RXCSUM_PCSS_MASK = 32'h000000FF;
 
+parameter E1000_IOADDR			= 16'h0000;
+parameter E1000_IODATA			= 16'h0004;
+
 localparam DESC_SIZE=16;
 localparam HOST_MASK=HOST_SIZE-1;
 
@@ -548,6 +551,20 @@ begin
 end
 endtask
 
+task e1000_write_io(input [15:0] reg_offset, input [31:0] data);
+begin
+	master.io_write(TGT_BAR2_BASE+E1000_IOADDR, {16'b0,reg_offset}, 4'hF);
+	master.io_write(TGT_BAR2_BASE+E1000_IODATA, data, 4'hF);
+end
+endtask
+
+task e1000_read_io(input [15:0] reg_offset, output [31:0] data);
+begin
+	master.io_write(TGT_BAR2_BASE+E1000_IOADDR, {16'b0,reg_offset}, 4'hF);
+	master.io_read(TGT_BAR2_BASE+E1000_IODATA, data);
+end
+endtask
+
 task initialize_nic(input integer octlen, input integer tidv, input integer tadv,
 	input integer pthresh, input integer hthresh, input integer wthresh, input integer lwthresh);
 	integer len;
@@ -561,7 +578,9 @@ task initialize_nic(input integer octlen, input integer tidv, input integer tadv
 		rx_host_head=0;
 		rx_host_tail=0;
 
-		e1000_write(E1000_CTRL, E1000_CTRL_RST);
+		//e1000_write(E1000_CTRL, E1000_CTRL_RST);
+		e1000_read_io(E1000_CTRL, data);
+		e1000_write_io(E1000_CTRL, data|E1000_CTRL_RST);
 		#1000; // Wait 1us
 
 		e1000_write(E1000_TXDMAC, 32'h0000_0000); 
@@ -953,7 +972,7 @@ begin
 	//$dumpvars(1,dut_i.pci_axi_i);
 	//$dumpvars(0,dut_i.pci_axi_i.pci_master_i);
 	$dumpvars(1,dut_i.e1000_i);
-	$dumpvars(0,dut_i.e1000_i.rx_path_i);
+	//$dumpvars(0,dut_i.e1000_i.rx_path_i);
 	//$dumpvars(0,dut_i.e1000_i.tx_path_i);
 	//$dumpvars(1,dut_i.e1000_i.tx_path_i.tx_frame_i);
 	//$dumpvars(0,dut_i.e1000_i.mac_i);
@@ -1161,6 +1180,10 @@ task test_rx_desc_queue();
 
 		generate_rx_traffic(60,16);
 
+		initialize_nic(32/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,0/*wth*/,8/*lwth*/);
+
+		generate_rx_traffic(60,512);
+
 		#10000;
 	end
 endtask
@@ -1182,7 +1205,7 @@ task test_rx_packet_size();
 		generate_rx_traffic(61,1);
 		generate_rx_traffic(1500,1);
 		generate_rx_traffic(9596,1);
-		generate_rx_traffic(16380,4);
+		generate_rx_traffic(16368,1);
 		generate_rx_traffic(60,1);
 
 		#10000;
