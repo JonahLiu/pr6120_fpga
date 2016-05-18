@@ -1,6 +1,7 @@
 module axi_rdma #(
 	parameter ADDRESS_BITS=32,
 	parameter LENGTH_BITS=32,
+	parameter MAX_BURST=256,
 	parameter STREAM_BIG_ENDIAN="TRUE",
 	parameter MEM_BIG_ENDIAN="TRUE"
 )
@@ -172,8 +173,8 @@ end
 
 always @(*)
 begin
-	if(remain_dwords > 256)
-		fetch_dwords_next = 256;
+	if(remain_dwords > MAX_BURST)
+		fetch_dwords_next = MAX_BURST;
 	else
 		fetch_dwords_next = remain_dwords;
 end

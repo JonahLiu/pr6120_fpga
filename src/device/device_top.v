@@ -500,7 +500,7 @@ assign p0_txer = mac_txer;
 
 // Setup & hold time given by 88E1111 is (2.5ns, 0ns), 
 // so edge aligned clock and output is OK.
-ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) p0_gtxsclk_oddr_i(.D1(1'b0),.D2(1'b1),.CE(1'b1),.C(mac_gtxsclk),.S(1'b0),.R(1'b0),.Q(p0_gtxsclk));
+ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) p0_gtxsclk_oddr_i(.D1(1'b1),.D2(1'b0),.CE(1'b1),.C(mac_gtxsclk),.S(1'b0),.R(1'b0),.Q(p0_gtxsclk));
 
 assign p1_txdat = 'b0;
 assign p1_txen = 1'b0;
@@ -1133,6 +1133,7 @@ master_crossbar master_crossbar_i(
 );
 */
 
+/*
 generate
 if(DEBUG=="TRUE") begin
 ila_0 ila_axi_i0(
@@ -1192,5 +1193,6 @@ ila_0 ila_axi_i0(
 );
 end
 endgenerate
+*/
 
 endmodule
