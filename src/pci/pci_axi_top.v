@@ -396,6 +396,9 @@ if(DEBUG=="TRUE") begin
 ila_0 ila_pci_i0(
 	.clk(CLK), // input wire clk
 	.probe0({
+		PCI_CMD,
+		DR_BUS,
+		B_BUSY,
 		BACKOFF,
 		FRAMEQ_N,
 		TRDYQ_N,
@@ -404,18 +407,18 @@ ila_0 ila_pci_i0(
 		DEVSELQ_N,
 		PERRQ_N,
 		SERRQ_N,
-		PCI_CMD,
 		I_IDLE,
 		IDLE,
-		DR_BUS,
-		B_BUSY,
 
-		M_ADIO_IN,
+		ADDR,
+		ADDR_VLD,
 		ADIO_OUT,
 		REQUESET,
 		REQUESTHOLD,
 		COMPLETE,
 		TIME_OUT,
+
+		M_ADIO_IN,
 		M_CBE,
 		M_WRDN,
 		M_READY,
@@ -424,10 +427,59 @@ ila_0 ila_pci_i0(
 		M_DATA_VLD,
 		M_DATA,
 
+		mst_s_awaddr[31:0],
+		mst_s_awlen,
+		mst_s_awvalid,
+		mst_s_awready,
+
+		mst_s_wdata,
+		mst_s_wstrb,
+		mst_s_wlast,
+		mst_s_wvalid,
+		mst_s_wready,
+
+		mst_s_bresp,
+		mst_s_bvalid,
+		mst_s_bready,
+
+		mst_s_araddr[31:0],
+		mst_s_arlen,
+		mst_s_arvalid,
+		mst_s_arready,
+
+		mst_s_rdata,
+		mst_s_rresp,
+		mst_s_rlast,
+		mst_s_rvalid,
+		mst_s_rready
+	})
+);
+ila_0 ila_pci_i1(
+	.clk(CLK), // input wire clk
+	.probe0({
+		PCI_CMD,
+		DR_BUS,
+		B_BUSY,
+		BACKOFF,
+		FRAMEQ_N,
+		TRDYQ_N,
+		IRDYQ_N,
+		STOPQ_N,
+		DEVSELQ_N,
+		PERRQ_N,
+		SERRQ_N,
+		I_IDLE,
+		IDLE,
+
 		ADDR,
-		S_ADIO_IN,
-		ADIO_OUT,
 		ADDR_VLD,
+		ADIO_OUT,
+		REQUESET,
+		REQUESTHOLD,
+		COMPLETE,
+		TIME_OUT,
+
+		S_ADIO_IN,
 		S_TERM,
 		S_READY,
 		S_ABORT,
@@ -435,7 +487,31 @@ ila_0 ila_pci_i0(
 		S_SRC_EN,
 		S_DATA,
 		S_DATA_VLD,
-		S_CBE
+		S_CBE,
+
+		tgt_m_awaddr[31:0],
+		tgt_m_awvalid,
+		tgt_m_awready,
+
+		tgt_m_wdata,
+		tgt_m_wstrb,
+		tgt_m_wvalid,
+		tgt_m_wready,
+
+		tgt_m_bresp,
+		tgt_m_bvalid,
+		tgt_m_bready,
+
+		tgt_m_araddr[31:0],
+		tgt_m_arlen,
+		tgt_m_aruser,
+		tgt_m_arvalid,
+		tgt_m_arready,
+
+		tgt_m_rdata,
+		tgt_m_rresp,
+		tgt_m_rvalid,
+		tgt_m_rready
 	})
 );
 end

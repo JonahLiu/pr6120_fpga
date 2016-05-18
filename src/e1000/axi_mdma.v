@@ -1,8 +1,9 @@
 module axi_mdma #(
-	parameter SRC_ADDRESS_BITS=31,
+	parameter SRC_ADDRESS_BITS=32,
 	parameter SRC_BIG_ENDIAN="TRUE",
-	parameter DST_ADDRESS_BITS=31,
+	parameter DST_ADDRESS_BITS=32,
 	parameter DST_BIG_ENDIAN="TRUE",
+	parameter MAX_BURST=256,
 	parameter LENGTH_BITS=16
 )
 (
@@ -101,6 +102,7 @@ assign dbg_state = state;
 axi_rdma #(
 	.ADDRESS_BITS(SRC_ADDRESS_BITS), 
 	.LENGTH_BITS(LENGTH_BITS),
+	.MAX_BURST(MAX_BURST),
 	.STREAM_BIG_ENDIAN(SRC_BIG_ENDIAN),
 	.MEM_BIG_ENDIAN(SRC_BIG_ENDIAN)
 ) rdma_i(
@@ -137,6 +139,7 @@ axi_rdma #(
 axi_wdma #(
 	.ADDRESS_BITS(DST_ADDRESS_BITS), 
 	.LENGTH_BITS(LENGTH_BITS),
+	.MAX_BURST(MAX_BURST),
 	.STREAM_BIG_ENDIAN(DST_BIG_ENDIAN),
 	.MEM_BIG_ENDIAN(DST_BIG_ENDIAN)
 ) wdma_i(
