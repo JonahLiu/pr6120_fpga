@@ -101,6 +101,7 @@ reg [31:0] read_addr;
 reg [8:0] read_len;
 
 reg grant;
+reg strobe;
 
 reg rresp_fill;
 
@@ -201,7 +202,18 @@ begin
 			else if(target_abort)
 				state_next = S_WRITE_CONT;
 			else if(!M_DATA)
-				if(write_ack_cnt)
+				if(!grant) // this happens when lost grant at first cycle
+				    // Jonah: if lost grant at first cycle, the core will retry automatically;
+					// must wait for its retry.
+					// see NOTE on p86, ug262.
+					state_next = S_WRITE_ADDR;
+				else if(strobe) // this might be a master abort caused by grant lost
+					state_next = S_WRITE_CONT;
+				else // this must be an error. no devsel, e.g.
+					state_next = S_WRITE_FAIL;
+
+				/*
+				if(write_ack_cnt) // FIXME: Here bug exists.
 					state_next = S_WRITE_CONT;
 				else if(M_DATAQ) // this must be an error
 					state_next = S_WRITE_FAIL;
@@ -210,6 +222,7 @@ begin
 					// must wait for its retry.
 					// see NOTE on p86, ug262.
 					state_next = S_WRITE_ADDR; 
+				*/
 			else
 				state_next = S_WRITE_DATA;
 		end
@@ -249,13 +262,23 @@ begin
 			else if(target_abort)
 				state_next = S_READ_CONT;
 			else if(!M_DATA)
-				if(read_ack_cnt)
+				// see write state for details
+				if(!grant)
+					state_next = S_READ_ADDR;
+				else if(strobe)
+					state_next = S_READ_CONT;
+				else
+					state_next = S_READ_FILL;
+
+				/*
+				if(read_ack_cnt) // FIXME: 
 					state_next = S_READ_CONT;
 				else if(M_DATAQ)
 					state_next = S_READ_FILL;
 				else
 					// same reason with write, see above
 					state_next = S_READ_ADDR;
+				*/
 			else
 				state_next = S_READ_DATA;
 		end
@@ -310,6 +333,8 @@ begin
 			rresp_err_r <= 'bx;
 			rresp_fill <= 1'b0;
 			complete_gate <= 1'b0;
+			grant <= 1'bx;
+			strobe <= 1'bx;
 	end
 	else case(state_next)
 		S_IDLE: begin
@@ -338,10 +363,13 @@ begin
 			//TODO: try MEM_WRITE_INVAL
 			bus_command <= CMD_MEM_WRITE;
 			grant <= 1'b0;
+			strobe <= 1'b0;
 		end
 		S_WRITE_DATA: begin
 			if(!STOPQ_N)
 				target_abort <= 1'b1;
+			grant <= M_DATA;
+			strobe <= M_DATA_VLD;
 		end
 		S_WRITE_CONT: begin
 		end
@@ -380,6 +408,8 @@ begin
 		S_READ_DATA: begin
 			if(!STOPQ_N)
 				target_abort <= 1'b1;
+			grant <= M_DATA;
+			strobe <= M_DATA_VLD;
 		end
 		S_READ_CONT: begin
 		end
