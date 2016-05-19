@@ -517,5 +517,55 @@ begin
 end
 
 
+ila_0 ila_mac_i0(
+	.clk(clk), // input wire clk
+	.probe0({
+		ADIO_IN,
+		ADIO_OUT,
+		REQUEST,
+		REQUESTHOLD,
+		M_CBE,
+		M_WRDN,
+		COMPLETE,
+		M_READY,
+		M_DATA_VLD,
+		M_SRC_EN,
+		TIME_OUT,
+		M_DATA,
+		M_ADDR_N,
+		STOPQ_N,
+
+		rcmd_len,
+		rcmd_addr[31:0],
+		rcmd_valid,
+		rcmd_ready,
+		rresp_len,
+		rresp_err,
+		rresp_valid,
+		rresp_ready,
+		rdata_din,
+		rdata_valid,
+		rdata_ready,
+
+		wcmd_len,
+		wcmd_addr[31:0],
+		wcmd_valid,
+		wcmd_ready,
+		wdata_idx,
+		wdata_dout,
+		wdata_strb,
+		wresp_len,
+		wresp_err,
+		wresp_valid,
+		wresp_ready,
+		target_abort,
+		write_len_m1,
+		write_ack_cnt,
+		read_len_m1,
+		read_ack_cnt,
+		state[2:0]
+	})
+);
+
 
 endmodule

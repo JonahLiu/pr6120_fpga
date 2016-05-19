@@ -544,7 +544,7 @@ nic_clk_gen nic_clk_gen_i(
 // PCI to AXI interface controller
 pci_axi_top #(
 	.HARDWIRE_IDSEL(HARDWIRE_IDSEL),
-	.DEBUG(DEBUG)
+	.DEBUG("FALSE")
 )pci_axi_i(
 	// PCI Local Bus
 	.AD(AD),
