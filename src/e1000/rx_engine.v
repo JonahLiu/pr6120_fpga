@@ -334,8 +334,10 @@ begin
 			host_buf_ready <= 1'b0;
 			ram_m_awvalid <= 1'b1;
 			ram_m_awaddr <= {local_addr[15:4],4'h8};
-			wback_dw2 <= pkt_desc_dw2;
-			wback_dw3 <= pkt_desc_dw3;
+			if(state!=S_WRITE_ASTB) begin
+				wback_dw2 <= pkt_desc_dw2;
+				wback_dw3 <= pkt_desc_dw3;
+			end
 		end
 		S_WRITE_DW2: begin
 			ram_m_wlast <= 1'b0;
