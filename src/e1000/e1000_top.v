@@ -102,9 +102,9 @@ module e1000_top(
 
 parameter PHY_ADDR=5'b0;
 parameter CLK_PERIOD_NS=8;
-parameter TX_DESC_RAM_DWORDS=1024;
+parameter TX_DESC_RAM_DWORDS=256;
 parameter TX_DATA_RAM_DWORDS=8192;
-parameter RX_DESC_RAM_DWORDS=1024;
+parameter RX_DESC_RAM_DWORDS=256;
 parameter RX_DATA_RAM_DWORDS=16384;
 parameter DEBUG="FALSE";
 

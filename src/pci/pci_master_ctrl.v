@@ -494,6 +494,7 @@ begin
 		HOLD_COMPLETE = 1'b1;
 end
 
+/*
 ila_0 ila_mac_i0(
 	.clk(clk), // input wire clk
 	.probe0({
@@ -543,5 +544,6 @@ ila_0 ila_mac_i0(
 		state[2:0]
 	})
 );
+*/
 
 endmodule

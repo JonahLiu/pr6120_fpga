@@ -75,7 +75,7 @@ task send(input [15:0] length);
 
 		@(posedge clk);
 		tx_en <= 1'b0;
-		repeat(64) @(posedge clk);
+		repeat(8) @(posedge clk);
 	end
 endtask
 

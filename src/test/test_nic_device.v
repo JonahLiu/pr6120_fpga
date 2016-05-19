@@ -522,7 +522,7 @@ task config_target;
 		master.config_read(TGT_CONF_ADDR+CONF_BAR0_OFFSET, data);
 		master.config_write(TGT_CONF_ADDR+CONF_BAR0_OFFSET,TGT_BAR0_BASE,4'hF);
 
-		//master.config_write(TGT_CONF_ADDR+CONF_CLINE_OFFSET,16,4'hF);
+		master.config_write(TGT_CONF_ADDR+CONF_CLINE_OFFSET,32'h0000_4010,4'h3);
 		//master.config_read(TGT_CONF_ADDR+CONF_CLINE_OFFSET, data);
 
 		master.config_read(TGT_CONF_ADDR+CONF_MISC_OFFSET, data);
@@ -888,6 +888,7 @@ begin
 			while(!stop) begin
 				update_interrupt();
 				rx_update_head();
+				@(posedge PCLK);
 				diff = rx_host_head-prev_head;
 				prev_head = rx_host_head;
 				if(diff<0) diff=diff+rx_host_len;
@@ -905,7 +906,7 @@ begin
 				end
 				else begin
 					rx_add_desc(queue_spare(rx_host_head, rx_host_tail, rx_host_len));
-					#10000;
+					repeat(128) @(posedge PCLK);
 				end
 			end
 		end
@@ -968,10 +969,10 @@ begin
 
 	$dumpfile("test_nic_device.vcd");
 	$dumpvars(1);
-	$dumpvars(1,dut_i);
+	$dumpvars(0,dut_i);
 	//$dumpvars(1,dut_i.pci_axi_i);
 	//$dumpvars(0,dut_i.pci_axi_i.pci_master_i);
-	$dumpvars(1,dut_i.e1000_i);
+	//$dumpvars(1,dut_i.e1000_i);
 	//$dumpvars(0,dut_i.e1000_i.rx_path_i);
 	//$dumpvars(0,dut_i.e1000_i.tx_path_i);
 	//$dumpvars(1,dut_i.e1000_i.tx_path_i.tx_frame_i);
@@ -1176,11 +1177,11 @@ task test_rx_desc_queue();
 		PARAM_PCSS = 14;
 
 
-		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,0/*wth*/,8/*lwth*/);
+		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*wth*/,0/*lwth*/);
 
 		generate_rx_traffic(60,16);
 
-		initialize_nic(32/*octlen*/,0/*tidv*/,0/*tadv*/,8/*pth*/,4/*hth*/,0/*wth*/,8/*lwth*/);
+		initialize_nic(32/*octlen*/,8/*tidv*/,8/*tadv*/,8/*pth*/,4/*hth*/,4/*wth*/,8/*lwth*/);
 
 		generate_rx_traffic(60,512);
 
@@ -1246,7 +1247,7 @@ begin:T0
 
 `ifdef TEST_RX
 	test_rx_desc_queue();
-	test_rx_packet_size();
+	//test_rx_packet_size();
 	#100_000;
 `endif
 

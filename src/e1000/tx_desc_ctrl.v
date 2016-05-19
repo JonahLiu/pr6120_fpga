@@ -125,8 +125,8 @@ reg [15:0] host_limit;
 // Stores TX Descriptors in local memory but not submitted to TX engine
 reg [DESC_NUM_BITS-1:0] in_head;
 reg [DESC_NUM_BITS-1:0] in_tail;
-reg [DESC_NUM_BITS-1:0] in_num;
-reg [DESC_NUM_BITS-1:0] in_enq_incr;
+reg [DESC_NUM_BITS:0] in_num;
+reg [DESC_NUM_BITS:0] in_enq_incr;
 reg in_enqueue;
 reg in_dequeue;
 
@@ -134,8 +134,8 @@ reg in_dequeue;
 // Stores TX Descriptors in local memory that finished TX process
 reg [DESC_NUM_BITS-1:0] out_head;
 reg [DESC_NUM_BITS-1:0] out_tail;
-reg [DESC_NUM_BITS-1:0] out_num;
-reg [DESC_NUM_BITS-1:0] out_deq_incr;
+reg [DESC_NUM_BITS:0] out_num;
+reg [DESC_NUM_BITS:0] out_deq_incr;
 reg out_enqueue;
 reg out_dequeue;
 
