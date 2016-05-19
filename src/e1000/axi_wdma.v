@@ -221,6 +221,7 @@ begin
 		end
 		S_CALC: begin
 			fetch_dwords <= fetch_dwords_next;
+			axi_m_bready <= 1'b0;
 		end
 		S_ASTRB: begin
 			axi_m_awvalid <= 1'b1;
