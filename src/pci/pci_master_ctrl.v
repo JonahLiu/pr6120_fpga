@@ -211,18 +211,6 @@ begin
 					state_next = S_WRITE_CONT;
 				else // this must be an error. no devsel, e.g.
 					state_next = S_WRITE_FAIL;
-
-				/*
-				if(write_ack_cnt) // FIXME: Here bug exists.
-					state_next = S_WRITE_CONT;
-				else if(M_DATAQ) // this must be an error
-					state_next = S_WRITE_FAIL;
-				else
-				    // Jonah: if lost grant at first cycle, the core will retry automatically;
-					// must wait for its retry.
-					// see NOTE on p86, ug262.
-					state_next = S_WRITE_ADDR; 
-				*/
 			else
 				state_next = S_WRITE_DATA;
 		end
@@ -269,16 +257,6 @@ begin
 					state_next = S_READ_CONT;
 				else
 					state_next = S_READ_FILL;
-
-				/*
-				if(read_ack_cnt) // FIXME: 
-					state_next = S_READ_CONT;
-				else if(M_DATAQ)
-					state_next = S_READ_FILL;
-				else
-					// same reason with write, see above
-					state_next = S_READ_ADDR;
-				*/
 			else
 				state_next = S_READ_DATA;
 		end
@@ -503,7 +481,7 @@ end
 assign FIN1 = (complete_cnt==0) & REQUEST;
 assign FIN2 = (complete_cnt==1) & M_DATAQ;
 assign FIN3 = (complete_cnt==2) & M_DATA_VLD;
-assign ASSERT_COMPLETE = FIN1 | FIN2 | FIN3;
+assign ASSERT_COMPLETE = FIN1 | FIN2 | FIN3 | TIME_OUT;
 assign COMPLETE = ASSERT_COMPLETE | HOLD_COMPLETE | !complete_gate;
 
 always @(posedge clk, posedge rst)
@@ -516,10 +494,23 @@ begin
 		HOLD_COMPLETE = 1'b1;
 end
 
-
 ila_0 ila_mac_i0(
 	.clk(clk), // input wire clk
 	.probe0({
+		rcmd_len,
+		rcmd_addr[31:0],
+		rcmd_valid,
+		rcmd_ready,
+		rresp_len,
+		rresp_err,
+		rresp_valid,
+		rresp_ready,
+		rdata_din,
+		rdata_valid,
+		rdata_ready,
+		read_len_m1,
+		read_ack_cnt,
+
 		ADIO_IN,
 		ADIO_OUT,
 		REQUEST,
@@ -535,18 +526,7 @@ ila_0 ila_mac_i0(
 		M_ADDR_N,
 		STOPQ_N,
 
-		rcmd_len,
-		rcmd_addr[31:0],
-		rcmd_valid,
-		rcmd_ready,
-		rresp_len,
-		rresp_err,
-		rresp_valid,
-		rresp_ready,
-		rdata_din,
-		rdata_valid,
-		rdata_ready,
-
+		target_abort,
 		wcmd_len,
 		wcmd_addr[31:0],
 		wcmd_valid,
@@ -558,14 +538,10 @@ ila_0 ila_mac_i0(
 		wresp_err,
 		wresp_valid,
 		wresp_ready,
-		target_abort,
 		write_len_m1,
 		write_ack_cnt,
-		read_len_m1,
-		read_ack_cnt,
 		state[2:0]
 	})
 );
-
 
 endmodule
