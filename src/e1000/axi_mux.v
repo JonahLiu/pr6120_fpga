@@ -209,6 +209,7 @@ endfunction
 reg [SELECT_BITS-1:0] wi;
 reg write_busy;
 reg write_disable;
+reg wdata_enable;
 reg [SELECT_BITS-1:0] ri;
 reg read_busy;
 reg read_disable;
@@ -237,6 +238,19 @@ begin
 	end
 	else if(m_bvalid && m_bready) begin
 		write_disable <= 1'b0;
+	end
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		wdata_enable <= 1'b0;
+	end
+	else if(m_awvalid && m_awready) begin
+		wdata_enable <= 1'b1;
+	end
+	else if(m_wvalid && m_wready && m_wlast) begin
+		wdata_enable <= 1'b0;
 	end
 end
 
@@ -281,13 +295,13 @@ begin:WRITE_SEL
 
 	m_wlast = s_wlast[wi];
 
-	m_wvalid = write_busy & s_wvalid[wi];
+	m_wvalid = write_busy & s_wvalid[wi] & wdata_enable;
 
 	m_bready = s_bready[wi];
 
 	for(i=0;i<SLAVE_NUM;i=i+1) begin 
 		s_awready[i] = write_busy & (wi==i) & m_awready & !write_disable;
-		s_wready[i] = write_busy & (wi==i) & m_wready;
+		s_wready[i] = write_busy & (wi==i) & m_wready & wdata_enable;
 		s_bvalid[i] = write_busy & (wi==i) & m_bvalid;
 	end
 
