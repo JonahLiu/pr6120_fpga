@@ -197,6 +197,12 @@ wire CTRL_TFCE; // Transmit Flow Control Enable
 wire CTRL_VME; // VLAN Mode Enable
 wire CTRL_PHY_RST; // PHY Reset
 
+wire STATUS_FD_fb; // Full-Duplex: 1 - FD, 2 - HD
+wire STATUS_LU_fb; // Link up 1 - up, 0 - down
+wire [1:0] STATUS_FID_fb; // Function ID
+wire STATUS_TXOFF_fb; // TX off
+wire [1:0] STATUS_SPEED_fb; // Link Speed: 00 - 10M, 01 - 100M, 1x - 1000M
+wire [1:0] STATUS_ASDV_fb; // Auto-detected Speed
 
 wire STAT_FD_fb;
 wire STAT_SPEED_fb;
@@ -305,6 +311,14 @@ assign PHYINT_req = phy_int_sync[1];
 
 assign reset_request = CTRL_RST;
 
+// FIXME: connect to actual value
+assign STATUS_FD_fb = 1'b1;
+assign STATUS_LU_fb = 1'b1;
+assign STATUS_FID_fb = 2'b0;
+assign STATUS_TXOFF_fb = 1'b0;
+assign STATUS_SPEED_fb = 2'b10;
+assign STATUS_ASDV_fb = 2'b10;
+
 always @(posedge aclk)
 begin
 	phy_int_sync <= {phy_int_sync, phy_int};
@@ -338,6 +352,13 @@ e1000_regs cmd_i(
 
 	.CTRL_RST(CTRL_RST),
 	.CTRL_PHY_RST(CTRL_PHY_RST),
+
+	.STATUS_FD_fb(STATUS_FD_fb),
+	.STATUS_LU_fb(STATUS_LU_fb),
+	.STATUS_FID_fb(STATUS_FID_fb),
+	.STATUS_TXOFF_fb(STATUS_TXOFF_fb),
+	.STATUS_SPEED_fb(STATUS_SPEED_fb),
+	.STATUS_ASDV_fb(STATUS_ASDV_fb),
 
 	.EECD(EECD),
 	.EECD_DO_i(eedo),
@@ -892,6 +913,12 @@ ila_0 ila_mac_i0(
 		TDT,
 		RDH_fb,
 		RDT,
+
+		mac_txdat,
+		mac_txen,
+		mac_txer,
+		mac_crs,
+		mac_col,
 		
 		mac_rx_m_tdata,
 		mac_rx_m_tuser,

@@ -23,6 +23,9 @@ file delete -force $outputDir
 file mkdir $outputDir
 set_part $part
 
+set_param general.maxThreads 8
+set_param synth.maxThreads 8
+
 ################################################################################
 # STEP#1: setup design sources and constraints
 #

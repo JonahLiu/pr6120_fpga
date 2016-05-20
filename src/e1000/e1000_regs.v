@@ -33,6 +33,13 @@ module e1000_regs(
 	output CTRL_RST,
 	output CTRL_PHY_RST,
 
+	input STATUS_FD_fb,
+	input STATUS_LU_fb,
+	input [1:0] STATUS_FID_fb,
+	input STATUS_TXOFF_fb,
+	input [1:0] STATUS_SPEED_fb,
+	input [1:0] STATUS_ASDV_fb,
+
 	output [31:0] EECD,
 	input 	EECD_DO_i,
 	input	EECD_GNT_i,
@@ -315,7 +322,14 @@ e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0008),.BMSK(32'hFFFF_FFFF)) STAT
 	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
 	.O(STATUS),.Q(STATUS_Q),.B(STATUS_B),.S(STATUS_set),.G(STATUS_get)
 );
-assign STATUS_B=STATUS; // FIXME: Actual value
+assign STATUS_B[0] = STATUS_FD_fb;
+assign STATUS_B[1] = STATUS_LU_fb;
+assign STATUS_B[3:2] = STATUS_FID_fb;
+assign STATUS_B[4] = STATUS_TXOFF_fb;
+assign STATUS_B[5] = 1'b0;
+assign STATUS_B[7:6] = STATUS_SPEED_fb;
+assign STATUS_B[9:8] = STATUS_ASDV_fb;
+assign STATUS_B[31:10] = 'b0;
 
 wire [31:0] EECD_Q, EECD_B;
 wire EECD_get, EECD_set;
