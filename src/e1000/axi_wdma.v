@@ -78,8 +78,8 @@ assign axi_m_wid = 'b0;
 assign axi_m_wdata = ia_m_tdata;
 assign axi_m_wstrb = ia_m_tkeep;
 //assign axi_m_wlast = ia_m_tlast;
-assign axi_m_wvalid = ia_m_tvalid;
-assign ia_m_tready = axi_m_wready;
+assign axi_m_wvalid = ia_m_tvalid & m_ready;
+assign ia_m_tready = axi_m_wready & m_ready;
 
 assign axi_m_awid = 'b0;
 assign axi_m_awsize = 3'b010;

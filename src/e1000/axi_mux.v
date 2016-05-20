@@ -5,6 +5,8 @@ module axi_mux(
 
 	dbg_wr_busy,
 	dbg_rd_busy,
+	dbg_wr_tmo,
+	dbg_rd_tmo,
 
 	// AXI Slave Write Address
 	s_awid,
@@ -180,6 +182,8 @@ input m_rvalid;
 
 output dbg_wr_busy;
 output dbg_rd_busy;
+output dbg_wr_tmo;
+output dbg_rd_tmo;
 
 
 function integer clogb2 (input integer size);
@@ -210,6 +214,7 @@ reg [SELECT_BITS-1:0] wi;
 reg write_busy;
 reg write_disable;
 reg wdata_enable;
+reg bresp_enable;
 reg [SELECT_BITS-1:0] ri;
 reg read_busy;
 reg read_disable;
@@ -257,6 +262,19 @@ end
 always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn) begin
+		bresp_enable <= 1'b0;
+	end
+	else if(m_wvalid && m_wready && m_wlast) begin
+		bresp_enable <= 1'b1;
+	end
+	else if(m_bvalid && m_bready) begin
+		bresp_enable <= 1'b0;
+	end
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
 		wi <= 0;
 	end
 	else if(!write_busy) begin
@@ -297,12 +315,12 @@ begin:WRITE_SEL
 
 	m_wvalid = write_busy & s_wvalid[wi] & wdata_enable;
 
-	m_bready = s_bready[wi];
+	m_bready = s_bready[wi] & bresp_enable;
 
 	for(i=0;i<SLAVE_NUM;i=i+1) begin 
 		s_awready[i] = write_busy & (wi==i) & m_awready & !write_disable;
 		s_wready[i] = write_busy & (wi==i) & m_wready & wdata_enable;
-		s_bvalid[i] = write_busy & (wi==i) & m_bvalid;
+		s_bvalid[i] = write_busy & (wi==i) & m_bvalid & bresp_enable;
 	end
 
 	s_bid = {SLAVE_NUM{m_bid}};
@@ -380,6 +398,66 @@ end
 
 assign dbg_wr_busy = write_busy;
 assign dbg_rd_busy = read_busy;
+
+reg [9:0] wr_timer;
+reg wr_timer_en;
+reg [1:0] wr_stage;
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		wr_stage <= 0;
+	end
+	else case(wr_stage)
+		0: if(m_awvalid && m_awready) wr_statge <= 1;
+		1: if(m_wvalid && m_wready)
+			if(m_wlast) wr_stage <= 3;
+			else wr_stage <= 2;
+		2: if(m_wvalid && m_wready && m_wlast) wr_stage <= 3;
+		3: if(m_bvalid && m_bready) wr_stage <= 0;
+	endcase
+end
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn)
+		wr_timer_en <= 1'b0;
+	else if(m_wvalid && m_wlast && m_wready)
+		wr_timer_en <= 1'b1;
+	else if(m_bvalid && m_bready)
+		wr_timer_en <= 1'b0;
+end
+
+always @(posedge aclk)
+begin
+	if(!wr_timer_en)
+		wr_timer <= 'b0;
+	else if(wr_timer_en && !wr_timer[9])
+		wr_timer <= wr_timer+1;
+end
+assign dbg_wr_tmo = wr_timer[9];
+
+reg [9:0] rd_timer;
+reg rd_timer_en;
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn)
+		rd_timer_en <= 1'b0;
+	else if(m_arvalid && m_arready)
+		rd_timer_en <= 1'b1;
+	else if(m_rvalid && m_rlast && m_rready)
+		rd_timer_en <= 1'b0;
+end
+
+always @(posedge aclk)
+begin
+	if(!rd_timer_en)
+		rd_timer <= 'b0;
+	else if(rd_timer_en && !rd_timer[9])
+		rd_timer <= rd_timer+1;
+end
+assign dbg_rd_tmo = rd_timer[9];
 
 endmodule
 

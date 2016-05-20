@@ -320,18 +320,28 @@ begin:TEST
 	end
 
 	fork
-		begin:M0
+		begin:M0_WRITE
 			integer j;
 			for(j=0;j<1024;j=j+1) begin
-				m0.write(j*4,256);
-				m0.read(j*4,256);
+				m0.write(j*4,j%256+1);
 			end
 		end
-		begin:M1
+		begin:M0_READ
+			integer j;
+			for(j=0;j<1024;j=j+1) begin
+				m0.read(j*4,256-(j%256));
+			end
+		end
+		begin:M1_WRITE
 			integer k;
 			for(k=0;k<1024;k=k+1) begin
-				m1.write(k*4,256);
-				m1.read(k*4,256);
+				m1.write(k*4,256-(k%256));
+			end
+		end
+		begin:M1_READ
+			integer k;
+			for(k=0;k<1024;k=k+1) begin
+				m1.read(k*4,k%256);
 			end
 		end
 	join

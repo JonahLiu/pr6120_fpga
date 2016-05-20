@@ -791,6 +791,8 @@ axi_mux #(
 
 	.dbg_wr_busy(dbg_ext_mux_wr_busy),
 	.dbg_rd_busy(dbg_ext_mux_rd_busy),
+	.dbg_wr_tmo(dbg_ext_mux_wr_tmo),
+	.dbg_rd_tmo(dbg_ext_mux_rd_tmo),
 
 	.s_awid({rx_m_awid,tx_m_awid}),
 	.s_awaddr({rx_m_awaddr,tx_m_awaddr}),
@@ -904,6 +906,8 @@ ila_0 ila_mac_i0(
 		dbg_frm_state,
 		dbg_ext_mux_wr_busy,
 		dbg_ext_mux_rd_busy,
+		dbg_ext_mux_wr_tmo,
+		dbg_ext_mux_rd_tmo,
 		dbg_rx_ext_mux_wr_busy,
 		dbg_rx_ext_mux_rd_busy,
 		dbg_rx_desc_mux_wr_busy,

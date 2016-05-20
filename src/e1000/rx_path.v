@@ -482,7 +482,7 @@ axi_mdma #(
 	.SRC_BIG_ENDIAN("FALSE"),
 	.DST_ADDRESS_BITS(16), 
 	.DST_BIG_ENDIAN("FALSE"),
-	.MAX_BURST(256),
+	.MAX_BURST(64),
 	.LENGTH_BITS(16)
 ) i0_i(
 	.aclk(aclk),
@@ -544,7 +544,7 @@ axi_mdma #(
 	.SRC_BIG_ENDIAN("FALSE"),
 	.DST_ADDRESS_BITS(64), 
 	.DST_BIG_ENDIAN("FALSE"),
-	.MAX_BURST(256),
+	.MAX_BURST(64),
 	.LENGTH_BITS(16)
 ) i1_i(
 	.aclk(aclk),
@@ -606,7 +606,7 @@ axi_mdma #(
 	.SRC_BIG_ENDIAN("FALSE"),
 	.DST_ADDRESS_BITS(64), 
 	.DST_BIG_ENDIAN("FALSE"),
-	.MAX_BURST(256),
+	.MAX_BURST(64),
 	.LENGTH_BITS(16)
 ) i2_i(
 	.aclk(aclk),
