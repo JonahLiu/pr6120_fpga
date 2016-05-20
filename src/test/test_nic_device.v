@@ -1,6 +1,7 @@
 `timescale 1ns/10ps
 `undef TEST_TX
-`define TEST_RX
+`undef TEST_RX
+`define TEST_CONCURRENT
 
 `define REPORT_PCI_FETCH
 `define REPORT_PCI_WRITE_BACK
@@ -149,6 +150,7 @@ localparam
 //
 reg clk33;
 reg rst;
+reg clk125;
 
 wire [31:0] AD;
 wire [3:0] CBE;
@@ -399,7 +401,8 @@ pci_blue_arbiter arbiter(
 ////////////////////////////////////////////////////////////////////////////////
 
 eth_pkt_gen pkt_gen(
-	.clk(p0_gtxsclk),
+	//.clk(p0_gtxsclk),
+	.clk(clk125),
 	.tx_clk(p0_rxsclk),
 	.tx_dat(p0_rxdat),
 	.tx_en(p0_rxdv),
@@ -920,6 +923,110 @@ begin
 end
 endtask
 
+//% Generate bi-directional traffic
+//%
+//% @num: number of descriptors to generate
+task generate_concurrent_traffic(input integer length, input integer num);
+	reg stop;
+begin
+	stop=0;
+	fork
+		begin:DESC
+			reg [15:0] rx_prev_head,tx_prev_head;
+			integer rx_diff, tx_diff;
+			integer rx_trans, tx_trans;
+			reg [15:0] desc_length;
+			integer rx_expected, tx_expected;
+			case({PARAM_BSEX,PARAM_BSIZE})
+				3'b000: desc_length = 2048;
+				3'b001: desc_length = 1024;
+				3'b010: desc_length = 512;
+				3'b011: desc_length = 256;
+				3'b100: desc_length = 32768; // illegal
+				3'b101: desc_length = 16384;
+				3'b110: desc_length = 8192;
+				3'b111: desc_length = 4096;
+			endcase
+			rx_expected = length/desc_length;
+			tx_expected = length/desc_length;
+			if(length%desc_length) begin
+				rx_expected = rx_expected+1;
+				tx_expected = tx_expected+1;
+			end
+			rx_expected=rx_expected*num;
+			tx_expected=tx_expected*num;
+			rx_update_head();
+			rx_prev_head=rx_host_head;
+			tx_update_head();
+			tx_prev_head=tx_host_head;
+
+			rx_trans=0;
+			tx_trans=0;
+			while(!stop) begin
+				update_interrupt();
+				// Rx
+				if(rx_trans<rx_expected) begin
+					rx_update_head();
+					@(posedge PCLK);
+					rx_diff = rx_host_head-rx_prev_head;
+					rx_prev_head = rx_host_head;
+					if(rx_diff<0) rx_diff=rx_diff+rx_host_len;
+					rx_trans=rx_trans+rx_diff;
+
+					if(rx_trans==rx_expected) begin
+						$display($time,,,"OK - All %d rx packet in %d rx desc received",
+							num, rx_expected);
+					end
+					else if(rx_trans>rx_expected) begin
+						$display($time,,,"ERROR - redundant rx_packet received, expect %d desc, got %d",
+							rx_expected, rx_trans);
+					end
+					else begin
+						rx_add_desc(queue_spare(rx_host_head, rx_host_tail, rx_host_len));
+					end
+				end
+
+				// TX
+				if(tx_trans<tx_expected) begin
+					tx_update_head();
+					@(posedge PCLK);
+					tx_diff = tx_host_head-tx_prev_head;
+					tx_prev_head = tx_host_head;
+					if(tx_diff<0) tx_diff=tx_diff+tx_host_len;
+					tx_trans=tx_trans+tx_diff;
+
+					if(tx_trans==tx_expected) begin
+						$display($time,,,"OK - All %d tx packet in %d tx desc transmitted",
+							num, tx_expected);
+					end
+					else if(tx_trans>tx_expected) begin
+						$display($time,,,"ERROR - redundant tx packet, expect %d desc, got %d",
+							tx_expected, tx_trans);
+					end
+					else begin
+						//if(queue_spare(tx_host_head, tx_host_tail, tx_host_len)>0)
+						repeat(queue_spare(tx_host_head, tx_host_tail, tx_host_len))
+							tx_add_packet(length, desc_length);
+						tx_commit_tail();
+					end
+				end
+
+				if(rx_trans>=rx_expected && tx_trans>=tx_expected) begin
+					stop=1;
+				end
+				repeat(128) @(posedge PCLK);
+			end
+		end
+		begin:RX_DATA
+			integer i;
+			//for(i=0;i<num;i=i+1) begin
+			while(!stop) begin
+				pkt_gen.send(length);
+			end
+		end
+	join
+end
+endtask
 ////////////////////////////////////////////////////////////////////////////////
 // Test Cases
 initial
@@ -933,6 +1040,12 @@ begin
 	rst <= 1;
 	repeat(8) @(posedge clk33);
 	rst <= 0;
+end
+
+initial
+begin
+	clk125=0;
+	forever #4 clk125=!clk125;
 end
 
 initial
@@ -1213,6 +1326,29 @@ task test_rx_packet_size();
 	end
 endtask
 
+task test_concurrent_transfer();
+	begin
+		dbg_msg = "Test Full Duplex";
+		rx_host_base = RX_DESC_BASE;
+		rx_host_dptr = RX_DATA_BASE;
+		tx_host_base = TX_DESC_BASE;
+		tx_host_dptr = TX_DATA_BASE;
+
+		PARAM_RS = REPORT_ALL;
+		PARAM_IDE = 0;
+		PARAM_BSEX = 0;
+		PARAM_BSIZE = 3'b000;
+		PARAM_PCSS = 14;
+
+
+		initialize_nic(32/*octlen*/,8/*tidv*/,8/*tadv*/,8/*pth*/,4/*hth*/,4/*wth*/,8/*lwth*/);
+
+		generate_concurrent_traffic(1518,512);
+
+		#10000;
+	end
+endtask
+
 initial
 begin:T0
 	#1000;
@@ -1248,6 +1384,11 @@ begin:T0
 `ifdef TEST_RX
 	test_rx_desc_queue();
 	//test_rx_packet_size();
+	#100_000;
+`endif
+
+`ifdef TEST_CONCURRENT
+	test_concurrent_transfer();
 	#100_000;
 `endif
 

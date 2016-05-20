@@ -779,6 +779,8 @@ mac_axis mac_i(
 	.Col(mac_col)
 );
 
+wire [1:0] dbg_ext_mux_wr_stage;
+
 axi_mux #(
 	.SLAVE_NUM(2),
 	.ID_WIDTH(4),
@@ -793,6 +795,7 @@ axi_mux #(
 	.dbg_rd_busy(dbg_ext_mux_rd_busy),
 	.dbg_wr_tmo(dbg_ext_mux_wr_tmo),
 	.dbg_rd_tmo(dbg_ext_mux_rd_tmo),
+	.dbg_wr_stage(dbg_ext_mux_wr_stage),
 
 	.s_awid({rx_m_awid,tx_m_awid}),
 	.s_awaddr({rx_m_awaddr,tx_m_awaddr}),
@@ -908,6 +911,7 @@ ila_0 ila_mac_i0(
 		dbg_ext_mux_rd_busy,
 		dbg_ext_mux_wr_tmo,
 		dbg_ext_mux_rd_tmo,
+		dbg_ext_mux_wr_stage,
 		dbg_rx_ext_mux_wr_busy,
 		dbg_rx_ext_mux_rd_busy,
 		dbg_rx_desc_mux_wr_busy,

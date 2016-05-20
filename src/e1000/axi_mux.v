@@ -7,6 +7,7 @@ module axi_mux(
 	dbg_rd_busy,
 	dbg_wr_tmo,
 	dbg_rd_tmo,
+	dbg_wr_stage,
 
 	// AXI Slave Write Address
 	s_awid,
@@ -184,6 +185,7 @@ output dbg_wr_busy;
 output dbg_rd_busy;
 output dbg_wr_tmo;
 output dbg_rd_tmo;
+output [1:0] dbg_wr_stage;
 
 
 function integer clogb2 (input integer size);
@@ -409,7 +411,7 @@ begin
 		wr_stage <= 0;
 	end
 	else case(wr_stage)
-		0: if(m_awvalid && m_awready) wr_statge <= 1;
+		0: if(m_awvalid && m_awready) wr_stage <= 1;
 		1: if(m_wvalid && m_wready)
 			if(m_wlast) wr_stage <= 3;
 			else wr_stage <= 2;
@@ -417,6 +419,7 @@ begin
 		3: if(m_bvalid && m_bready) wr_stage <= 0;
 	endcase
 end
+assign dbg_wr_stage = wr_stage;
 
 always @(posedge aclk, negedge aresetn)
 begin
