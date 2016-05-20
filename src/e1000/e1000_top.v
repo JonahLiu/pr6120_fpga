@@ -733,7 +733,7 @@ assign	tx_pause_en = 1'b0;
 assign	Line_loop_en = &LBM;// 2'b11 == loopback
 
 mac_axis mac_i(
-	.Clk_125M(clk125),
+	.Clk_125M(mac_rxsclk),
 	.aclk(aclk),
 	.aresetn(aresetn),
 
