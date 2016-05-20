@@ -119,7 +119,7 @@ task write(input [31:0] addr, input [8:0] length);
 					m_axi_wvalid <= 1'b1;
 					m_axi_wlast <= (i+1==length);
 					@(posedge m_axi_aclk);
-					while(!m_axi_awready) @(posedge m_axi_aclk);
+					while(!m_axi_wready) @(posedge m_axi_aclk);
 				end
 				m_axi_wvalid <= 1'b0;
 			end
