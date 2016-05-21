@@ -1143,6 +1143,8 @@ axi_mux #(
 	.m_rready(dram_s_rready)
 );
 
+wire [1:0] dbg_ext_mux_wr_stage;
+
 axi_mux #(
 	.SLAVE_NUM(2),
 	.ID_WIDTH(4),
@@ -1155,6 +1157,8 @@ axi_mux #(
 	
 	.dbg_wr_busy(dbg_ext_mux_wr_busy),
 	.dbg_rd_busy(dbg_ext_mux_rd_busy),
+	.dbg_wr_stage(dbg_ext_mux_wr_stage),
+	.dbg_wr_tmo(dbg_ext_mux_wr_tmo),
 
 	.s_awid({i2_ext_awid,i1_ext_awid}),
 	.s_awaddr({i2_ext_awaddr,i1_ext_awaddr}),
@@ -1225,5 +1229,71 @@ axi_mux #(
 	.m_rlast(axi_m_rlast),
 	.m_rvalid(axi_m_rvalid),
 	.m_rready(axi_m_rready)
+);
+
+ila_0 ila_rx_i0(
+	.clk(aclk), // input wire clk
+	.probe0({
+		i2_rpt_src[15:0],
+		i2_rpt_dst[31:0],
+		i2_rpt_status,
+		i2_rpt_bytes,
+		i2_rpt_valid,
+		i2_rpt_ready,
+
+		i2_cmd_src[15:0],
+		i2_cmd_dst[31:0],
+		i2_cmd_bytes,
+		i2_cmd_valid,
+		i2_cmd_ready,
+
+		i2_dram_araddr[15:0],
+		i2_dram_arlen,
+		i2_dram_arvalid,
+		i2_dram_arready,
+		i2_dram_rdata,
+		i2_dram_rvalid,
+		i2_dram_rlast,
+		i2_dram_rready,
+
+		dbg_ext_mux_wr_busy,
+		dbg_ext_mux_wr_tmo,
+		dbg_ext_mux_wr_stage,
+
+		i2_ext_awaddr[31:0],
+		i2_ext_awlen,
+		i2_ext_awvalid,
+		i2_ext_awready,
+		i2_ext_wdata,
+		i2_ext_wstrb,
+		i2_ext_wlast,
+		i2_ext_wvalid,
+		i2_ext_wready,
+		i2_ext_bvalid,
+		i2_ext_bready
+
+		/*
+		i1_ext_awaddr[31:0],
+		i1_ext_awlen,
+		i1_ext_awvalid,
+		i1_ext_awready,
+		i1_ext_wstrb,
+		i1_ext_wlast,
+		i1_ext_wvalid,
+		i1_ext_wready,
+		i1_ext_bvalid,
+		i1_ext_bready,
+		axi_m_awaddr[31:0],
+		axi_m_awlen,
+		axi_m_awvalid,
+		axi_m_awready,
+		axi_m_wstrb,
+		axi_m_wlast,
+		axi_m_wvalid,
+		axi_m_wready,
+		axi_m_bvalid,
+		axi_m_bready,
+		*/
+	})
 );
 endmodule

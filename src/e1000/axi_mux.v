@@ -425,7 +425,8 @@ always @(posedge aclk, negedge aresetn)
 begin
 	if(!aresetn)
 		wr_timer_en <= 1'b0;
-	else if(m_wvalid && m_wlast && m_wready)
+	//else if(m_wvalid && m_wlast && m_wready)
+	else if(m_awvalid && m_awready)
 		wr_timer_en <= 1'b1;
 	else if(m_bvalid && m_bready)
 		wr_timer_en <= 1'b0;

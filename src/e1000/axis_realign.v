@@ -229,7 +229,7 @@ begin
 		buf_tvalid <= 1;
 	else if(b_next>0 && more)
 		buf_tvalid <= 1;
-	else
+	else if(buf_tready)
 		buf_tvalid <= 0;
 end
 

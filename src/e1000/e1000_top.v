@@ -942,6 +942,47 @@ ila_0 ila_mac_i0(
 		mac_tx_s_tready
 	})
 );
+ila_0 ila_mac_i1(
+	.clk(aclk), // input wire clk
+	.probe0({
+		dbg_rx_ext_mux_wr_busy,
+		dbg_ext_mux_wr_busy,
+		dbg_ext_mux_wr_tmo,
+		dbg_ext_mux_wr_stage,
+		axi_m_awaddr[31:0],
+		axi_m_awlen,
+		axi_m_awvalid,
+		axi_m_awready,
+		axi_m_wstrb,
+		axi_m_wlast,
+		axi_m_wvalid,
+		axi_m_wready,
+		axi_m_bvalid,
+		axi_m_bready,
+
+		rx_m_awaddr[31:0],
+		rx_m_awlen,
+		rx_m_awvalid,
+		rx_m_awready,
+		rx_m_wstrb,
+		rx_m_wlast,
+		rx_m_wvalid,
+		rx_m_wready,
+		rx_m_bvalid,
+		rx_m_bready,
+
+		tx_m_awaddr[31:0],
+		tx_m_awlen,
+		tx_m_awvalid,
+		tx_m_awready,
+		tx_m_wstrb,
+		tx_m_wlast,
+		tx_m_wvalid,
+		tx_m_wready,
+		tx_m_bvalid,
+		tx_m_bready
+	})
+);
 end
 endgenerate
 

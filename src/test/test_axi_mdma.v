@@ -52,6 +52,9 @@ wire ram_s_rready;
 
 assign rpt_ready = 1'b1;
 
+reg awready_gate;
+reg [7:0] awready_cnt;
+
 axi_mdma #(
 	.SRC_ADDRESS_BITS(32), 
 	.SRC_BIG_ENDIAN("FALSE"),
@@ -96,7 +99,7 @@ axi_mdma #(
 	.dst_m_awsize(ram_s_awsize),
 	.dst_m_awburst(ram_s_awburst),
 	.dst_m_awvalid(ram_s_awvalid),
-	.dst_m_awready(ram_s_awready),
+	.dst_m_awready(ram_s_awready&awready_gate),
 
 	.dst_m_wid(ram_s_wid),
 	.dst_m_wdata(ram_s_wdata),
@@ -120,7 +123,7 @@ axi_ram #(.MEMORY_DEPTH(8192)) mem_i(
 	.s_awlen(ram_s_awlen),
 	.s_awsize(ram_s_awsize),
 	.s_awburst(ram_s_awburst),
-	.s_awvalid(ram_s_awvalid),
+	.s_awvalid(ram_s_awvalid&awready_gate),
 	.s_awready(ram_s_awready),
 
 	.s_wid(ram_s_wid),
@@ -151,6 +154,24 @@ axi_ram #(.MEMORY_DEPTH(8192)) mem_i(
 	.s_rready(ram_s_rready)
 );
 
+
+always @(posedge aclk, negedge aresetn)
+begin
+	if(!aresetn) begin
+		awready_gate <= 1'b0;
+		awready_cnt <= 'b0;
+	end
+	else if(!awready_gate && ram_s_awvalid) begin
+		if(awready_cnt == 128)
+			awready_gate <= 1'b1;
+		awready_cnt <= awready_cnt+1;
+	end
+	else if(awready_gate && ram_s_awready) begin
+		awready_gate <= 1'b0;
+		awready_cnt <= 'b0;
+	end
+end
+
 initial
 begin
 	aclk = 0;
@@ -163,8 +184,8 @@ initial begin
 	aresetn = 0;
 	@(posedge aclk) aresetn <= 1;
 
-	#200000;
-	$finish();
+	//#200000;
+	//$finish();
 end
 
 task initialize;
@@ -194,6 +215,26 @@ task test_dma(input [31:0] src, input [31:0] dst, input [15:0] bytes);
 	end
 endtask
 
+task test_offset(input integer len1, input integer len2);
+	begin
+		test_dma(16'h0000,16'h0000,len1);
+		test_dma(16'h0000,16'h0000,len2);
+	end
+endtask
+
+task test_fault;
+	integer i;
+	begin
+		for(i=0;i<128;i=i+1) begin
+			aresetn <= 0;
+			@(posedge aclk);
+			aresetn <= 1;
+			test_offset(i+1,70);
+			#10000;
+		end
+	end
+endtask
+
 initial begin
 	aresetn = 0;
 	cmd_valid = 1'b0;
@@ -202,7 +243,10 @@ initial begin
 	initialize();
 
 	#100;
+	//repeat(16) test_dma(16'h0000,16'h0000, 70);
+	test_fault();
 
+	/*
 	test_dma(16'h0000,16'h1000, 1);
 	test_dma(16'h0000,16'h1000, 3);
 	test_dma(16'h0000,16'h1000, 4);
@@ -267,6 +311,7 @@ initial begin
 	test_dma(16'h0003,16'h1002, 16);
 	test_dma(16'h0003,16'h1003, 16);
 	test_dma(16'h0003,16'h1004, 16);
+	*/
 
 	#100000;
 	$finish();

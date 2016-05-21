@@ -71,8 +71,8 @@ localparam S_IDLE=0, S_INIT=1, S_CALC=2, S_ASTRB=3, S_WSTRB=4, S_INCR=5, S_WAIT=
 assign ia_s_tdata = din_tdata;
 assign ia_s_tkeep = din_tkeep;
 assign ia_s_tlast = din_tlast;
-assign ia_s_tvalid = s_ready&&m_ready?din_tvalid:1'b0;
-assign din_tready = s_ready&&m_ready?ia_s_tready:1'b0;
+assign ia_s_tvalid = (s_ready&&m_ready)?din_tvalid:1'b0;
+assign din_tready = (s_ready&&m_ready)?ia_s_tready:1'b0;
 
 assign axi_m_wid = 'b0;
 assign axi_m_wdata = ia_m_tdata;
