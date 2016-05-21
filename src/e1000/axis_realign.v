@@ -239,10 +239,11 @@ begin
 		buf_tlast <= 1'b0;
 	else if(s_tvalid && s_tlast && s_tready && b_next<=4)
 		buf_tlast <= 1;
-	else if(!buf_tlast && more)
-		buf_tlast <= 1;
 	else if(buf_tready)
-		buf_tlast <= 0;
+		if(!buf_tlast && more)
+			buf_tlast <= 1;
+		else
+			buf_tlast <= 0;
 end
 
 always @(*)
