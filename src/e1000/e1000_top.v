@@ -100,6 +100,9 @@ module e1000_top(
 	output	eedi
 );
 
+// Workaround for hardwares with different PHY address 
+// Default PHY address in e1000 is 5'b00001
+// Change this according to hardware design
 parameter PHY_ADDR=5'b0;
 parameter CLK_PERIOD_NS=8;
 parameter TX_DESC_RAM_DWORDS=256;

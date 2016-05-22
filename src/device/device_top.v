@@ -8,13 +8,16 @@ module device_top(
 	inout         IRDY_N,
 	inout         STOP_N,
 	inout         DEVSEL_N,
-	input         IDSEL,
+	//input         IDSEL,
 	inout         PERR_N,
 	inout         SERR_N,
 	output        INTA_N,
-	output        PMEA_N,
-	output        REQ_N,
-	input         GNT_N,
+	output        INTB_N,
+	output        INTC_N,
+	output        INTD_N,
+	//output        PMEA_N,
+	output        [2:0] REQ_N,
+	input         [2:0] GNT_N,
 	input         RST_N,
 	input         PCLK,
 	//  output        FPGA_RTR,
@@ -90,153 +93,222 @@ module device_top(
 	output	uart3_txen
 );
 
-// Workaround for hardwares with no IDSEL fanout
-parameter HARDWIRE_IDSEL=24; 
-// Workaround for hardwares with different PHY address 
-// Default PHY address in e1000 is 5'b00001
-// Change this according to hardware design
-parameter PHY_ADDR=5'b0;
-parameter NIC_CLK_PERIOD_NS=8;
-parameter DEBUG="TRUE";
+parameter DEBUG="FALSE";
 
-wire ext_clk;
-wire ext_rst;
+wire CLK;
+wire RST;
 
-wire nic_clk;
-wire nic_rst;
+////////////////////////////////////////////////////////////////////////////////
+// PCI Interface
 
-wire clk_locked;
+wire [2:0] INT_N;
 
-wire cfg_s_aclk;
-wire cfg_s_aresetn;
-wire cfg_s_awvalid;
-wire cfg_s_awready;
-wire [31:0] cfg_s_awaddr;
-wire cfg_s_wvalid;
-wire cfg_s_wready;
-wire [31:0] cfg_s_wdata;
-wire [3:0] cfg_s_wstrb;
-wire cfg_s_bvalid;
-wire cfg_s_bready;
-wire [1:0] cfg_s_bresp;
-wire cfg_s_arvalid;
-wire cfg_s_arready;
-wire [31:0] cfg_s_araddr;
-wire cfg_s_rvalid;
-wire cfg_s_rready;
-wire [31:0] cfg_s_rdata;
-wire [1:0] cfg_s_rresp;
+wire [2:0] PME_N;
 
-wire tgt_m_aclk;
-wire tgt_m_aresetn;
-wire tgt_m_awvalid;
-wire tgt_m_awready;
-wire [31:0] tgt_m_awaddr;
-wire tgt_m_wvalid;
-wire tgt_m_wready;
-wire [31:0] tgt_m_wdata;
-wire [3:0] tgt_m_wstrb;
-wire tgt_m_bvalid;
-wire tgt_m_bready;
-wire [1:0] tgt_m_bresp;
-wire tgt_m_arvalid;
-wire tgt_m_arready;
-wire [31:0] tgt_m_araddr;
-wire tgt_m_rvalid;
-wire tgt_m_rready;
-wire [31:0] tgt_m_rdata;
-wire [1:0] tgt_m_rresp;
+wire [31:0] P0_ADIO_IN;
+wire [31:0] P0_ADIO_OUT;
 
-wire intr_request;
-wire reset_request;
+wire [31:0] P0_ADDR;
+wire P0_ADDR_VLD;
+wire [7:0] P0_BASE_HIT;
+wire P0_S_TERM;
+wire P0_S_READY;
+wire P0_S_ABORT;
+wire P0_S_WRDN;
+wire P0_S_SRC_EN;
+wire P0_S_DATA;
+wire P0_S_DATA_VLD;
+wire [3:0] P0_S_CBE;
+wire P0_INT_N;
 
-wire mst_s_aclk;
-wire mst_s_aresetn;
-wire [3:0] mst_s_awid;
-wire [63:0] mst_s_awaddr;
-wire [7:0] mst_s_awlen;
-wire [2:0] mst_s_awsize;
-wire [1:0] mst_s_awburst;
-wire [3:0] mst_s_awcache;
-wire mst_s_awvalid;
-wire mst_s_awready;
-wire [3:0] mst_s_wid;
-wire [31:0] mst_s_wdata;
-wire [3:0] mst_s_wstrb;
-wire mst_s_wlast;
-wire mst_s_wvalid;
-wire mst_s_wready;
-wire [3:0] mst_s_bid;
-wire [1:0] mst_s_bresp;
-wire mst_s_bvalid;
-wire mst_s_bready;
-wire [3:0] mst_s_arid;
-wire [63:0] mst_s_araddr;
-wire [7:0] mst_s_arlen;
-wire [2:0] mst_s_arsize;
-wire [1:0] mst_s_arburst;
-wire [3:0] mst_s_arcache;
-wire mst_s_arvalid;
-wire mst_s_arready;
-wire [3:0] mst_s_rid;
-wire [31:0] mst_s_rdata;
-wire [1:0] mst_s_rresp;
-wire mst_s_rlast;
-wire mst_s_rvalid;
-wire mst_s_rready;
+wire P0_REQUEST;
+wire P0_REQUESTHOLD;
+wire [3:0] P0_M_CBE;
+wire P0_M_WRDN;
+wire P0_COMPLETE;
+wire P0_M_READY;
+wire P0_M_DATA_VLD;
+wire P0_M_SRC_EN;
+wire P0_TIME_OUT;
+wire P0_M_DATA;
+wire P0_M_ADDR_N;
+wire P0_STOPQ_N;
 
-wire nic_aclk;
-wire nic_aresetn;
-wire nic_s_awvalid;
-wire nic_s_awready;
-wire [31:0] nic_s_awaddr;
-wire nic_s_wvalid;
-wire nic_s_wready;
-wire [31:0] nic_s_wdata;
-wire [3:0] nic_s_wstrb;
-wire nic_s_bvalid;
-wire nic_s_bready;
-wire [1:0] nic_s_bresp;
-wire nic_s_arvalid;
-wire nic_s_arready;
-wire [31:0] nic_s_araddr;
-wire nic_s_rvalid;
-wire nic_s_rready;
-wire [31:0] nic_s_rdata;
-wire [1:0] nic_s_rresp;
+wire [31:0] P1_ADIO_IN;
+wire [31:0] P1_ADIO_OUT;
 
-wire [3:0] nic_m_awid;
-wire [63:0] nic_m_awaddr;
-wire [7:0] nic_m_awlen;
-wire [2:0] nic_m_awsize;
-wire [1:0] nic_m_awburst;
-wire [3:0] nic_m_awcache;
-wire nic_m_awvalid;
-wire nic_m_awready;
-wire [3:0] nic_m_wid;
-wire [31:0] nic_m_wdata;
-wire [3:0] nic_m_wstrb;
-wire nic_m_wlast;
-wire nic_m_wvalid;
-wire nic_m_wready;
-wire [3:0] nic_m_bid;
-wire [1:0] nic_m_bresp;
-wire nic_m_bvalid;
-wire nic_m_bready;
-wire [3:0] nic_m_arid;
-wire [63:0] nic_m_araddr;
-wire [7:0] nic_m_arlen;
-wire [2:0] nic_m_arsize;
-wire [1:0] nic_m_arburst;
-wire [3:0] nic_m_arcache;
-wire nic_m_arvalid;
-wire nic_m_arready;
-wire [3:0] nic_m_rid;
-wire [31:0] nic_m_rdata;
-wire [1:0] nic_m_rresp;
-wire nic_m_rlast;
-wire nic_m_rvalid;
-wire nic_m_rready;
+wire [31:0] P1_ADDR;
+wire P1_ADDR_VLD;
+wire [7:0] P1_BASE_HIT;
+wire P1_S_TERM;
+wire P1_S_READY;
+wire P1_S_ABORT;
+wire P1_S_WRDN;
+wire P1_S_SRC_EN;
+wire P1_S_DATA;
+wire P1_S_DATA_VLD;
+wire [3:0] P1_S_CBE;
+wire P1_INT_N;
+
+wire P1_REQUEST;
+wire P1_REQUESTHOLD;
+wire [3:0] P1_M_CBE;
+wire P1_M_WRDN;
+wire P1_COMPLETE;
+wire P1_M_READY;
+wire P1_M_DATA_VLD;
+wire P1_M_SRC_EN;
+wire P1_TIME_OUT;
+wire P1_M_DATA;
+wire P1_M_ADDR_N;
+wire P1_STOPQ_N;
+
+wire [31:0] P2_ADIO_IN;
+wire [31:0] P2_ADIO_OUT;
+
+wire [31:0] P2_ADDR;
+wire P2_ADDR_VLD;
+wire [7:0] P2_BASE_HIT;
+wire P2_S_TERM;
+wire P2_S_READY;
+wire P2_S_ABORT;
+wire P2_S_WRDN;
+wire P2_S_SRC_EN;
+wire P2_S_DATA;
+wire P2_S_DATA_VLD;
+wire [3:0] P2_S_CBE;
+wire P2_INT_N;
+
+wire P2_REQUEST;
+wire P2_REQUESTHOLD;
+wire [3:0] P2_M_CBE;
+wire P2_M_WRDN;
+wire P2_COMPLETE;
+wire P2_M_READY;
+wire P2_M_DATA_VLD;
+wire P2_M_SRC_EN;
+wire P2_TIME_OUT;
+wire P2_M_DATA;
+wire P2_M_ADDR_N;
+wire P2_STOPQ_N;
+
+assign PCI_EN_N = 1'b0;
+assign INTA_N=INT_N[0];
+assign INTB_N=INT_N[1];
+assign INTC_N=INT_N[2];
+assign INTD_N=1'bz;
+
+pci_multi pci_multi_i(
+	.AD_IO(AD),
+	.CBE_IO(CBE),
+	.PAR_IO(PAR),
+	.FRAME_IO(FRAME_N),
+	.TRDY_IO(TRDY_N),
+	.IRDY_IO(IRDY_N),
+	.STOP_IO(STOP_N),
+	.DEVSEL_IO(DEVSEL_N),
+	.PERR_IO(PERR_N),
+	.SERR_IO(SERR_N),
+	.INT_O(INT_N),
+	.PME_O(PME_N),
+	.REQ_O(REQ_N),
+	.GNT_I(GNT_N),
+	.RST_I(RST_N),
+	.CLK_I(PCLK),
+
+	.CLK(CLK),
+	.RST(RST),
+
+	.P0_ADIO_IN(P0_ADIO_IN),
+	.P0_ADIO_OUT(P0_ADIO_OUT),
+
+	.P0_ADDR(P0_ADDR),
+	.P0_ADDR_VLD(P0_ADDR_VLD),
+	.P0_BASE_HIT(P0_BASE_HIT),
+	.P0_S_TERM(P0_S_TERM),
+	.P0_S_READY(P0_S_READY),
+	.P0_S_ABORT(P0_S_ABORT),
+	.P0_S_WRDN(P0_S_WRDN),
+	.P0_S_SRC_EN(P0_S_SRC_EN),
+	.P0_S_DATA(P0_S_DATA),
+	.P0_S_DATA_VLD(P0_S_DATA_VLD),
+	.P0_S_CBE(P0_S_CBE),
+	.P0_INT_N(P0_INT_N),
+
+	.P0_REQUEST(P0_REQUEST),
+	.P0_REQUESTHOLD(P0_REQUESTHOLD),
+	.P0_M_CBE(P0_M_CBE),
+	.P0_M_WRDN(P0_M_WRDN),
+	.P0_COMPLETE(P0_COMPLETE),
+	.P0_M_READY(P0_M_READY),
+	.P0_M_DATA_VLD(P0_M_DATA_VLD),
+	.P0_M_SRC_EN(P0_M_SRC_EN),
+	.P0_TIME_OUT(P0_TIME_OUT),
+	.P0_M_DATA(P0_M_DATA),
+	.P0_M_ADDR_N(P0_M_ADDR_N),
+	.P0_STOPQ_N(P0_STOPQ_N),
+
+	.P1_ADIO_IN(P1_ADIO_IN),
+	.P1_ADIO_OUT(P1_ADIO_OUT),
+
+	.P1_ADDR(P1_ADDR),
+	.P1_ADDR_VLD(P1_ADDR_VLD),
+	.P1_BASE_HIT(P1_BASE_HIT),
+	.P1_S_TERM(P1_S_TERM),
+	.P1_S_READY(P1_S_READY),
+	.P1_S_ABORT(P1_S_ABORT),
+	.P1_S_WRDN(P1_S_WRDN),
+	.P1_S_SRC_EN(P1_S_SRC_EN),
+	.P1_S_DATA(P1_S_DATA),
+	.P1_S_DATA_VLD(P1_S_DATA_VLD),
+	.P1_S_CBE(P1_S_CBE),
+	.P1_INT_N(P1_INT_N),
+
+	.P1_REQUEST(P1_REQUEST),
+	.P1_REQUESTHOLD(P1_REQUESTHOLD),
+	.P1_M_CBE(P1_M_CBE),
+	.P1_M_WRDN(P1_M_WRDN),
+	.P1_COMPLETE(P1_COMPLETE),
+	.P1_M_READY(P1_M_READY),
+	.P1_M_DATA_VLD(P1_M_DATA_VLD),
+	.P1_M_SRC_EN(P1_M_SRC_EN),
+	.P1_TIME_OUT(P1_TIME_OUT),
+	.P1_M_DATA(P1_M_DATA),
+	.P1_M_ADDR_N(P1_M_ADDR_N),
+	.P1_STOPQ_N(P1_STOPQ_N),
+
+	.P2_ADIO_IN(P2_ADIO_IN),
+	.P2_ADIO_OUT(P2_ADIO_OUT),
+
+	.P2_ADDR(P2_ADDR),
+	.P2_ADDR_VLD(P2_ADDR_VLD),
+	.P2_BASE_HIT(P2_BASE_HIT),
+	.P2_S_TERM(P2_S_TERM),
+	.P2_S_READY(P2_S_READY),
+	.P2_S_ABORT(P2_S_ABORT),
+	.P2_S_WRDN(P2_S_WRDN),
+	.P2_S_SRC_EN(P2_S_SRC_EN),
+	.P2_S_DATA(P2_S_DATA),
+	.P2_S_DATA_VLD(P2_S_DATA_VLD),
+	.P2_S_CBE(P2_S_CBE),
+	.P2_INT_N(P2_INT_N),
+
+	.P2_REQUEST(P2_REQUEST),
+	.P2_REQUESTHOLD(P2_REQUESTHOLD),
+	.P2_M_CBE(P2_M_CBE),
+	.P2_M_WRDN(P2_M_WRDN),
+	.P2_COMPLETE(P2_COMPLETE),
+	.P2_M_READY(P2_M_READY),
+	.P2_M_DATA_VLD(P2_M_DATA_VLD),
+	.P2_M_SRC_EN(P2_M_SRC_EN),
+	.P2_TIME_OUT(P2_TIME_OUT),
+	.P2_M_DATA(P2_M_DATA),
+	.P2_M_ADDR_N(P2_M_ADDR_N),
+	.P2_STOPQ_N(P2_STOPQ_N)
+);
+
+////////////////////////////////////////////////////////////////////////////////
+// E1000 NIC Controller
 
 wire	[7:0]	mac_rxdat;
 wire	mac_rxdv;
@@ -278,110 +350,6 @@ wire	[7:0] eeprom_raddr;
 wire	eeprom_ren;
 wire	[15:0] eeprom_rdata;
 
-wire can_s_aclk;
-wire can_s_aresetn;
-wire can_s_awvalid;
-wire can_s_awready;
-wire [31:0] can_s_awaddr;
-wire can_s_wvalid;
-wire can_s_wready;
-wire [31:0] can_s_wdata;
-wire [3:0] can_s_wstrb;
-wire can_s_bvalid;
-wire can_s_bready;
-wire [1:0] can_s_bresp;
-wire can_s_arvalid;
-wire can_s_arready;
-wire [31:0] can_s_araddr;
-wire can_s_rvalid;
-wire can_s_rready;
-wire [31:0] can_s_rdata;
-wire [1:0] can_s_rresp;
-
-wire can0_bus_off_on;
-wire can1_bus_off_on;
-
-wire uart_s_aclk;
-wire uart_s_aresetn;
-wire uart_s_awvalid;
-wire uart_s_awready;
-wire [31:0] uart_s_awaddr;
-wire uart_s_wvalid;
-wire uart_s_wready;
-wire [31:0] uart_s_wdata;
-wire [3:0] uart_s_wstrb;
-wire uart_s_bvalid;
-wire uart_s_bready;
-wire [1:0] uart_s_bresp;
-wire uart_s_arvalid;
-wire uart_s_arready;
-wire [31:0] uart_s_araddr;
-wire uart_s_rvalid;
-wire uart_s_rready;
-wire [31:0] uart_s_rdata;
-wire [1:0] uart_s_rresp;
-
-//wire uart0_tx;
-//wire uart0_rx;
-wire uart0_rts;
-wire uart0_cts;
-wire uart0_dtr;
-wire uart0_dsr;
-wire uart0_ri;
-wire uart0_dcd;
-
-//wire uart1_tx;
-//wire uart1_rx;
-wire uart1_rts;
-wire uart1_cts;
-wire uart1_dtr;
-wire uart1_dsr;
-wire uart1_ri;
-wire uart1_dcd;
-
-//wire uart2_tx;
-//wire uart2_rx;
-wire uart2_rts;
-wire uart2_cts;
-wire uart2_dtr;
-wire uart2_dsr;
-wire uart2_ri;
-wire uart2_dcd;
-
-//wire uart3_tx;
-//wire uart3_rx;
-wire uart3_rts;
-wire uart3_cts;
-wire uart3_dtr;
-wire uart3_dsr;
-wire uart3_ri;
-wire uart3_dcd;
-
-reg [6:0] nic_rst_sync;
-
-assign PCI_EN_N = 1'b0;
-
-assign can0_tx = 1'b0;
-assign can0_rs = 1'b0;
-assign can1_tx = 1'b0;
-assign can1_rs = 1'b0;
-
-assign uart0_rxen_n = 1'b0;
-assign uart0_tx = 1'b1;
-assign uart0_txen = 1'b1;
-
-assign uart1_rxen_n = 1'b0;
-assign uart1_tx = 1'b1;
-assign uart1_txen = 1'b1;
-
-assign uart2_rxen_n = 1'b0;
-assign uart2_tx = 1'b1;
-assign uart2_txen = 1'b1;
-
-assign uart3_rxen_n = 1'b0;
-assign uart3_tx = 1'b1;
-assign uart3_txen = 1'b1;
-
 assign	p0_mdio = p0_mdio_oe?p0_mdio_o:1'bz;
 assign  p0_mdio_i = p0_mdio;
 assign	p0_resetn = !p0_reset_out;
@@ -389,7 +357,7 @@ assign	p1_mdio = p1_mdio_oe?p1_mdio_o:1'bz;
 assign  p1_mdio_i = p1_mdio;
 assign	p1_resetn = !p1_reset_out;
 
-//FIXIT: Only P0 implemented currently
+//FIXME: Only P0 implemented currently
 assign p0_mdc = phy_mdc;
 assign p0_mdio_o = phy_mdio_o;
 assign p0_mdio_oe = phy_mdio_oe;
@@ -401,73 +369,6 @@ assign p1_mdc = 1'b0;
 assign p1_mdio_o = 1'b0;
 assign p1_mdio_oe = 1'b0;
 assign p1_reset_out = 1'b1;
-
-//FIXIT: Configuration access not implemented
-assign cfg_s_awvalid = 1'b0;
-assign cfg_s_wvalid = 1'b0;
-assign cfg_s_bready = 1'b0;
-assign cfg_s_arvalid = 1'b0;
-assign cfg_s_rready = 1'b0;
-
-// Wire PCI Target to NIC
-assign nic_s_awvalid = tgt_m_awvalid;
-assign nic_s_awaddr = tgt_m_awaddr;
-assign tgt_m_awready = nic_s_awready;
-
-assign nic_s_wvalid = tgt_m_wvalid;
-assign nic_s_wdata = tgt_m_wdata;
-assign nic_s_wstrb = tgt_m_wstrb;
-assign tgt_m_wready = nic_s_wready;
-
-assign tgt_m_bvalid = nic_s_bvalid;
-assign tgt_m_bresp = nic_s_bresp;
-assign nic_s_bready = tgt_m_bready;
-
-assign nic_s_arvalid = tgt_m_arvalid;
-assign nic_s_araddr = tgt_m_araddr;
-assign tgt_m_arready = nic_s_arready;
-
-assign tgt_m_rvalid = nic_s_rvalid;
-assign tgt_m_rdata = nic_s_rdata;
-assign tgt_m_rresp = nic_s_rresp;
-assign nic_s_rready = tgt_m_rready;
-
-assign mst_s_awid = nic_m_awid;
-assign mst_s_awaddr = nic_m_awaddr;
-assign mst_s_awlen = nic_m_awlen;
-assign mst_s_awsize = nic_m_awsize;
-assign mst_s_awburst = nic_m_awburst;
-assign mst_s_awcache = nic_m_awcache;
-assign mst_s_awvalid = nic_m_awvalid;
-assign nic_m_awready = mst_s_awready;
-
-assign mst_s_wid = nic_m_wid;
-assign mst_s_wdata = nic_m_wdata;
-assign mst_s_wstrb = nic_m_wstrb;
-assign mst_s_wlast = nic_m_wlast;
-assign mst_s_wvalid = nic_m_wvalid;
-assign nic_m_wready = mst_s_wready;
-
-assign nic_m_bid = mst_s_bid;
-assign nic_m_bresp = mst_s_bresp;
-assign nic_m_bvalid = mst_s_bvalid;
-assign mst_s_bready = nic_m_bready;
-
-assign mst_s_arid = nic_m_arid;
-assign mst_s_araddr = nic_m_araddr;
-assign mst_s_arlen = nic_m_arlen;
-assign mst_s_arsize = nic_m_arsize;
-assign mst_s_arburst = nic_m_arburst;
-assign mst_s_arcache = nic_m_arcache;
-assign mst_s_arvalid = nic_m_arvalid;
-assign nic_m_arready = mst_s_arready;
-
-assign nic_m_rid = mst_s_rid;
-assign nic_m_rdata = mst_s_rdata;
-assign nic_m_rresp = mst_s_rresp;
-assign nic_m_rlast = mst_s_rlast;
-assign nic_m_rvalid = mst_s_rvalid;
-assign mst_s_rready = nic_m_rready;
 
 /*
 ZHOLD_DELAY zhd_p0_rxd0_i(.DLYIN(p0_rxdat[0]), .DLYIFF(mac_rxdat[0]), .DLYFABRIC());
@@ -507,240 +408,39 @@ assign p1_txen = 1'b0;
 assign p1_txer = 1'b0;
 assign p1_gtxsclk = 1'b0;
 
-assign nic_rst = !nic_rst_sync[6];
-
-assign cfg_s_aclk = nic_clk;
-assign cfg_s_aresetn = !nic_rst;
-
-assign tgt_m_aclk = nic_clk;
-assign tgt_m_aresetn = !nic_rst;
-
-assign nic_aclk = nic_clk;
-assign nic_aresetn = !nic_rst;
-assign nic_areset = nic_rst;
-
-assign mst_s_aclk = nic_clk;
-assign mst_s_aresetn = !nic_rst;
-
-always @(posedge nic_clk, posedge ext_rst)
-begin
-	if(ext_rst) begin
-		nic_rst_sync <= 'b0;
-	end
-	else if(reset_request || !clk_locked) begin
-		nic_rst_sync <= 'b0;
-	end
-	else if(!nic_rst_sync[6])
-		nic_rst_sync <= nic_rst_sync+1;
-end
-
-nic_clk_gen nic_clk_gen_i(
-	.reset(ext_rst),
-	.clk_in1(ext_clk),
-	.clk_out1(nic_clk),
-	.locked(clk_locked)
-);
-
-// PCI to AXI interface controller
-pci_axi_top #(
-	.HARDWIRE_IDSEL(HARDWIRE_IDSEL),
-	.DEBUG("FALSE")
-)pci_axi_i(
-	// PCI Local Bus
-	.AD(AD),
-	.CBE(CBE),
-	.PAR(PAR),
-	.FRAME_N(FRAME_N),
-	.TRDY_N(TRDY_N),
-	.IRDY_N(IRDY_N),
-	.STOP_N(STOP_N),
-	.DEVSEL_N(DEVSEL_N),
-	.IDSEL(IDSEL),
-	.PERR_N(PERR_N),
-	.SERR_N(SERR_N),
-	.INTA_N(INTA_N),
-	.PMEA_N(PMEA_N),
-	.REQ_N(REQ_N),
-	.GNT_N(GNT_N),
-	.RST_N(RST_N),
-	.PCLK(PCLK),
-
-	// Misc
-	.clock_out(ext_clk),
-	.reset_out(ext_rst),
-
-	// AXI4-Lite for extended configuration space
-	.cfg_s_aclk(cfg_s_aclk),
-	.cfg_s_aresetn(cfg_s_aresetn),
-
-	.cfg_s_awvalid(cfg_s_awvalid),
-	.cfg_s_awready(cfg_s_awready),
-	.cfg_s_awaddr(cfg_s_awaddr),
-
-	.cfg_s_wvalid(cfg_s_wvalid),
-	.cfg_s_wready(cfg_s_wready),
-	.cfg_s_wdata(cfg_s_wdata),
-	.cfg_s_wstrb(cfg_s_wstrb),
-
-	.cfg_s_bvalid(cfg_s_bvalid),
-	.cfg_s_bready(cfg_s_bready),
-	.cfg_s_bresp(cfg_s_bresp),
-
-	.cfg_s_arvalid(cfg_s_arvalid),
-	.cfg_s_arready(cfg_s_arready),
-	.cfg_s_araddr(cfg_s_araddr),
-
-	.cfg_s_rvalid(cfg_s_rvalid),
-	.cfg_s_rready(cfg_s_rready),
-	.cfg_s_rdata(cfg_s_rdata),
-	.cfg_s_rresp(cfg_s_rresp),
-
-	// AXI4-lite for Target access
-	.tgt_m_aclk(tgt_m_aclk),
-	.tgt_m_aresetn(tgt_m_aresetn),
-
-	.tgt_m_awvalid(tgt_m_awvalid),
-	.tgt_m_awready(tgt_m_awready),
-	.tgt_m_awaddr(tgt_m_awaddr),
-
-	.tgt_m_wvalid(tgt_m_wvalid),
-	.tgt_m_wready(tgt_m_wready),
-	.tgt_m_wdata(tgt_m_wdata),
-	.tgt_m_wstrb(tgt_m_wstrb),
-
-	.tgt_m_bvalid(tgt_m_bvalid),
-	.tgt_m_bready(tgt_m_bready),
-	.tgt_m_bresp(tgt_m_bresp),
-
-	.tgt_m_arvalid(tgt_m_arvalid),
-	.tgt_m_arready(tgt_m_arready),
-	.tgt_m_araddr(tgt_m_araddr),
-	.tgt_m_aruser(),
-
-	.tgt_m_rvalid(tgt_m_rvalid),
-	.tgt_m_rready(tgt_m_rready),
-	.tgt_m_rdata(tgt_m_rdata),
-	.tgt_m_rresp(tgt_m_rresp),
-
-	// AXI4 for Initiater access
-	.mst_s_aclk(mst_s_aclk),
-	.mst_s_aresetn(mst_s_aresetn),
-
-	.mst_s_awid(mst_s_awid),
-	.mst_s_awaddr(mst_s_awaddr),
-	.mst_s_awlen(mst_s_awlen),
-	.mst_s_awsize(mst_s_awsize),
-	.mst_s_awburst(mst_s_awburst),
-	.mst_s_awcache(mst_s_awcache),
-	.mst_s_awvalid(mst_s_awvalid),
-	.mst_s_awready(mst_s_awready),
-
-	.mst_s_wid(mst_s_wid),
-	.mst_s_wdata(mst_s_wdata),
-	.mst_s_wstrb(mst_s_wstrb),
-	.mst_s_wlast(mst_s_wlast),
-	.mst_s_wvalid(mst_s_wvalid),
-	.mst_s_wready(mst_s_wready),
-
-	.mst_s_bid(mst_s_bid),
-	.mst_s_bresp(mst_s_bresp),
-	.mst_s_bvalid(mst_s_bvalid),
-	.mst_s_bready(mst_s_bready),
-
-	.mst_s_arid(mst_s_arid),
-	.mst_s_araddr(mst_s_araddr),
-	.mst_s_arlen(mst_s_arlen),
-	.mst_s_arsize(mst_s_arsize),
-	.mst_s_arburst(mst_s_arburst),
-	.mst_s_arcache(mst_s_arcache),
-	.mst_s_arvalid(mst_s_arvalid),
-	.mst_s_arready(mst_s_arready),
-
-	.mst_s_rid(mst_s_rid),
-	.mst_s_rdata(mst_s_rdata),
-	.mst_s_rresp(mst_s_rresp),
-	.mst_s_rlast(mst_s_rlast),
-	.mst_s_rvalid(mst_s_rvalid),
-	.mst_s_rready(mst_s_rready),
-
-	.intr_request(intr_request)
-
-);
-
-e1000_top #(
-	.PHY_ADDR(PHY_ADDR),
-	.CLK_PERIOD_NS(NIC_CLK_PERIOD_NS),
+e1000_wrapper #(
 	.DEBUG(DEBUG)
-) e1000_i(
-	.aclk(nic_aclk),
-	.aresetn(nic_aresetn),
+)e1000_wrapper_i(
+	.RST(RST),
+	.CLK(CLK),
+	.ADDR(P0_ADDR),
+	.ADDR_VLD(P0_ADDR_VLD),
+	.BASE_HIT(P0_BASE_HIT),
+	.ADIO_IN(P0_ADIO_IN),
+	.ADIO_OUT(P0_ADIO_OUT),
+	.S_TERM(P0_S_TERM),
+	.S_READY(P0_S_READY),
+	.S_ABORT(P0_S_ABORT),
+	.S_WRDN(P0_S_WRDN),
+	.S_SRC_EN(P0_S_SRC_EN),
+	.S_DATA(P0_S_DATA),
+	.S_DATA_VLD(P0_S_DATA_VLD),
+	.S_CBE(P0_S_CBE),
+	.INT_N(P0_INT_N),
+	.REQUEST(P0_REQUEST),
+	.REQUESTHOLD(P0_REQUESTHOLD),
+	.M_CBE(P0_M_CBE),
+	.M_WRDN(P0_M_WRDN),
+	.COMPLETE(P0_COMPLETE),
+	.M_READY(P0_M_READY),
+	.M_DATA_VLD(P0_M_DATA_VLD),
+	.M_SRC_EN(P0_M_SRC_EN),
+	.TIME_OUT(P0_TIME_OUT),
+	.M_DATA(P0_M_DATA),
+	.M_ADDR_N(P0_M_ADDR_N),
+	.STOPQ_N(P0_STOPQ_N),
 
-	.clk125(nic_clk),
-
-	// AXI4-lite for memory mapped registers
-	.axi_s_awvalid(nic_s_awvalid),
-	.axi_s_awready(nic_s_awready),
-	.axi_s_awaddr(nic_s_awaddr),
-
-	.axi_s_wvalid(nic_s_wvalid),
-	.axi_s_wready(nic_s_wready),
-	.axi_s_wdata(nic_s_wdata),
-	.axi_s_wstrb(nic_s_wstrb),
-
-	.axi_s_bvalid(nic_s_bvalid),
-	.axi_s_bready(nic_s_bready),
-	.axi_s_bresp(nic_s_bresp),
-
-	.axi_s_arvalid(nic_s_arvalid),
-	.axi_s_arready(nic_s_arready),
-	.axi_s_araddr(nic_s_araddr),
-
-	.axi_s_rvalid(nic_s_rvalid),
-	.axi_s_rready(nic_s_rready),
-	.axi_s_rdata(nic_s_rdata),
-	.axi_s_rresp(nic_s_rresp),
-
-	// Interrupt Request
-	.intr_request(intr_request),
-	.reset_request(reset_request),
-
-	// AXI4 for DMA
-	.axi_m_awid(nic_m_awid),
-	.axi_m_awaddr(nic_m_awaddr),
-	.axi_m_awlen(nic_m_awlen),
-	.axi_m_awsize(nic_m_awsize),
-	.axi_m_awburst(nic_m_awburst),
-	.axi_m_awcache(nic_m_awcache),
-	.axi_m_awvalid(nic_m_awvalid),
-	.axi_m_awready(nic_m_awready),
-
-	.axi_m_wid(nic_m_wid),
-	.axi_m_wdata(nic_m_wdata),
-	.axi_m_wstrb(nic_m_wstrb),
-	.axi_m_wlast(nic_m_wlast),
-	.axi_m_wvalid(nic_m_wvalid),
-	.axi_m_wready(nic_m_wready),
-
-	.axi_m_bid(nic_m_bid),
-	.axi_m_bresp(nic_m_bresp),
-	.axi_m_bvalid(nic_m_bvalid),
-	.axi_m_bready(nic_m_bready),
-
-	.axi_m_arid(nic_m_arid),
-	.axi_m_araddr(nic_m_araddr),
-	.axi_m_arlen(nic_m_arlen),
-	.axi_m_arsize(nic_m_arsize),
-	.axi_m_arburst(nic_m_arburst),
-	.axi_m_arcache(nic_m_arcache),
-	.axi_m_arvalid(nic_m_arvalid),
-	.axi_m_arready(nic_m_arready),
-
-	.axi_m_rid(nic_m_rid),
-	.axi_m_rdata(nic_m_rdata),
-	.axi_m_rresp(nic_m_rresp),
-	.axi_m_rlast(nic_m_rlast),
-	.axi_m_rvalid(nic_m_rvalid),
-	.axi_m_rready(nic_m_rready),
+	.cacheline_size(8'd16),
 
 	// GMII interface
 	.mac_rxdat(mac_rxdat),
@@ -855,64 +555,135 @@ config_rom rom_i(
 	.read_data(eeprom_rdata)
 );
 
-generate
-if(DEBUG=="TRUE") begin
-ila_0 ila_axi_i0(
-	.clk(mst_s_aclk), // input wire clk
-	.probe0({
-		tgt_m_rdata,
-		tgt_m_wdata,
-		tgt_m_wstrb,
+////////////////////////////////////////////////////////////////////////////////
+// Multi-Port CAN Controller
 
-		tgt_m_rresp,
-		tgt_m_rvalid,
-		tgt_m_rready,
+wire [1:0] can_rx;
+wire [1:0] can_tx;
+wire [1:0] can_bus_off_on;
 
-		tgt_m_bresp,
-		tgt_m_bvalid,
-		tgt_m_bready,
+assign can0_tx = can_tx[0];
+assign can0_rs = 1'b0;
+assign can_rx[0] = can0_rx;
 
-		tgt_m_wvalid,
-		tgt_m_wready,
+assign can1_tx = can_tx[1];
+assign can1_rs = 1'b0;
+assign can_rx[1] = can1_rx;
 
-		tgt_m_araddr[15:0],
-		tgt_m_arvalid,
-		tgt_m_arready,
+mpc_wrapper #(
+	.PORT_NUM(2),
+)mpc_wrapper_i(
+	.RST(RST),
+	.CLK(CLK),
+	.ADDR(P1_ADDR),
+	.ADDR_VLD(P1_ADDR_VLD),
+	.BASE_HIT(P1_BASE_HIT),
+	.ADIO_IN(P1_ADIO_IN),
+	.ADIO_OUT(P1_ADIO_OUT),
+	.S_TERM(P1_S_TERM),
+	.S_READY(P1_S_READY),
+	.S_ABORT(P1_S_ABORT),
+	.S_WRDN(P1_S_WRDN),
+	.S_SRC_EN(P1_S_SRC_EN),
+	.S_DATA(P1_S_DATA),
+	.S_DATA_VLD(P1_S_DATA_VLD),
+	.S_CBE(P1_S_CBE),
+	.INT_N(P1_INT_N),
+	.REQUEST(P1_REQUEST),
+	.REQUESTHOLD(P1_REQUESTHOLD),
+	.M_CBE(P1_M_CBE),
+	.M_WRDN(P1_M_WRDN),
+	.COMPLETE(P1_COMPLETE),
+	.M_READY(P1_M_READY),
+	.M_DATA_VLD(P1_M_DATA_VLD),
+	.M_SRC_EN(P1_M_SRC_EN),
+	.TIME_OUT(P1_TIME_OUT),
+	.M_DATA(P1_M_DATA),
+	.M_ADDR_N(P1_M_ADDR_N),
+	.STOPQ_N(P1_STOPQ_N),
 
-		tgt_m_awaddr[15:0],
-		tgt_m_awvalid,
-		tgt_m_awready,
-
-		intr_request,
-
-		mst_s_awaddr[31:0],
-		mst_s_awlen,
-		mst_s_awvalid,
-		mst_s_awready,
-
-		mst_s_wdata,
-		mst_s_wstrb,
-		mst_s_wlast,
-		mst_s_wvalid,
-		mst_s_wready,
-
-		mst_s_bresp,
-		mst_s_bvalid,
-		mst_s_bready,
-
-		mst_s_araddr[31:0],
-		mst_s_arlen,
-		mst_s_arvalid,
-		mst_s_arready,
-
-		mst_s_rdata,
-		mst_s_rresp,
-		mst_s_rlast,
-		mst_s_rvalid,
-		mst_s_rready
-	})
+	.rx_i(can_rx),
+	.tx_o(can_tx),
+	.bus_off_on(can_bus_off_on)
 );
-end
-endgenerate
+
+////////////////////////////////////////////////////////////////////////////////
+// Multi-Port Serial Controller
+
+wire [3:0] uart_rxd;
+wire [3:0] uart_txd;
+wire [3:0] uart_rtsn;
+wire [3:0] uart_ctsn;
+wire [3:0] uart_dtrn;
+wire [3:0] uart_dsrn;
+wire [3:0] uart_ri;
+wire [3:0] uart_dcdn;
+
+assign uart0_rxen_n = 1'b0;
+assign uart0_tx = uart_txd[0];
+assign uart0_txen = 1'b1;
+assign uart_rxd[0] = uart0_rx;
+
+assign uart1_rxen_n = 1'b0;
+assign uart1_tx = uart_txd[1];
+assign uart1_txen = 1'b1;
+assign uart_rxd[1] = uart1_rx;
+
+assign uart2_rxen_n = 1'b0;
+assign uart2_tx = uart_txd[2];
+assign uart2_txen = 1'b1;
+assign uart_rxd[2] = uart2_rx;
+
+assign uart3_rxen_n = 1'b0;
+assign uart3_tx = uart_txd[3];
+assign uart3_txen = 1'b1;
+assign uart_rxd[3] = uart3_rx;
+
+assign uart_ctsn = 8'hFF;
+assign uart_dsrn = 8'hFF;
+assign uart_ri = 8'hFF;
+assign uart_dcdn = 8'hFF;
+
+mps_wrapper #(
+	.PORT_NUM(4),
+)mps_wrapper_i(
+	.RST(RST),
+	.CLK(CLK),
+	.ADDR(P1_ADDR),
+	.ADDR_VLD(P1_ADDR_VLD),
+	.BASE_HIT(P1_BASE_HIT),
+	.ADIO_IN(P1_ADIO_IN),
+	.ADIO_OUT(P1_ADIO_OUT),
+	.S_TERM(P1_S_TERM),
+	.S_READY(P1_S_READY),
+	.S_ABORT(P1_S_ABORT),
+	.S_WRDN(P1_S_WRDN),
+	.S_SRC_EN(P1_S_SRC_EN),
+	.S_DATA(P1_S_DATA),
+	.S_DATA_VLD(P1_S_DATA_VLD),
+	.S_CBE(P1_S_CBE),
+	.INT_N(P1_INT_N),
+	.REQUEST(P1_REQUEST),
+	.REQUESTHOLD(P1_REQUESTHOLD),
+	.M_CBE(P1_M_CBE),
+	.M_WRDN(P1_M_WRDN),
+	.COMPLETE(P1_COMPLETE),
+	.M_READY(P1_M_READY),
+	.M_DATA_VLD(P1_M_DATA_VLD),
+	.M_SRC_EN(P1_M_SRC_EN),
+	.TIME_OUT(P1_TIME_OUT),
+	.M_DATA(P1_M_DATA),
+	.M_ADDR_N(P1_M_ADDR_N),
+	.STOPQ_N(P1_STOPQ_N),
+
+	.rxd(uart_rxd),
+	.txd(uart_txd),
+	.rtsn(uart_rtsn),
+	.ctsn(uart_ctsn),
+	.dtrn(uart_dtrn),
+	.dsrn(uart_dsrn),
+	.ri(uart_ri),
+	.dcdn(uart_dcdn)
+);
 
 endmodule
