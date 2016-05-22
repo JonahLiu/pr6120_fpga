@@ -1,7 +1,8 @@
-module #(
+module mps_wrapper #(
 	parameter BASE_BAUD = 460800,
-	parameter PORT_NUM=4
-) mps_wrapper(
+	parameter CLK_PERIOD_NS=7.5,
+	parameter PORT_NUM=8
+) (
 	input RST,
 	input CLK,	
 	input [31:0] ADDR,
@@ -42,10 +43,9 @@ module #(
 	input   [PORT_NUM-1:0] dcdn
 );
 
-parameter CLK_PERIOD_NS=7.5;
 
-wire mps_s_aclk;
-wire mps_s_aresetn;
+wire aclk;
+wire aresetn;
 wire mps_s_awvalid;
 wire mps_s_awready;
 wire [31:0] mps_s_awaddr;
@@ -103,7 +103,7 @@ begin
 	intr_sync <= {intr_sync, intr_request};
 end
 
-uart_clk_gen uart_gen_i(
+uart_clk_gen uart_clk_gen_i(
 	.reset(RST),
 	.clk_in1(CLK),
 	.clk_out1(uart_clk), // 128MHz 
@@ -157,7 +157,7 @@ pci_target_i(
 	.tgt_m_rresp(mps_s_rresp)
 );
 
-mps_top #(.BASE_BAUD(BASE_BAUD),.CLK_PERIOD_NS(CLK_PERIOD_NS))mps_top(
+mps_top #(.PORT_NUM(PORT_NUM), .BASE_BAUD(BASE_BAUD),.CLK_PERIOD_NS(CLK_PERIOD_NS))mps_top(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
@@ -186,14 +186,14 @@ mps_top #(.BASE_BAUD(BASE_BAUD),.CLK_PERIOD_NS(CLK_PERIOD_NS))mps_top(
 
 	.intr_request(intr_request),
 
-	.rxd(mps_rxd),
-	.txd(mps_txd),
-	.rtsn(mps_rtsn),
-	.ctsn(mps_ctsn),
-	.dtrn(mps_dtrn),
-	.dsrn(mps_dsrn),
-	.ri(mps_ri),
-	.dcdn(mps_dcdn)
+	.rxd(rxd),
+	.txd(txd),
+	.rtsn(rtsn),
+	.ctsn(ctsn),
+	.dtrn(dtrn),
+	.dsrn(dsrn),
+	.ri(ri),
+	.dcdn(dcdn)
 );
 
 endmodule

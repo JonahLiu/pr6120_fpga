@@ -1,4 +1,4 @@
-module e1000_wrapper(
+module nic_wrapper(
 	input RST,
 	input CLK,	
 	input [31:0] ADDR,

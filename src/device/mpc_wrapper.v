@@ -1,6 +1,7 @@
-module #(
+module mpc_wrapper #(
 	parameter PORT_NUM=4
-) mpc_wrapper(
+) 
+(
 	input RST,
 	input CLK,	
 	input [31:0] ADDR,
@@ -96,7 +97,7 @@ begin
 	intr_sync <= {intr_sync, intr_request};
 end
 
-mpc_clk_gen mpc_gen_i(
+can_clk_gen can_clk_gen_i(
 	.reset(RST),
 	.clk_in1(CLK),
 	.clk_out1(can_clk), // 128MHz 
@@ -150,7 +151,7 @@ pci_target_i(
 	.tgt_m_rresp(mpc_s_rresp)
 );
 
-mpc_top mpc_top(
+mpc_top #(.PORT_NUM(PORT_NUM)) mpc_top(
 	.aclk(aclk),
 	.aresetn(aresetn),
 

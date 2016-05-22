@@ -94,6 +94,8 @@ module device_top(
 );
 
 parameter DEBUG="FALSE";
+parameter UART_PORT_NUM = 8;
+parameter CAN_PORT_NUM = 8;
 
 wire CLK;
 wire RST;
@@ -408,9 +410,9 @@ assign p1_txen = 1'b0;
 assign p1_txer = 1'b0;
 assign p1_gtxsclk = 1'b0;
 
-e1000_wrapper #(
+nic_wrapper #(
 	.DEBUG(DEBUG)
-)e1000_wrapper_i(
+)nic_wrapper_i(
 	.RST(RST),
 	.CLK(CLK),
 	.ADDR(P0_ADDR),
@@ -558,9 +560,9 @@ config_rom rom_i(
 ////////////////////////////////////////////////////////////////////////////////
 // Multi-Port CAN Controller
 
-wire [1:0] can_rx;
-wire [1:0] can_tx;
-wire [1:0] can_bus_off_on;
+wire [CAN_PORT_NUM-1:0] can_rx;
+wire [CAN_PORT_NUM-1:0] can_tx;
+wire [CAN_PORT_NUM-1:0] can_bus_off_on;
 
 assign can0_tx = can_tx[0];
 assign can0_rs = 1'b0;
@@ -571,7 +573,7 @@ assign can1_rs = 1'b0;
 assign can_rx[1] = can1_rx;
 
 mpc_wrapper #(
-	.PORT_NUM(2),
+	.PORT_NUM(CAN_PORT_NUM)
 )mpc_wrapper_i(
 	.RST(RST),
 	.CLK(CLK),
@@ -610,14 +612,14 @@ mpc_wrapper #(
 ////////////////////////////////////////////////////////////////////////////////
 // Multi-Port Serial Controller
 
-wire [3:0] uart_rxd;
-wire [3:0] uart_txd;
-wire [3:0] uart_rtsn;
-wire [3:0] uart_ctsn;
-wire [3:0] uart_dtrn;
-wire [3:0] uart_dsrn;
-wire [3:0] uart_ri;
-wire [3:0] uart_dcdn;
+wire [UART_PORT_NUM-1:0] uart_rxd;
+wire [UART_PORT_NUM-1:0] uart_txd;
+wire [UART_PORT_NUM-1:0] uart_rtsn;
+wire [UART_PORT_NUM-1:0] uart_ctsn;
+wire [UART_PORT_NUM-1:0] uart_dtrn;
+wire [UART_PORT_NUM-1:0] uart_dsrn;
+wire [UART_PORT_NUM-1:0] uart_ri;
+wire [UART_PORT_NUM-1:0] uart_dcdn;
 
 assign uart0_rxen_n = 1'b0;
 assign uart0_tx = uart_txd[0];
@@ -645,36 +647,36 @@ assign uart_ri = 8'hFF;
 assign uart_dcdn = 8'hFF;
 
 mps_wrapper #(
-	.PORT_NUM(4),
+	.PORT_NUM(UART_PORT_NUM)
 )mps_wrapper_i(
 	.RST(RST),
 	.CLK(CLK),
-	.ADDR(P1_ADDR),
-	.ADDR_VLD(P1_ADDR_VLD),
-	.BASE_HIT(P1_BASE_HIT),
-	.ADIO_IN(P1_ADIO_IN),
-	.ADIO_OUT(P1_ADIO_OUT),
-	.S_TERM(P1_S_TERM),
-	.S_READY(P1_S_READY),
-	.S_ABORT(P1_S_ABORT),
-	.S_WRDN(P1_S_WRDN),
-	.S_SRC_EN(P1_S_SRC_EN),
-	.S_DATA(P1_S_DATA),
-	.S_DATA_VLD(P1_S_DATA_VLD),
-	.S_CBE(P1_S_CBE),
-	.INT_N(P1_INT_N),
-	.REQUEST(P1_REQUEST),
-	.REQUESTHOLD(P1_REQUESTHOLD),
-	.M_CBE(P1_M_CBE),
-	.M_WRDN(P1_M_WRDN),
-	.COMPLETE(P1_COMPLETE),
-	.M_READY(P1_M_READY),
-	.M_DATA_VLD(P1_M_DATA_VLD),
-	.M_SRC_EN(P1_M_SRC_EN),
-	.TIME_OUT(P1_TIME_OUT),
-	.M_DATA(P1_M_DATA),
-	.M_ADDR_N(P1_M_ADDR_N),
-	.STOPQ_N(P1_STOPQ_N),
+	.ADDR(P2_ADDR),
+	.ADDR_VLD(P2_ADDR_VLD),
+	.BASE_HIT(P2_BASE_HIT),
+	.ADIO_IN(P2_ADIO_IN),
+	.ADIO_OUT(P2_ADIO_OUT),
+	.S_TERM(P2_S_TERM),
+	.S_READY(P2_S_READY),
+	.S_ABORT(P2_S_ABORT),
+	.S_WRDN(P2_S_WRDN),
+	.S_SRC_EN(P2_S_SRC_EN),
+	.S_DATA(P2_S_DATA),
+	.S_DATA_VLD(P2_S_DATA_VLD),
+	.S_CBE(P2_S_CBE),
+	.INT_N(P2_INT_N),
+	.REQUEST(P2_REQUEST),
+	.REQUESTHOLD(P2_REQUESTHOLD),
+	.M_CBE(P2_M_CBE),
+	.M_WRDN(P2_M_WRDN),
+	.COMPLETE(P2_COMPLETE),
+	.M_READY(P2_M_READY),
+	.M_DATA_VLD(P2_M_DATA_VLD),
+	.M_SRC_EN(P2_M_SRC_EN),
+	.TIME_OUT(P2_TIME_OUT),
+	.M_DATA(P2_M_DATA),
+	.M_ADDR_N(P2_M_ADDR_N),
+	.STOPQ_N(P2_STOPQ_N),
 
 	.rxd(uart_rxd),
 	.txd(uart_txd),

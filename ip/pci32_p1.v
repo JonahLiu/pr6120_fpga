@@ -48,13 +48,12 @@
 
 
 // IP VLNV: xilinx.com:ip:pci32:5.0
-// IP Revision: 6
+// IP Revision: 7
 
-(* X_CORE_INFO = "pci32_v5_0_wrap,Vivado 2014.4" *)
-(* CHECK_LICENSE_TYPE = "pci32_0,pci32_v5_0_wrap,{pci32=bought}" *)
-(* CORE_GENERATION_INFO = "pci32_0,pci32_v5_0_wrap,{x_ipProduct=Vivado 2014.4,x_ipVendor=xilinx.com,x_ipLibrary=ip,x_ipName=pci32,x_ipVersion=5.0,x_ipCoreRevision=6,x_ipLanguage=VERILOG,x_ipSimLanguage=MIXED,x_ipLicense=pci32@2014.04(bought),c_bus_width=32,c_pci_cfg_width=512,c_vendor_id=8086,c_device_id=abcd,c_revision_id=00,c_subvendor_id=10EE,c_subdevice_id=0050,c_usercap_enabled=0,c_usercap_addr=80,c_base_class=02,c_sub_class=00,c_sw_interface=00,c_class_code=020000,c_cardbus_cis=00000000,c_max_lat=00,c_min_gnt=ff,c_bar0_enabled=1,c_bar0_width=0,c_bar0_size=7,c_bar0_scale=1,c_bar0_type=0,c_bar0_prefetchable=0,c_bar0_value=FFFE0000,c_bar1_enabled=1,c_bar1_width=0,c_bar1_size=7,c_bar1_scale=1,c_bar1_type=0,c_bar1_prefetchable=0,c_bar1_value=FFFE0000,c_bar2_enabled=1,c_bar2_width=0,c_bar2_size=3,c_bar2_scale=0,c_bar2_type=1,c_bar2_prefetchable=0,c_bar2_value=FFFFFFF1,c_implement_pcix133=0,c_implement_pcix66=0,c_implement_pci66=0,c_implement_pci33=1,c_reverse_pinout=0,c_clock_type=1}" *)
+`timescale 1ns/1ps
+
 (* DowngradeIPIdentifiedWarnings = "yes" *)
-module pci32_0 (
+module pci32_p1 (
   ado,
   adi,
   add,
@@ -270,37 +269,37 @@ input wire rst;
 output wire [511 : 0] cfg;
 input wire clk;
 
-  pci32_v5_0_wrap #(
+  pci32_v5_0_7_wrap #(
     .c_bus_width(32),
     .c_pci_cfg_width(512),
-    .c_vendor_id("8086"),
-    .c_device_id("abcd"),
+    .c_vendor_id("13FE"),
+    .c_device_id("C204"),
     .c_revision_id("00"),
-    .c_subvendor_id("10EE"),
-    .c_subdevice_id("0050"),
+    .c_subvendor_id("13FE"),
+    .c_subdevice_id("C204"),
     .c_usercap_enabled(0),
     .c_usercap_addr("80"),
-    .c_base_class("02"),
-    .c_sub_class("00"),
+    .c_base_class("0C"),
+    .c_sub_class("09"),
     .c_sw_interface("00"),
-    .c_class_code("020000"),
+    .c_class_code("0C0900"),
     .c_cardbus_cis("00000000"),
     .c_max_lat("00"),
-    .c_min_gnt("ff"),
+    .c_min_gnt("00"),
     .c_bar0_enabled(1),
     .c_bar0_width(0),
-    .c_bar0_size(7),
+    .c_bar0_size(2),
     .c_bar0_scale(1),
     .c_bar0_type(0),
     .c_bar0_prefetchable(0),
-    .c_bar0_value("FFFE0000"),
+    .c_bar0_value("FFFFF000"),
     .c_bar1_enabled(1),
     .c_bar1_width(0),
-    .c_bar1_size(7),
+    .c_bar1_size(2),
     .c_bar1_scale(1),
     .c_bar1_type(0),
     .c_bar1_prefetchable(0),
-    .c_bar1_value("FFFE0000"),
+    .c_bar1_value("FFFFF000"),
     .c_bar2_enabled(1),
     .c_bar2_width(0),
     .c_bar2_size(3),

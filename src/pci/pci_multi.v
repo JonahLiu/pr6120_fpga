@@ -110,68 +110,72 @@ module pci_multi (
 IBUFG clk_ibufg_i(.O(CLK), .I(CLK_I));
 BUFG rst_bufg_i(.O(RST), .I(!RST_I));
 
-wire [31:0] adi, adf, add, ado, adt;
+wire [31:0] adi, adf, add;
+reg [31:0] ado, adt;
+wire [3:0] cbi, cbf, cbd;
+reg [3:0] cbo, cbt;
+wire [2:0] into, intt;
+wire [2:0] pmeo, pmet;
+wire [2:0] reqo, reqt;
+wire [2:0] gnti, gntf, gntd;
+wire [2:0] idself, idseld;
+
 generate
 genvar i;
 for(i=0;i<32;i=i+1) begin:G_AD
 	IOBUF ad_iobuf_i(.O(adi[i]), .IO(AD_IO[i]), .I(ado[i]), .T(adt[i]));
 	ZHOLD_DELAY ad_dly_i(.DLYFABRIC(adf[i]), .DLYIFF(add[i]), .DLYIN(adi[i]));
 end
-endgenerate
-
-wire [3:0] cbi, cbf, cbd, cbo, cbt;
-generate
-genvar i;
 for(i=0;i<4;i=i+1) begin:G_CB
 	IOBUF cb_iobuf_i(.O(cbi[i]), .IO(CBE_IO[i]), .I(cbo[i]), .T(cbt[i]));
 	ZHOLD_DELAY cb_dly_i(.DLYFABRIC(cbf[i]), .DLYIFF(cbd[i]), .DLYIN(cbi[i]));
 end
-endgenerate
-
-wire [2:0] into, intt;
-wire [2:0] pmeo, pmet;
-wire [2:0] reqo, reqt;
-wire [2:0] gnti;
-wire [2:0] idself, idseld;
-generate
-genvar i;
 for(i=0;i<3;i=i+1) begin:G_MISC
 	OBUFT int_obuft_i(.O(INT_O[i]), .T(intt[i]), .I(into[i]));
 	OBUFT pme_obuft_i(.O(PME_O[i]), .T(pmet[i]), .I(pmeo[i]));
 	OBUFT req_obuft_i(.O(REQ_O[i]), .T(reqt[i]), .I(reqo[i]));
 	IBUF gnt_ibuf_i(.O(gnti[i]), .I(GNT_I[i]));
+	ZHOLD_DELAY gnt_dly_i(.DLYFABRIC(gntf[i]), .DLYIFF(gntd[i]), .DLYIN(gnti[i]));
 end
 endgenerate
 
-wire pari, parf, pard, paro, part;
+wire pari, parf, pard;
+reg paro, part;
 IOBUF par_iobuf_i(.O(pari), .IO(PAR_IO), .I(paro), .T(part));
 ZHOLD_DELAY par_dly_i(.DLYFABRIC(parf), .DLYIFF(pard), .DLYIN(pari));
 
-wire framei, framef, framed, frameo, framet;
+wire framei, framef, framed;
+reg frameo, framet;
 IOBUF frame_iobuf_i(.O(framei), .IO(FRAME_IO), .I(frameo), .T(framet));
 ZHOLD_DELAY frame_dly_i(.DLYFABRIC(framef), .DLYIFF(framed), .DLYIN(framei));
 
-wire trdyi, trdyf, trdyd, trdyo, trdyt;
+wire trdyi, trdyf, trdyd;
+reg trdyo, trdyt;
 IOBUF trdy_iobuf_i(.O(trdyi), .IO(TRDY_IO), .I(trdyo), .T(trdyt));
 ZHOLD_DELAY trdy_dly_i(.DLYFABRIC(trdyf), .DLYIFF(trdyd), .DLYIN(trdyi));
 
-wire irdyi, irdyf, irdyd, irdyo, irdyt;
+wire irdyi, irdyf, irdyd;
+reg irdyo, irdyt;
 IOBUF irdy_iobuf_i(.O(irdyi), .IO(IRDY_IO), .I(irdyo), .T(irdyt));
 ZHOLD_DELAY irdy_dly_i(.DLYFABRIC(irdyf), .DLYIFF(irdyd), .DLYIN(irdyi));
 
-wire stopi, stopf, stopd, stopo, stopt;
+wire stopi, stopf, stopd;
+reg stopo, stopt;
 IOBUF stop_iobuf_i(.O(stopi), .IO(STOP_IO), .I(stopo), .T(stopt));
 ZHOLD_DELAY stop_dly_i(.DLYFABRIC(stopf), .DLYIFF(stopd), .DLYIN(stopi));
 
-wire devseli, devself, devseld, devselo, devselt;
+wire devseli, devself, devseld;
+reg devselo, devselt;
 IOBUF devsel_iobuf_i(.O(devseli), .IO(DEVSEL_IO), .I(devselo), .T(devselt));
 ZHOLD_DELAY devsel_dly_i(.DLYFABRIC(devself), .DLYIFF(devseld), .DLYIN(devseli));
 
-wire perri, perrf, perrd, perro, perrt;
+wire perri, perrf, perrd;
+reg perro, perrt;
 IOBUF perr_iobuf_i(.O(perri), .IO(PERR_IO), .I(perro), .T(perrt));
 ZHOLD_DELAY perr_dly_i(.DLYFABRIC(perrf), .DLYIFF(perrd), .DLYIN(perri));
 
-wire serri, serrf, serrd, serro, serrt;
+wire serri, serrf, serrd;
+reg serro, serrt;
 IOBUF serr_iobuf_i(.O(serri), .IO(SERR_IO), .I(serro), .T(serrt));
 ZHOLD_DELAY serr_dly_i(.DLYFABRIC(serrf), .DLYIFF(serrd), .DLYIN(serri));
 
@@ -217,104 +221,104 @@ wire p2_serro, p2_serrt;
 
 always @(*)
 begin
-	if(p0_adt) ado = p0_ado;
-	else if(p1_adt) ado = p1_ado;
-	else if(p2_adt) ado = p2_ado;
+	if(!p0_adt) ado = p0_ado;
+	else if(!p1_adt) ado = p1_ado;
+	else if(!p2_adt) ado = p2_ado;
 	else ado = 'bx;
-	adt = p0_adt | p1_adt | p2_adt;
+	adt = p0_adt & p1_adt & p2_adt;
 end
 
 always @(*)
 begin
-	if(p0_cbt) cbo = p0_cbo;
-	else if(p1_cbt) cbo = p1_cbo;
-	else if(p2_cbt) cbo = p2_cbo;
+	if(!p0_cbt) cbo = p0_cbo;
+	else if(!p1_cbt) cbo = p1_cbo;
+	else if(!p2_cbt) cbo = p2_cbo;
 	else cbo = 'bx;
-	cbt = p0_cbt | p1_cbt | p2_cbt;
+	cbt = p0_cbt & p1_cbt & p2_cbt;
 end
 
 always @(*)
 begin
-	if(p0_part) paro = p0_paro;
-	else if(p1_part) paro = p1_paro;
-	else if(p2_part) paro = p2_paro;
+	if(!p0_part) paro = p0_paro;
+	else if(!p1_part) paro = p1_paro;
+	else if(!p2_part) paro = p2_paro;
 	else paro = 'bx;
-	part = p0_part | p1_part | p2_part;
+	part = p0_part & p1_part & p2_part;
 end
 
 always @(*)
 begin
-	if(p0_framet) frameo = p0_frameo;
-	else if(p1_framet) frameo = p1_frameo;
-	else if(p2_framet) frameo = p2_frameo;
+	if(!p0_framet) frameo = p0_frameo;
+	else if(!p1_framet) frameo = p1_frameo;
+	else if(!p2_framet) frameo = p2_frameo;
 	else frameo = 'bx;
-	framet = p0_framet | p1_framet | p2_framet;
+	framet = p0_framet & p1_framet & p2_framet;
 end
 
 always @(*)
 begin
-	if(p0_trdyt) trdyo = p0_trdyo;
-	else if(p1_trdyt) trdyo = p1_trdyo;
-	else if(p2_trdyt) trdyo = p2_trdyo;
+	if(!p0_trdyt) trdyo = p0_trdyo;
+	else if(!p1_trdyt) trdyo = p1_trdyo;
+	else if(!p2_trdyt) trdyo = p2_trdyo;
 	else trdyo = 'bx;
-	trdyt = p0_trdyt | p1_trdyt | p2_trdyt;
+	trdyt = p0_trdyt & p1_trdyt & p2_trdyt;
 end
 
 always @(*)
 begin
-	if(p0_irdyt) irdyo = p0_irdyo;
-	else if(p1_irdyt) irdyo = p1_irdyo;
-	else if(p2_irdyt) irdyo = p2_irdyo;
+	if(!p0_irdyt) irdyo = p0_irdyo;
+	else if(!p1_irdyt) irdyo = p1_irdyo;
+	else if(!p2_irdyt) irdyo = p2_irdyo;
 	else irdyo = 'bx;
-	irdyt = p0_irdyt | p1_irdyt | p2_irdyt;
+	irdyt = p0_irdyt & p1_irdyt & p2_irdyt;
 end
 
 always @(*)
 begin
-	if(p0_stopt) stopo = p0_stopo;
-	else if(p1_stopt) stopo = p1_stopo;
-	else if(p2_stopt) stopo = p2_stopo;
+	if(!p0_stopt) stopo = p0_stopo;
+	else if(!p1_stopt) stopo = p1_stopo;
+	else if(!p2_stopt) stopo = p2_stopo;
 	else stopo = 'bx;
-	stopt = p0_stopt | p1_stopt | p2_stopt;
+	stopt = p0_stopt & p1_stopt & p2_stopt;
 end
 
 always @(*)
 begin
-	if(p0_devselt) devselo = p0_devselo;
-	else if(p1_devselt) devselo = p1_devselo;
-	else if(p2_devselt) devselo = p2_devselo;
+	if(!p0_devselt) devselo = p0_devselo;
+	else if(!p1_devselt) devselo = p1_devselo;
+	else if(!p2_devselt) devselo = p2_devselo;
 	else devselo = 'bx;
-	devselt = p0_devselt | p1_devselt | p2_devselt;
+	devselt = p0_devselt & p1_devselt & p2_devselt;
 end
 
 always @(*)
 begin
-	if(p0_perrt) perro = p0_perro;
-	else if(p1_perrt) perro = p1_perro;
-	else if(p2_perrt) perro = p2_perro;
+	if(!p0_perrt) perro = p0_perro;
+	else if(!p1_perrt) perro = p1_perro;
+	else if(!p2_perrt) perro = p2_perro;
 	else perro = 'bx;
-	perrt = p0_perrt | p1_perrt | p2_perrt;
+	perrt = p0_perrt & p1_perrt & p2_perrt;
 end
 
 always @(*)
 begin
-	if(p0_serrt) serro = p0_serro;
-	else if(p1_serrt) serro = p1_serro;
-	else if(p2_serrt) serro = p2_serro;
+	if(!p0_serrt) serro = p0_serro;
+	else if(!p1_serrt) serro = p1_serro;
+	else if(!p2_serrt) serro = p2_serro;
 	else serro = 'bx;
-	serrt = p0_serrt | p1_serrt | p2_serrt;
+	serrt = p0_serrt & p1_serrt & p2_serrt;
 end
 
 pci32_p0 pci_p0_i(
 	.ado(p0_ado),
 	.adt(p0_adt),
 	.adi(adf),
-	.add(add),
+	.add(adf),
 
 	.cbo(p0_cbo),
 	.cbt(p0_cbt),
 	.cbi(cbf),
-	.cbd(cbd),
+	.cbd(cbf),
 
 	.paro(p0_paro),
 	.part(p0_part),
@@ -324,37 +328,37 @@ pci32_p0 pci_p0_i(
 	.frameo(p0_frameo),
 	.framet(p0_framet),
 	.framei(framef),
-	.framed(framed),
+	.framed(framef),
 
 	.trdyo(p0_trdyo),
 	.trdyt(p0_trdyt),
 	.trdyi(trdyf),
-	.trdyd(trdyd),
+	.trdyd(trdyf),
 
 	.irdyo(p0_irdyo),
 	.irdyt(p0_irdyt),
 	.irdyi(irdyf),
-	.irdyd(irdyd),
+	.irdyd(irdyf),
 
 	.stopo(p0_stopo),
 	.stopt(p0_stopt),
 	.stopi(stopf),
-	.stopd(stopd),
+	.stopd(stopf),
 
 	.devselo(p0_devselo),
 	.devselt(p0_devselt),
 	.devseli(devself),
-	.devseld(devseld),
+	.devseld(devself),
 
 	.perro(p0_perro),
 	.perrt(p0_perrt),
 	.perri(perrf),
-	.perrd(perrd),
+	.perrd(perrf),
 
 	.serro(p0_serro),
 	.serrt(p0_serrt),
 	.serri(serrf),
-	.serrd(serrd),
+	.serrd(serrf),
 
 	.into(into[0]),
 	.intt(intt[0]),
@@ -366,9 +370,9 @@ pci32_p0 pci_p0_i(
 	.reqt(reqt[0]),
 
 	.gnti(gntf[0]),
-	.gntd(gntd[0]),
+	.gntd(gntf[0]),
 
-	.idseli(idseld[0]),
+	.idseli(idself[0]),
 	.idseld(idself[0]),
 
 	.frameq_n(),
@@ -433,12 +437,12 @@ pci32_p1 pci_p1_i(
 	.ado(p1_ado),
 	.adt(p1_adt),
 	.adi(adf),
-	.add(add),
+	.add(adf),
 
 	.cbo(p1_cbo),
 	.cbt(p1_cbt),
 	.cbi(cbf),
-	.cbd(cbd),
+	.cbd(cbf),
 
 	.paro(p1_paro),
 	.part(p1_part),
@@ -448,37 +452,37 @@ pci32_p1 pci_p1_i(
 	.frameo(p1_frameo),
 	.framet(p1_framet),
 	.framei(framef),
-	.framed(framed),
+	.framed(framef),
 
 	.trdyo(p1_trdyo),
 	.trdyt(p1_trdyt),
 	.trdyi(trdyf),
-	.trdyd(trdyd),
+	.trdyd(trdyf),
 
 	.irdyo(p1_irdyo),
 	.irdyt(p1_irdyt),
 	.irdyi(irdyf),
-	.irdyd(irdyd),
+	.irdyd(irdyf),
 
 	.stopo(p1_stopo),
 	.stopt(p1_stopt),
 	.stopi(stopf),
-	.stopd(stopd),
+	.stopd(stopf),
 
 	.devselo(p1_devselo),
 	.devselt(p1_devselt),
 	.devseli(devself),
-	.devseld(devseld),
+	.devseld(devself),
 
 	.perro(p1_perro),
 	.perrt(p1_perrt),
 	.perri(perrf),
-	.perrd(perrd),
+	.perrd(perrf),
 
 	.serro(p1_serro),
 	.serrt(p1_serrt),
 	.serri(serrf),
-	.serrd(serrd),
+	.serrd(serrf),
 
 	.into(into[1]),
 	.intt(intt[1]),
@@ -490,9 +494,9 @@ pci32_p1 pci_p1_i(
 	.reqt(reqt[1]),
 
 	.gnti(gntf[1]),
-	.gntd(gntd[1]),
+	.gntd(gntf[1]),
 
-	.idseli(idseld[1]),
+	.idseli(idself[1]),
 	.idseld(idself[1]),
 
 	.frameq_n(),
@@ -557,12 +561,12 @@ pci32_p2 pci_p2_i(
 	.ado(p2_ado),
 	.adt(p2_adt),
 	.adi(adf),
-	.add(add),
+	.add(adf),
 
 	.cbo(p2_cbo),
 	.cbt(p2_cbt),
 	.cbi(cbf),
-	.cbd(cbd),
+	.cbd(cbf),
 
 	.paro(p2_paro),
 	.part(p2_part),
@@ -572,37 +576,37 @@ pci32_p2 pci_p2_i(
 	.frameo(p2_frameo),
 	.framet(p2_framet),
 	.framei(framef),
-	.framed(framed),
+	.framed(framef),
 
 	.trdyo(p2_trdyo),
 	.trdyt(p2_trdyt),
 	.trdyi(trdyf),
-	.trdyd(trdyd),
+	.trdyd(trdyf),
 
 	.irdyo(p2_irdyo),
 	.irdyt(p2_irdyt),
 	.irdyi(irdyf),
-	.irdyd(irdyd),
+	.irdyd(irdyf),
 
 	.stopo(p2_stopo),
 	.stopt(p2_stopt),
 	.stopi(stopf),
-	.stopd(stopd),
+	.stopd(stopf),
 
 	.devselo(p2_devselo),
 	.devselt(p2_devselt),
 	.devseli(devself),
-	.devseld(devseld),
+	.devseld(devself),
 
 	.perro(p2_perro),
 	.perrt(p2_perrt),
 	.perri(perrf),
-	.perrd(perrd),
+	.perrd(perrf),
 
 	.serro(p2_serro),
 	.serrt(p2_serrt),
 	.serri(serrf),
-	.serrd(serrd),
+	.serrd(serrf),
 
 	.into(into[2]),
 	.intt(intt[2]),
@@ -614,9 +618,9 @@ pci32_p2 pci_p2_i(
 	.reqt(reqt[2]),
 
 	.gnti(gntf[2]),
-	.gntd(gntd[2]),
+	.gntd(gntf[2]),
 
-	.idseli(idseld[2]),
+	.idseli(idself[2]),
 	.idseld(idself[2]),
 
 	.frameq_n(),
