@@ -93,7 +93,7 @@ module device_top(
 	output	uart3_txen
 );
 
-parameter DEBUG="FALSE";
+parameter DEBUG="TRUE";
 parameter UART_PORT_NUM = 8;
 parameter CAN_PORT_NUM = 8;
 
@@ -537,8 +537,8 @@ phy_ft phy_ft_i(
 */
 
 eeprom_emu eeprom_emu_i(
-	.clk_i(nic_aclk),
-	.rst_i(nic_areset),
+	.clk_i(CLK),
+	.rst_i(RST),
 	.sk_i(eesk),
 	.cs_i(eecs),
 	.di_i(eedi),
@@ -550,8 +550,8 @@ eeprom_emu eeprom_emu_i(
 );
 
 config_rom rom_i(
-	.clk_i(nic_aclk),
-	.rst_i(nic_areset),
+	.clk_i(CLK),
+	.rst_i(RST),
 	.read_addr(eeprom_raddr),
 	.read_enable(eeprom_ren),
 	.read_data(eeprom_rdata)
@@ -571,6 +571,10 @@ assign can_rx[0] = can0_rx;
 assign can1_tx = can_tx[1];
 assign can1_rs = 1'b0;
 assign can_rx[1] = can1_rx;
+
+// Connect CAN2 and CAN3 for testing
+assign can_rx[2] = can_tx[2]&can_tx[3];
+assign can_rx[3] = can_tx[2]&can_tx[3];
 
 mpc_wrapper #(
 	.PORT_NUM(CAN_PORT_NUM)
@@ -640,6 +644,12 @@ assign uart3_rxen_n = 1'b0;
 assign uart3_tx = uart_txd[3];
 assign uart3_txen = 1'b1;
 assign uart_rxd[3] = uart3_rx;
+
+// Connect UART4 with UART5 and UART6 with UART7 for testing
+assign uart_rxd[4] = uart_txd[5];
+assign uart_rxd[5] = uart_txd[4];
+assign uart_rxd[6] = uart_txd[7];
+assign uart_rxd[7] = uart_txd[6];
 
 assign uart_ctsn = 8'hFF;
 assign uart_dsrn = 8'hFF;
