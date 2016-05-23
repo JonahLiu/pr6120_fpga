@@ -95,7 +95,7 @@ module device_top(
 
 parameter DEBUG="TRUE";
 parameter UART_PORT_NUM = 8;
-parameter CAN_PORT_NUM = 8;
+parameter CAN_PORT_NUM = 4;
 
 wire CLK;
 wire RST;

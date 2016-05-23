@@ -359,8 +359,8 @@ device_top #(.DEBUG("FALSE")) dut_i(
 	.can0_tx(can0_tx),
 	.can0_rs(can0_rs),
 
-	.can1_rx(can0_rx),
-	.can1_tx(can0_tx),
+	.can1_rx(can1_rx),
+	.can1_tx(can1_tx),
 	.can1_rs(can1_rs),
 
 	.uart0_rx(uart0_rx),
