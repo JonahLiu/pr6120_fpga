@@ -234,9 +234,11 @@ write_debug_probes -force $probes_fn
 #set output_fn [format "$outputDir/%s.bmm" $projName]
 #write_bmm -force -quiet $output_fn
 
-set output_fn [format "$outputDir/%s_spi_x1.mcs" $projName]
-write_cfgmem -force -format MCS -interface SPIx1 -loadbit "up 0x0 $bitstream_fn" $output_fn 
-
+set_property CONFIG_MODE BPI16 [current_design]
 set output_fn [format "$outputDir/%s_bpi_x16.mcs" $projName]
 write_cfgmem -force -format MCS -interface BPIx16 -loadbit "up 0x0 $bitstream_fn" $output_fn
+
+set_property CONFIG_MODE SPIx1 [current_design]
+set output_fn [format "$outputDir/%s_spi_x1.mcs" $projName]
+write_cfgmem -force -format MCS -interface SPIx1 -loadbit "up 0x0 $bitstream_fn" $output_fn 
 
