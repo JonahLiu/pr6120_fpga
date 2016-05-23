@@ -45,6 +45,12 @@ read_verilog ../../src/device/mpc_wrapper.v
 read_verilog ../../src/device/mps_wrapper.v
 
 read_verilog ../../src/common/fifo_async.v
+read_verilog ../../src/common/axis_realign.v
+read_verilog ../../src/common/axi_mdma.v
+read_verilog ../../src/common/axi_rdma.v
+read_verilog ../../src/common/axi_wdma.v
+read_verilog ../../src/common/axi_mux.v
+read_verilog ../../src/common/axi_ram.v
 
 read_verilog ../../src/pci/pci_multi.v
 read_verilog ../../src/pci/pci_target.v
@@ -70,12 +76,6 @@ read_verilog ../../src/e1000/rx_desc_ctrl.v
 read_verilog ../../src/e1000/rx_engine.v
 read_verilog ../../src/e1000/rx_frame.v
 read_verilog ../../src/e1000/rx_checksum.v
-read_verilog ../../src/e1000/axis_realign.v
-read_verilog ../../src/e1000/axi_mdma.v
-read_verilog ../../src/e1000/axi_rdma.v
-read_verilog ../../src/e1000/axi_wdma.v
-read_verilog ../../src/e1000/axi_mux.v
-read_verilog ../../src/e1000/axi_ram.v
 read_verilog ../../src/e1000/mac_axis.v
 read_verilog ../../src/mac/Clk_ctrl.v
 read_verilog ../../src/mac/Phy_int.v
@@ -239,6 +239,7 @@ set output_fn [format "$outputDir/%s_bpi_x16.mcs" $projName]
 write_cfgmem -force -format MCS -interface BPIx16 -loadbit "up 0x0 $bitstream_fn" $output_fn
 
 set_property CONFIG_MODE SPIx1 [current_design]
+set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
 set output_fn [format "$outputDir/%s_spi_x1.mcs" $projName]
 write_cfgmem -force -format MCS -interface SPIx1 -loadbit "up 0x0 $bitstream_fn" $output_fn 
 
