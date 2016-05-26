@@ -1,6 +1,7 @@
 module mps_wrapper #(
 	parameter BASE_BAUD = 460800,
 	parameter CLK_PERIOD_NS=7.5,
+	parameter DEBUG = "FALSE",
 	parameter PORT_NUM=8
 ) (
 	input RST,
@@ -196,4 +197,37 @@ mps_top #(.PORT_NUM(PORT_NUM), .BASE_BAUD(BASE_BAUD),.CLK_PERIOD_NS(CLK_PERIOD_N
 	.dcdn(dcdn)
 );
 
+generate
+if(DEBUG == "TRUE") begin
+ila_0 ila_i0(
+	.clk(aclk), // input wire clk
+	.probe0({
+		mps_s_awvalid,
+		mps_s_awready,
+		mps_s_awaddr,
+
+		mps_s_wvalid,
+		mps_s_wready,
+		mps_s_wdata,
+		mps_s_wstrb,
+
+		mps_s_bvalid,
+		mps_s_bready,
+		mps_s_bresp,
+
+		mps_s_arvalid,
+		mps_s_arready,
+		mps_s_araddr,
+		mps_s_aruser,
+
+		mps_s_rvalid,
+		mps_s_rready,
+		mps_s_rdata,
+		mps_s_rresp,
+
+		intr_request
+	})
+);
+end
+endgenerate
 endmodule

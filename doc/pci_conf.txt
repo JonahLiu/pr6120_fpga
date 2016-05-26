@@ -1,0 +1,32 @@
+This file explains PCI related informations of PR6120 - Multi-function Chip.
+
+# Device IDs
+
+There are three pci device in this chip, with IDs assigned as {VENDOR_ID,
+DEVICE_ID, SUBVENDOR_ID, SUBDEVICE_ID}
+- Network Controller: {8086, ABCD}
+- 2-Port CAN Controller: {13FE, C204, 13FE, C204}
+- 4-Port Serial Controller: {10B5, 9050, 12E0, 0021}
+
+# BAR mapping of Network Controller
+
+- BAR0: Memory, 128KB, register space of 8254x
+- BAR1: Memory, 128KB, flash access (currently not supported)
+- BAR2: IO, 8Bytes, indirect access to register space
+
+# BAR mapping of 2-Port CAN Controller
+
+- BAR0: Memory, 4KB, register space of SJA1000
+- BAR1: Memory, 4KB, register space of mock FPGA (for version id only)
+- BAR2: IO, 8Bytes, no use
+
+# BAR mapping of 4-Port Serial Controller
+
+- BAR0: Memory, 128Bytes, register space of 16550
+- BAR1: IO, 128Bytes, redundant mapping of 16550 register space
+- BAR2: IO, 64Bytes, no use
+
+
+
+
+

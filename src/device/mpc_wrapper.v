@@ -1,4 +1,5 @@
 module mpc_wrapper #(
+	parameter DEBUG = "FALSE",
 	parameter PORT_NUM=4
 ) 
 (
@@ -184,5 +185,39 @@ mpc_top #(.PORT_NUM(PORT_NUM)) mpc_top(
 	.tx_o(tx_o),
 	.bus_off_on(bus_off_on)
 );
+
+generate
+if(DEBUG == "TRUE") begin
+ila_0 ila_i0(
+	.clk(aclk), // input wire clk
+	.probe0({
+		mpc_s_awvalid,
+		mpc_s_awready,
+		mpc_s_awaddr,
+
+		mpc_s_wvalid,
+		mpc_s_wready,
+		mpc_s_wdata,
+		mpc_s_wstrb,
+
+		mpc_s_bvalid,
+		mpc_s_bready,
+		mpc_s_bresp,
+
+		mpc_s_arvalid,
+		mpc_s_arready,
+		mpc_s_araddr,
+		mpc_s_aruser,
+
+		mpc_s_rvalid,
+		mpc_s_rready,
+		mpc_s_rdata,
+		mpc_s_rresp,
+
+		intr_request
+	})
+);
+end
+endgenerate
 
 endmodule

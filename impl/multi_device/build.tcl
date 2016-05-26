@@ -238,8 +238,11 @@ set_property CONFIG_MODE BPI16 [current_design]
 set output_fn [format "$outputDir/%s_bpi_x16.mcs" $projName]
 write_cfgmem -force -format MCS -interface BPIx16 -loadbit "up 0x0 $bitstream_fn" $output_fn
 
+# Generate a SPI configuration file which need faster configuration clock
 set_property CONFIG_MODE SPIx1 [current_design]
 set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
+set bitstream_fn [format "$outputDir/%s_spi_x1.bit" $projName]
+write_bitstream -force $bitstream_fn
 set output_fn [format "$outputDir/%s_spi_x1.mcs" $projName]
 write_cfgmem -force -format MCS -interface SPIx1 -loadbit "up 0x0 $bitstream_fn" $output_fn 
 

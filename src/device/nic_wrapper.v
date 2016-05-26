@@ -69,11 +69,11 @@ wire nic_rst;
 
 wire clk_locked;
 
-wire nic_intr_req;
-wire nic_rst_req;
+wire intr_request;
+wire rst_request;
 
-wire nic_aclk;
-wire nic_aresetn;
+wire aclk;
+wire aresetn;
 wire nic_s_awvalid;
 wire nic_s_awready;
 wire [31:0] nic_s_awaddr;
@@ -128,34 +128,32 @@ wire nic_m_rready;
 wire [31:0] S_ADIO_IN;
 wire [31:0] M_ADIO_IN;
 
-reg [6:0] nic_rst_sync;
+reg [6:0] rst_sync;
 (* ASYNC_REG = "TRUE" *)
-reg [1:0] nic_intr_sync;
+reg [1:0] intr_sync;
 
 assign ADIO_IN = S_DATA?S_ADIO_IN:M_ADIO_IN;
-assign INT_N = !nic_intr_sync[1];
+assign INT_N = !intr_sync[1];
 
-assign nic_rst = !nic_rst_sync[6];
+assign aclk = nic_clk;
+assign areset = !rst_sync[6];
+assign aresetn = !areset;
 
-assign nic_aclk = nic_clk;
-assign nic_aresetn = !nic_rst;
-assign nic_areset = nic_rst;
-
-always @(posedge nic_clk, posedge RST)
+always @(posedge aclk, posedge RST)
 begin
 	if(RST) begin
-		nic_rst_sync <= 'b0;
+		rst_sync <= 'b0;
 	end
-	else if(nic_rst_req || !clk_locked) begin
-		nic_rst_sync <= 'b0;
+	else if(rst_request || !clk_locked) begin
+		rst_sync <= 'b0;
 	end
-	else if(!nic_rst_sync[6])
-		nic_rst_sync <= nic_rst_sync+1;
+	else if(!rst_sync[6])
+		rst_sync <= rst_sync+1;
 end
 
 always @(posedge CLK)
 begin
-	nic_intr_sync <= {nic_intr_sync, nic_intr_req};
+	intr_sync <= {intr_sync, intr_request};
 end
 
 nic_clk_gen nic_clk_gen_i(
@@ -185,8 +183,8 @@ pci_target_i(
 	.RST(RST),
 	.CLK(CLK),
 
-	.tgt_m_aclk(nic_aclk),
-	.tgt_m_aresetn(nic_aresetn),
+	.tgt_m_aclk(aclk),
+	.tgt_m_aresetn(aresetn),
 
 	.tgt_m_awvalid(nic_s_awvalid),
 	.tgt_m_awready(nic_s_awready),
@@ -232,8 +230,8 @@ pci_master pci_master_i(
 
 	.cacheline_size(8'd16),
 
-	.mst_s_aclk(nic_aclk),
-	.mst_s_aresetn(nic_aresetn),
+	.mst_s_aclk(aclk),
+	.mst_s_aresetn(aresetn),
 
 	.mst_s_awid(nic_m_awid),
 	.mst_s_awaddr(nic_m_awaddr),
@@ -276,10 +274,10 @@ pci_master pci_master_i(
 e1000_top #(
 	.PHY_ADDR(PHY_ADDR),
 	.CLK_PERIOD_NS(CLK_PERIOD_NS),
-	.DEBUG(DEBUG)
+	.DEBUG("FALSE")
 ) e1000_i(
-	.aclk(nic_aclk),
-	.aresetn(nic_aresetn),
+	.aclk(aclk),
+	.aresetn(aresetn),
 
 	.clk125(nic_clk),
 
@@ -307,8 +305,8 @@ e1000_top #(
 	.axi_s_rresp(nic_s_rresp),
 
 	// Interrupt Request
-	.intr_request(nic_intr_req),
-	.reset_request(nic_rst_req),
+	.intr_request(intr_request),
+	.reset_request(rst_request),
 
 	// AXI4 for DMA
 	.axi_m_awid(nic_m_awid),
@@ -377,5 +375,39 @@ e1000_top #(
 	.eedo(eedo),
 	.eedi(eedi)
 );
+
+generate
+if(DEBUG == "TRUE") begin
+ila_0 ila_i0(
+	.clk(aclk), // input wire clk
+	.probe0({
+		nic_s_awvalid,
+		nic_s_awready,
+		nic_s_awaddr,
+
+		nic_s_wvalid,
+		nic_s_wready,
+		nic_s_wdata,
+		nic_s_wstrb,
+
+		nic_s_bvalid,
+		nic_s_bready,
+		nic_s_bresp,
+
+		nic_s_arvalid,
+		nic_s_arready,
+		nic_s_araddr,
+		nic_s_aruser,
+
+		nic_s_rvalid,
+		nic_s_rready,
+		nic_s_rdata,
+		nic_s_rresp,
+
+		intr_request
+	})
+);
+end
+endgenerate
 
 endmodule

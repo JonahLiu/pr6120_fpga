@@ -577,7 +577,8 @@ assign can_rx[2] = can_tx[2]&can_tx[3];
 assign can_rx[3] = can_tx[2]&can_tx[3];
 
 mpc_wrapper #(
-	.PORT_NUM(CAN_PORT_NUM)
+	.PORT_NUM(CAN_PORT_NUM),
+	.DEBUG(DEBUG)
 )mpc_wrapper_i(
 	.RST(RST),
 	.CLK(CLK),
@@ -657,7 +658,8 @@ assign uart_ri = 8'hFF;
 assign uart_dcdn = 8'hFF;
 
 mps_wrapper #(
-	.PORT_NUM(UART_PORT_NUM)
+	.PORT_NUM(UART_PORT_NUM),
+	.DEBUG(DEBUG)
 )mps_wrapper_i(
 	.RST(RST),
 	.CLK(CLK),
@@ -697,5 +699,87 @@ mps_wrapper #(
 	.ri(uart_ri),
 	.dcdn(uart_dcdn)
 );
+
+generate
+if(DEBUG == "TRUE") begin
+ila_0 ila_mac_i0(
+	.clk(CLK), // input wire clk
+	.probe0({
+		P0_ADDR,
+		P0_ADDR_VLD,
+		P0_BASE_HIT,
+		P0_S_TERM,
+		P0_S_READY,
+		P0_S_ABORT,
+		P0_S_WRDN,
+		P0_S_SRC_EN,
+		P0_S_DATA,
+		P0_S_DATA_VLD,
+		P0_S_CBE,
+		P0_INT_N,
+		P0_REQUEST,
+		P0_REQUESTHOLD,
+		P0_M_CBE,
+		P0_M_WRDN,
+		P0_COMPLETE,
+		P0_M_READY,
+		P0_M_DATA_VLD,
+		P0_M_SRC_EN,
+		P0_TIME_OUT,
+		P0_M_DATA,
+		P0_M_ADDR_N,
+		P0_STOPQ_N,
+		P1_ADDR,
+		P1_ADDR_VLD,
+		P1_BASE_HIT,
+		P1_S_TERM,
+		P1_S_READY,
+		P1_S_ABORT,
+		P1_S_WRDN,
+		P1_S_SRC_EN,
+		P1_S_DATA,
+		P1_S_DATA_VLD,
+		P1_S_CBE,
+		P1_INT_N,
+		P1_REQUEST,
+		P1_REQUESTHOLD,
+		P1_M_CBE,
+		P1_M_WRDN,
+		P1_COMPLETE,
+		P1_M_READY,
+		P1_M_DATA_VLD,
+		P1_M_SRC_EN,
+		P1_TIME_OUT,
+		P1_M_DATA,
+		P1_M_ADDR_N,
+		P1_STOPQ_N,
+		P2_ADDR,
+		P2_ADDR_VLD,
+		P2_BASE_HIT,
+		P2_S_TERM,
+		P2_S_READY,
+		P2_S_ABORT,
+		P2_S_WRDN,
+		P2_S_SRC_EN,
+		P2_S_DATA,
+		P2_S_DATA_VLD,
+		P2_S_CBE,
+		P2_INT_N,
+		P2_REQUEST,
+		P2_REQUESTHOLD,
+		P2_M_CBE,
+		P2_M_WRDN,
+		P2_COMPLETE,
+		P2_M_READY,
+		P2_M_DATA_VLD,
+		P2_M_SRC_EN,
+		P2_TIME_OUT,
+		P2_M_DATA,
+		P2_M_ADDR_N,
+		P2_STOPQ_N
+	})
+);
+end
+endgenerate
 
 endmodule
