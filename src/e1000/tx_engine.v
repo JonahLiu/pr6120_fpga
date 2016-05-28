@@ -97,6 +97,9 @@ endfunction
 
 localparam DRAM_ADDR_BITS = clogb2(DATA_RAM_DWORDS*4);
 
+localparam DTYPE_DATA = 4'b0001;
+localparam DTYPE_CONTEXT = 4'b0000;
+
 reg [15:0] local_addr;
 reg [1:0] fetch_cnt;
 
@@ -384,10 +387,10 @@ begin
 	case(s2)
 		S2_IDLE: begin
 			if(start_fetch_data)
-				if(desc_dext)
-					s2_next = S2_UNSUPPORT;
-				else
+				if(!desc_dext || (desc_dext && desc_dtyp==DTYPE_DATA))
 					s2_next = S2_FETCH_CALC;
+				else // FIXME: add context descriptor support
+					s2_next = S2_UNSUPPORT;
 			else
 				s2_next = S2_IDLE;
 		end
