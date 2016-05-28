@@ -394,6 +394,8 @@ e1000_regs cmd_i(
 	.IMC(IMC),
 	.IMC_set(IMC_set),
 
+	.PHYINT_fb_i(PHYINT_req),
+
 	.TCTL_EN(TCTL_EN),
 	.TCTL_PSP(TCTL_PSP),
 

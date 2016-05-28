@@ -71,6 +71,8 @@ module e1000_regs(
 	output [31:0] IMC,
 	output IMC_set,
 
+	input PHYINT_fb_i,
+
 	output TCTL_EN,
 	output TCTL_PSP,
 
@@ -366,7 +368,11 @@ e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0018),.BMSK(32'h0000_0000)) CTRL
 	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
 	.O(CTRL_EXT),.Q(CTRL_EXT_Q),.B(CTRL_EXT_B),.S(CTRL_EXT_set),.G(CTRL_EXT_get)
 );
-assign CTRL_EXT_B = CTRL_EXT; // CTRL_EXT is ignored
+assign CTRL_EXT_B[4:0] = 5'b0;
+assign CTRL_EXT_B[5] = PHYINT_fb_i;
+assign CTRL_EXT_B[14:6] = 9'b0;
+assign CTRL_EXT_B[15] = CTRL_EXT[15];
+assign CTRL_EXT_B[31:16] = 16'b0;
 
 wire [31:0] MDIC_Q, MDIC_B;
 wire MDIC_get, MDIC_set;
@@ -484,7 +490,9 @@ e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h00C8),.BMSK(32'hFFFF_0000)) ICS_
 	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
 	.O(ICS),.Q(ICS_Q),.B(ICS_B),.S(ICS_set),.G(ICS_get)
 );
-assign ICS_B = {16'b0,ICS[15:0]};
+//assign ICS_B = {16'b0,ICS[15:0]};
+assign ICS_B = ICR_fb_i; // Emulates E1000 behavior. This is undocumented.
+
 
 wire [31:0] IMS_Q, IMS_B;
 wire IMS_get;

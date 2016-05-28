@@ -16,7 +16,7 @@ DEVICE_ID, SUBVENDOR_ID, SUBDEVICE_ID}
 
 # BAR mapping of 2-Port CAN Controller
 
-- BAR0: Memory, 4KB, register space of SJA1000
+- BAR0: Memory, 4KB, register space of SJA1000, register offset is 4, controller offset is 0x100
 - BAR1: Memory, 4KB, register space of mock FPGA (for version id only)
 - BAR2: IO, 8Bytes, no use
 
