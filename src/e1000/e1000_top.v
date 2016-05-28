@@ -88,10 +88,16 @@ module e1000_top(
 	input	phy_mdio_i,
 	output	phy_mdio_o,
 	output	phy_mdio_oe,
+	output  phy_mdio_req,
+	input   phy_mdio_gnt,
 
 	// PHY Misc
 	input	phy_int,
 	output	phy_reset_out,
+	input	[1:0] phy_speed,
+	input	phy_duplex,
+	input	phy_up,
+	input	phy_lsc,
 
 	// EEPROM Port
 	output	eesk,
@@ -105,11 +111,16 @@ module e1000_top(
 // Change this according to hardware design
 parameter PHY_ADDR=5'b0;
 parameter CLK_PERIOD_NS=8;
+parameter EEPROM_FREQ=400000;
+parameter MDIO_FREQ=8000000;
 parameter TX_DESC_RAM_DWORDS=256;
 parameter TX_DATA_RAM_DWORDS=8192;
 parameter RX_DESC_RAM_DWORDS=256;
 parameter RX_DATA_RAM_DWORDS=16384;
 parameter DEBUG="FALSE";
+
+localparam EEPROM_DIV = (1000000000/EEPROM_FREQ)/CLK_PERIOD_NS+1;
+localparam MDIO_DIV = (1000000000/MDIO_FREQ)/CLK_PERIOD_NS+1;
 
 wire [31:0] mac_tx_s_tdata;
 wire [3:0] mac_tx_s_tkeep;
@@ -293,10 +304,12 @@ wire RXO_req;
 wire RXT0_req;
 
 wire PHYINT_req;
+wire LSC_req;
 
 wire reset;
 
 reg [1:0] phy_int_sync;
+reg [1:0] phy_lsc_sync;
 
 wire [16:0] dbg_rx_dram_available;
 wire [3:0] dbg_i0_state;
@@ -311,20 +324,21 @@ wire [2:0] dbg_frm_state;
 assign reset = !aresetn;
 assign phy_reset_out = CTRL_PHY_RST || reset;
 assign PHYINT_req = phy_int_sync[1];
+assign LSC_req = phy_lsc_sync[1];
 
 assign reset_request = CTRL_RST;
 
-// FIXME: connect to actual value
-assign STATUS_FD_fb = 1'b1;
-assign STATUS_LU_fb = 1'b1;
+assign STATUS_FD_fb = phy_duplex;
+assign STATUS_LU_fb = phy_up;
 assign STATUS_FID_fb = 2'b0;
-assign STATUS_TXOFF_fb = 1'b0;
-assign STATUS_SPEED_fb = 2'b10;
-assign STATUS_ASDV_fb = 2'b10;
+assign STATUS_TXOFF_fb = 1'b0; //FIXME
+assign STATUS_SPEED_fb = phy_speed;
+assign STATUS_ASDV_fb = phy_speed;
 
 always @(posedge aclk)
 begin
 	phy_int_sync <= {phy_int_sync, phy_int};
+	phy_lsc_sync <= {phy_lsc_sync, phy_lsc};
 end
 
 e1000_regs cmd_i(
@@ -445,7 +459,7 @@ e1000_regs cmd_i(
 	.RADV(RADV)
 );
 
-shift_eeprom shift_eeprom_i(
+shift_eeprom #(.div(EEPROM_DIV)) shift_eeprom_i(
 	.clk(aclk),
 	.rst(reset),
 	.sk(eesk),
@@ -462,7 +476,7 @@ shift_eeprom shift_eeprom_i(
 	.rdatao(ee_rdatao)
 );
 
-shift_mdio shift_mdio_i(
+shift_mdio #(.div(MDIO_DIV)) shift_mdio_i(
 	.clk(aclk),
 	.rst(reset),
 	.mdc_o(phy_mdc),
@@ -473,7 +487,9 @@ shift_mdio shift_mdio_i(
 	.rd_doneo(mm_rd_doneo),
 	.eni(MDIC_start),
 	.wdatai({2'b01,MDIC[27:26],PHY_ADDR[4:0],MDIC[20:16],2'b10,MDIC[15:0]}),
-	.wr_doneo(mm_wr_doneo)
+	.wr_doneo(mm_wr_doneo),
+	.bus_req(phy_mdio_req),
+	.bus_gnt(phy_mdio_gnt)
 );
 
 intr_ctrl #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) intr_ctrl_i(
@@ -501,7 +517,7 @@ intr_ctrl #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) intr_ctrl_i(
 
 	.TXDW_req(TXDW_req),
 	.TXQE_req(TXQE_req),
-	.LSC_req(1'b0),
+	.LSC_req(LSC_req),
 	.RXSEQ_req(1'b0),
 	.RXDMT0_req(RXDMT0_req),
 	.RXO_req(RXO_req),
@@ -703,9 +719,7 @@ tx_path #(
 	.mac_m_tready(mac_tx_s_tready)
 );
 
-// FIXME: need speed and duplex auto-detection
-
-wire [2:0] Speed;
+reg  [2:0] Speed;
 wire RX_APPEND_CRC;       
 wire CRC_chk_en;       
 wire [5:0] RX_IFG_SET;       
@@ -721,7 +735,16 @@ wire [5:0] IFGset;
 wire tx_pause_en;       
 wire Line_loop_en;
 
-assign	Speed = 3'b100;
+always @(*)
+begin
+	case(phy_speed) /* synthesis full_case */
+		2'b00: Speed = 3'b001;
+		2'b01: Speed = 3'b010;
+		2'b10: Speed = 3'b100;
+		2'b11: Speed = 3'b100;
+	endcase
+end
+
 assign	RX_APPEND_CRC = !SECRC;
 assign	CRC_chk_en = 1'b1;
 assign	RX_IFG_SET = 16'h000c;
@@ -731,7 +754,7 @@ assign	pause_frame_send_en = 1'b0;
 assign	pause_quanta_set = 16'h0;
 assign	xoff_cpu = 1'b0;
 assign	xon_cpu = 1'b0;
-assign	FullDuplex = 1'b1;
+assign	FullDuplex = phy_duplex; 
 assign	MaxRetry = 16'h0002;
 assign	IFGset = 16'h000c;
 assign	tx_pause_en = 1'b0;

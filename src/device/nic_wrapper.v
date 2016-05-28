@@ -48,10 +48,16 @@ module nic_wrapper(
 	input	phy_mdio_i,
 	output	phy_mdio_o,
 	output	phy_mdio_oe,
+	output  phy_mdio_req,
+	input   phy_mdio_gnt,
 
 	// PHY Misc
 	input	phy_int,
 	output	phy_reset_out,
+	input	[1:0] phy_speed,
+	input	phy_duplex,
+	input	phy_up,
+	input	phy_lsc,
 
 	// EEPROM Port
 	output	eesk,
@@ -364,10 +370,16 @@ e1000_top #(
 	.phy_mdio_i(phy_mdio_i),
 	.phy_mdio_o(phy_mdio_o),
 	.phy_mdio_oe(phy_mdio_oe),
+	.phy_mdio_req(phy_mdio_req),
+	.phy_mdio_gnt(phy_mdio_gnt),
 
 	// PHY interrupt
 	.phy_int(phy_int),
 	.phy_reset_out(phy_reset_out),
+	.phy_speed(phy_speed),
+	.phy_duplex(phy_duplex),
+	.phy_up(phy_up),
+	.phy_lsc(phy_lsc),
 
 	// EEPROM interface
 	.eesk(eesk),

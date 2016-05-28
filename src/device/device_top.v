@@ -352,6 +352,18 @@ wire	[7:0] eeprom_raddr;
 wire	eeprom_ren;
 wire	[15:0] eeprom_rdata;
 
+wire    phy_mdio_req;
+wire    phy_mdio_gnt;
+
+wire [1:0]	phy_speed;
+wire	phy_duplex;
+wire	phy_up;
+wire	phy_lsc;
+wire 	phy_port;
+
+wire	p0_gtxsclk_o;
+wire	p1_gtxsclk_o;
+
 assign	p0_mdio = p0_mdio_oe?p0_mdio_o:1'bz;
 assign  p0_mdio_i = p0_mdio;
 assign	p0_resetn = !p0_reset_out;
@@ -359,56 +371,10 @@ assign	p1_mdio = p1_mdio_oe?p1_mdio_o:1'bz;
 assign  p1_mdio_i = p1_mdio;
 assign	p1_resetn = !p1_reset_out;
 
-//FIXME: Only P0 implemented currently
-assign p0_mdc = phy_mdc;
-assign p0_mdio_o = phy_mdio_o;
-assign p0_mdio_oe = phy_mdio_oe;
-assign p0_reset_out = phy_reset_out;
-assign phy_mdio_i = p0_mdio_i;
-assign phy_int = p0_int;
-
-assign p1_mdc = 1'b0;
-assign p1_mdio_o = 1'b0;
-assign p1_mdio_oe = 1'b0;
-assign p1_reset_out = 1'b1;
-
-/*
-ZHOLD_DELAY zhd_p0_rxd0_i(.DLYIN(p0_rxdat[0]), .DLYIFF(mac_rxdat[0]), .DLYFABRIC());
-ZHOLD_DELAY zhd_p0_rxd1_i(.DLYIN(p0_rxdat[1]), .DLYIFF(mac_rxdat[1]), .DLYFABRIC());
-ZHOLD_DELAY zhd_p0_rxd2_i(.DLYIN(p0_rxdat[2]), .DLYIFF(mac_rxdat[2]), .DLYFABRIC());
-ZHOLD_DELAY zhd_p0_rxd3_i(.DLYIN(p0_rxdat[3]), .DLYIFF(mac_rxdat[3]), .DLYFABRIC());
-ZHOLD_DELAY zhd_p0_rxd4_i(.DLYIN(p0_rxdat[4]), .DLYIFF(mac_rxdat[4]), .DLYFABRIC());
-ZHOLD_DELAY zhd_p0_rxd5_i(.DLYIN(p0_rxdat[5]), .DLYIFF(mac_rxdat[5]), .DLYFABRIC());
-ZHOLD_DELAY zhd_p0_rxd6_i(.DLYIN(p0_rxdat[6]), .DLYIFF(mac_rxdat[6]), .DLYFABRIC());
-ZHOLD_DELAY zhd_p0_rxd7_i(.DLYIN(p0_rxdat[7]), .DLYIFF(mac_rxdat[7]), .DLYFABRIC());
-ZHOLD_DELAY zhd_p0_rxdv_i(.DLYIN(p0_rxdv), .DLYIFF(mac_rxdv), .DLYFABRIC());
-ZHOLD_DELAY zhd_p0_rxer_i(.DLYIN(p0_rxer), .DLYIFF(mac_rxer), .DLYFABRIC());
-ZHOLD_DELAY zhd_p0_crs_i(.DLYIN(p0_crs), .DLYIFF(mac_crs), .DLYFABRIC());
-ZHOLD_DELAY zhd_p0_col_i(.DLYIN(p0_col), .DLYIFF(mac_col), .DLYFABRIC());
-*/
-
-BUFR bufr_p0_rxsclk_i(.CE(1'b1),.CLR(1'b0),.I(p0_rxsclk),.O(mac_rxsclk)); 
-BUFR bufr_p0_txsclk_i(.CE(1'b1),.CLR(1'b0),.I(p0_txsclk),.O(mac_txsclk));
-//assign mac_rxsclk = p0_rxsclk;
-//assign mac_txsclk = p0_txsclk;
-assign mac_rxdat = p0_rxdat;
-assign mac_rxdv = p0_rxdv;
-assign mac_rxer = p0_rxer;
-assign mac_crs = p0_crs;
-assign mac_col = p0_col;
-assign p0_txdat = mac_txdat;
-assign p0_txen = mac_txen;
-assign p0_txer = mac_txer;
-//assign p0_gtxsclk = mac_gtxsclk;
-
 // Setup & hold time given by 88E1111 is (2.5ns, 0ns), 
 // so edge aligned clock and output is OK.
 ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) p0_gtxsclk_oddr_i(.D1(1'b1),.D2(1'b0),.CE(1'b1),.C(mac_gtxsclk),.S(1'b0),.R(1'b0),.Q(p0_gtxsclk));
-
-assign p1_txdat = 'b0;
-assign p1_txen = 1'b0;
-assign p1_txer = 1'b0;
-assign p1_gtxsclk = 1'b0;
+ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) p1_gtxsclk_oddr_i(.D1(1'b1),.D2(1'b0),.CE(1'b1),.C(mac_gtxsclk),.S(1'b0),.R(1'b0),.Q(p1_gtxsclk));
 
 nic_wrapper #(
 	.DEBUG(DEBUG)
@@ -462,10 +428,16 @@ nic_wrapper #(
 	.phy_mdio_i(phy_mdio_i),
 	.phy_mdio_o(phy_mdio_o),
 	.phy_mdio_oe(phy_mdio_oe),
+	.phy_mdio_req(phy_mdio_req),
+	.phy_mdio_gnt(phy_mdio_gnt),
 
 	// PHY interrupt
 	.phy_int(phy_int),
 	.phy_reset_out(phy_reset_out),
+	.phy_speed(phy_speed),
+	.phy_duplex(phy_duplex),
+	.phy_up(phy_up),
+	.phy_lsc(phy_lsc),
 
 	// EEPROM interface
 	.eesk(eesk),
@@ -475,10 +447,15 @@ nic_wrapper #(
 );
 
 // Dual redundancy fault-tolerant
-/*
-phy_ft phy_ft_i(
-	.clk_i(nic_clk),
-	.rst_i(nic_rst),
+phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30)) phy_ft_i(
+	.clk(CLK),
+	.rst(RST),
+
+	.speed(phy_speed),
+	.full_duplex(phy_duplex),
+	.link_up(phy_up),
+	.active_port(phy_port),
+	.link_change(phy_lsc),
 
 	.rxdat(mac_rxdat),
 	.rxdv(mac_rxdv),
@@ -495,7 +472,9 @@ phy_ft phy_ft_i(
 	.mdio_i(phy_mdio_o),
 	.mdio_o(phy_mdio_i),
 	.mdio_oe(phy_mdio_oe),
-	.int(phy_int),
+	.mdio_req(phy_mdio_req),
+	.mdio_gnt(phy_mdio_gnt),
+	.intr_out(phy_int),
 	.reset_in(phy_reset_out),
 
 	.phy0_rxdat(p0_rxdat),
@@ -506,7 +485,7 @@ phy_ft phy_ft_i(
 	.phy0_txen(p0_txen),
 	.phy0_txer(p0_txer),
 	.phy0_txsclk(p0_txsclk),
-	.phy0_gtxsclk(p0_gtxsclk),
+	.phy0_gtxsclk(p0_gtxsclk_o),
 	.phy0_crs(p0_crs),
 	.phy0_col(p0_col),
 	.phy0_mdc(p0_mdc),
@@ -524,7 +503,7 @@ phy_ft phy_ft_i(
 	.phy1_txen(p1_txen),
 	.phy1_txer(p1_txer),
 	.phy1_txsclk(p1_txsclk),
-	.phy1_gtxsclk(p1_gtxsclk),
+	.phy1_gtxsclk(p1_gtxsclk_o),
 	.phy1_crs(p1_crs),
 	.phy1_col(p1_col),
 	.phy1_mdc(p1_mdc),
@@ -532,9 +511,8 @@ phy_ft phy_ft_i(
 	.phy1_mdio_o(p1_mdio_o),
 	.phy1_mdio_oe(p1_mdio_oe),
 	.phy1_int(p1_int),
-	.phy1_reset_out(p1_reset_out),
+	.phy1_reset_out(p1_reset_out)
 );
-*/
 
 eeprom_emu eeprom_emu_i(
 	.clk_i(CLK),
@@ -705,6 +683,12 @@ if(DEBUG == "TRUE") begin
 ila_0 ila_mac_i0(
 	.clk(CLK), // input wire clk
 	.probe0({
+		phy_speed,
+		phy_duplex,
+		phy_up,
+		phy_lsc,
+		phy_port,
+
 		P0_ADDR,
 		P0_ADDR_VLD,
 		P0_BASE_HIT,

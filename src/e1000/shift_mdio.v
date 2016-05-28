@@ -15,8 +15,9 @@ module shift_mdio #(
 
   input             eni      ,
   input      [31:0] wdatai   ,
-  output reg        wr_doneo
-
+  output reg        wr_doneo ,
+  output reg        bus_req  ,
+  input             bus_gnt
 );
 
   reg [31:0] num;
@@ -39,7 +40,8 @@ module shift_mdio #(
   parameter Idle        = 8'h01,
             Rd_fifo     = 8'h02,
             Shift_reg   = 8'h04,
-            Done        = 8'h08;
+            Done        = 8'h08,
+			Req_bus     = 8'h10;
 
   reg [ 7:0] cnt;
   reg [15:0] fifo_wr_reg;
@@ -57,11 +59,18 @@ module shift_mdio #(
     case(State)
       Idle: begin
         if(eni) begin
-          Nextstate = Rd_fifo;
+          Nextstate = Req_bus;
         end else begin
           Nextstate = Idle;
         end
       end
+
+	  Req_bus: begin
+		  if(bus_gnt)
+			  Nextstate = Rd_fifo;
+		  else
+			  Nextstate = Req_bus;
+	  end
 
       Rd_fifo: begin
         Nextstate = Shift_reg;
@@ -100,6 +109,7 @@ module shift_mdio #(
     mdio_oe<=0;
     dreg<=0;
     sreg<=0;
+	bus_req<=0;
   end else begin
     case(Nextstate)
 
@@ -108,6 +118,10 @@ module shift_mdio #(
         mdio_o<=1;
         mdio_oe<=1;
       end
+
+	  Req_bus: begin
+		  bus_req <= 1;
+	  end
 
       Rd_fifo: begin
         dreg<=wdatai;
@@ -142,6 +156,7 @@ module shift_mdio #(
         end else begin
           wr_doneo<=1;
         end
+		bus_req <= 0;
       end
 
     endcase

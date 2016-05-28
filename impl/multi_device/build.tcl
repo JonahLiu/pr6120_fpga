@@ -43,6 +43,7 @@ read_verilog ../../src/device/uart_clk_gen.v
 read_verilog ../../src/device/nic_wrapper.v
 read_verilog ../../src/device/mpc_wrapper.v
 read_verilog ../../src/device/mps_wrapper.v
+read_verilog ../../src/device/phy_ft.v
 
 read_verilog ../../src/common/fifo_async.v
 read_verilog ../../src/common/axis_realign.v
