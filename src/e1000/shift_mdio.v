@@ -21,6 +21,13 @@ module shift_mdio #(
 );
 
   reg [31:0] num;
+  reg bus_gnt_0, bus_gnt_1;
+
+  always @(posedge clk)
+  begin
+	  bus_gnt_0 <= bus_gnt;
+	  bus_gnt_1 <= bus_gnt_0;
+  end
 
   always@(posedge clk or posedge rst)
   if(rst) begin
@@ -66,7 +73,7 @@ module shift_mdio #(
       end
 
 	  Req_bus: begin
-		  if(bus_gnt)
+		  if(bus_gnt_1)
 			  Nextstate = Rd_fifo;
 		  else
 			  Nextstate = Req_bus;

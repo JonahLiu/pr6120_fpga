@@ -312,15 +312,13 @@ pci_multi pci_multi_i(
 ////////////////////////////////////////////////////////////////////////////////
 // E1000 NIC Controller
 
+wire	mac_usrclk;
 wire	[7:0]	mac_rxdat;
 wire	mac_rxdv;
 wire	mac_rxer;
-wire	mac_rxsclk;
 wire	[7:0]	mac_txdat;
 wire	mac_txen;
 wire	mac_txer;
-wire	mac_txsclk;
-wire	mac_gtxsclk;
 wire	mac_crs;
 wire	mac_col;
 
@@ -343,6 +341,30 @@ wire	p1_mdio_oe;
 
 wire	p1_reset_out;
 
+wire	phy0_usrclk;
+wire	[7:0] phy0_rxdat;
+wire	phy0_rxdv;
+wire	phy0_rxer;
+wire	[7:0] phy0_txdat;
+wire 	phy0_txen;
+wire	phy0_txer;
+wire	phy0_crs;
+wire	phy0_col;
+wire	phy0_up;
+wire	[1:0] phy0_speed;
+
+wire	phy1_usrclk;
+wire	[7:0] phy1_rxdat;
+wire	phy1_rxdv;
+wire	phy1_rxer;
+wire	[7:0] phy1_txdat;
+wire 	phy1_txen;
+wire	phy1_txer;
+wire	phy1_crs;
+wire	phy1_col;
+wire	phy1_up;
+wire	[1:0] phy1_speed;
+
 wire	eesk;
 wire	eecs;
 wire	eedo;
@@ -361,9 +383,6 @@ wire	phy_up;
 wire	phy_lsc;
 wire 	phy_port;
 
-wire	p0_gtxsclk_o;
-wire	p1_gtxsclk_o;
-
 assign	p0_mdio = p0_mdio_oe?p0_mdio_o:1'bz;
 assign  p0_mdio_i = p0_mdio;
 assign	p0_resetn = !p0_reset_out;
@@ -371,10 +390,10 @@ assign	p1_mdio = p1_mdio_oe?p1_mdio_o:1'bz;
 assign  p1_mdio_i = p1_mdio;
 assign	p1_resetn = !p1_reset_out;
 
-// Setup & hold time given by 88E1111 is (2.5ns, 0ns), 
-// so edge aligned clock and output is OK.
-ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) p0_gtxsclk_oddr_i(.D1(1'b1),.D2(1'b0),.CE(1'b1),.C(mac_gtxsclk),.S(1'b0),.R(1'b0),.Q(p0_gtxsclk));
-ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) p1_gtxsclk_oddr_i(.D1(1'b1),.D2(1'b0),.CE(1'b1),.C(mac_gtxsclk),.S(1'b0),.R(1'b0),.Q(p1_gtxsclk));
+assign  p0_txdat[7:4] = 4'b0;
+assign  p0_txer = 1'b0;
+assign  p1_txdat[7:4] = 4'b0;
+assign  p1_txer = 1'b0;
 
 nic_wrapper #(
 	.DEBUG(DEBUG)
@@ -414,12 +433,12 @@ nic_wrapper #(
 	.mac_rxdat(mac_rxdat),
 	.mac_rxdv(mac_rxdv),
 	.mac_rxer(mac_rxer),
-	.mac_rxsclk(mac_rxsclk),
+	.mac_rxsclk(mac_usrclk),
 	.mac_txdat(mac_txdat),
 	.mac_txen(mac_txen),
 	.mac_txer(mac_txer),
-	.mac_txsclk(mac_txsclk),
-	.mac_gtxsclk(mac_gtxsclk),
+	.mac_txsclk(mac_usrclk),
+	.mac_gtxsclk(),
 	.mac_crs(mac_crs),
 	.mac_col(mac_col),
 
@@ -456,16 +475,18 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30)) phy_ft_i(
 	.link_up(phy_up),
 	.active_port(phy_port),
 	.link_change(phy_lsc),
+	.phy0_up(phy0_up),
+	.phy0_speed(phy0_speed),
+	.phy1_up(phy1_up),
+	.phy1_speed(phy1_speed),
 
+	.usrclk(mac_usrclk),
 	.rxdat(mac_rxdat),
 	.rxdv(mac_rxdv),
 	.rxer(mac_rxer),
-	.rxsclk(mac_rxsclk),
 	.txdat(mac_txdat),
 	.txen(mac_txen),
 	.txer(mac_txer),
-	.txsclk(mac_txsclk),
-	.gtxsclk(mac_gtxsclk),
 	.crs(mac_crs),
 	.col(mac_col),
 	.mdc(phy_mdc),
@@ -477,17 +498,15 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30)) phy_ft_i(
 	.intr_out(phy_int),
 	.reset_in(phy_reset_out),
 
-	.phy0_rxdat(p0_rxdat),
-	.phy0_rxdv(p0_rxdv),
-	.phy0_rxer(p0_rxer),
-	.phy0_rxsclk(p0_rxsclk),
-	.phy0_txdat(p0_txdat),
-	.phy0_txen(p0_txen),
-	.phy0_txer(p0_txer),
-	.phy0_txsclk(p0_txsclk),
-	.phy0_gtxsclk(p0_gtxsclk_o),
-	.phy0_crs(p0_crs),
-	.phy0_col(p0_col),
+	.phy0_usrclk(phy0_usrclk),
+	.phy0_rxdat(phy0_rxdat),
+	.phy0_rxdv(phy0_rxdv),
+	.phy0_rxer(phy0_rxer),
+	.phy0_txdat(phy0_txdat),
+	.phy0_txen(phy0_txen),
+	.phy0_txer(phy0_txer),
+	.phy0_crs(phy0_crs),
+	.phy0_col(phy0_col),
 	.phy0_mdc(p0_mdc),
 	.phy0_mdio_i(p0_mdio_i),
 	.phy0_mdio_o(p0_mdio_o),
@@ -495,23 +514,69 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30)) phy_ft_i(
 	.phy0_int(p0_int),
 	.phy0_reset_out(p0_reset_out),
 
-	.phy1_rxdat(p1_rxdat),
-	.phy1_rxdv(p1_rxdv),
-	.phy1_rxer(p1_rxer),
-	.phy1_rxsclk(p1_rxsclk),
-	.phy1_txdat(p1_txdat),
-	.phy1_txen(p1_txen),
-	.phy1_txer(p1_txer),
-	.phy1_txsclk(p1_txsclk),
-	.phy1_gtxsclk(p1_gtxsclk_o),
-	.phy1_crs(p1_crs),
-	.phy1_col(p1_col),
+	.phy1_usrclk(phy1_usrclk),
+	.phy1_rxdat(phy1_rxdat),
+	.phy1_rxdv(phy1_rxdv),
+	.phy1_rxer(phy1_rxer),
+	.phy1_txdat(phy1_txdat),
+	.phy1_txen(phy1_txen),
+	.phy1_txer(phy1_txer),
+	.phy1_crs(phy1_crs),
+	.phy1_col(phy1_col),
 	.phy1_mdc(p1_mdc),
 	.phy1_mdio_i(p1_mdio_i),
 	.phy1_mdio_o(p1_mdio_o),
 	.phy1_mdio_oe(p1_mdio_oe),
 	.phy1_int(p1_int),
 	.phy1_reset_out(p1_reset_out)
+);
+
+rgmii_if p0_if_i(
+	.reset(!phy0_up),
+	.speed(phy0_speed[1]),
+
+	.rgmii_rxclk(p0_rxsclk),
+	.rgmii_rxdat(p0_rxdat[3:0]),
+	.rgmii_rxctl(p0_rxdv),
+	.rgmii_gtxclk(p0_gtxsclk),
+	.rgmii_txdat(p0_txdat[3:0]),
+	.rgmii_txctl(p0_txen),
+	.rgmii_crs(p0_crs),
+	.rgmii_col(p0_col),
+
+	.user_clk(phy0_usrclk),
+	.txd(phy0_txdat),
+	.txen(phy0_txen),
+	.txer(phy0_txer),
+	.rxd(phy0_rxdat),
+	.rxdv(phy0_rxdv),
+	.rxer(phy0_rxer),
+	.crs(phy0_crs),
+	.col(phy0_col)
+);
+
+rgmii_if p1_if_i(
+	.reset(!phy1_up),
+	.speed(phy1_speed[1]),
+
+	.rgmii_rxclk(p1_rxsclk),
+	.rgmii_rxdat(p1_rxdat[3:0]),
+	.rgmii_rxctl(p1_rxdv),
+	.rgmii_gtxclk(p1_gtxsclk),
+	.rgmii_txdat(p1_txdat[3:0]),
+	.rgmii_txctl(p1_txen),
+	.rgmii_crs(p1_crs),
+	.rgmii_col(p1_col),
+
+	.user_clk(phy1_usrclk),
+	.txd(phy1_txdat),
+	.txen(phy1_txen),
+	.txer(phy1_txer),
+	.rxd(phy1_rxdat),
+	.rxdv(phy1_rxdv),
+	.rxer(phy1_rxer),
+	.crs(phy1_crs),
+	.col(phy1_col)
 );
 
 eeprom_emu eeprom_emu_i(

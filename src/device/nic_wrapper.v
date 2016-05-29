@@ -285,7 +285,8 @@ e1000_top #(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
-	.clk125(nic_clk),
+	//.clk125(nic_clk),
+	.clk125(mac_rxsclk),
 
 	// AXI4-lite for memory mapped registers
 	.axi_s_awvalid(nic_s_awvalid),

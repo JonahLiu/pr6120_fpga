@@ -70,7 +70,7 @@ module e1000_top(
 	input axi_m_rvalid,
 	output axi_m_rready,
 
-	// GMII Port
+	// MAC Port
 	input	[7:0]	mac_rxdat,
 	input	mac_rxdv,
 	input	mac_rxer,
@@ -719,7 +719,7 @@ tx_path #(
 	.mac_m_tready(mac_tx_s_tready)
 );
 
-reg  [2:0] Speed;
+wire [2:0] Speed;
 wire RX_APPEND_CRC;       
 wire CRC_chk_en;       
 wire [5:0] RX_IFG_SET;       
@@ -735,16 +735,7 @@ wire [5:0] IFGset;
 wire tx_pause_en;       
 wire Line_loop_en;
 
-always @(*)
-begin
-	case(phy_speed) /* synthesis full_case */
-		2'b00: Speed = 3'b001;
-		2'b01: Speed = 3'b010;
-		2'b10: Speed = 3'b100;
-		2'b11: Speed = 3'b100;
-	endcase
-end
-
+assign  Speed = 3'b100; 
 assign	RX_APPEND_CRC = !SECRC;
 assign	CRC_chk_en = 1'b1;
 assign	RX_IFG_SET = 16'h000c;
@@ -761,7 +752,7 @@ assign	tx_pause_en = 1'b0;
 assign	Line_loop_en = &LBM;// 2'b11 == loopback
 
 mac_axis mac_i(
-	.Clk_125M(mac_rxsclk),
+	.Clk_125M(clk125),
 	.aclk(aclk),
 	.aresetn(aresetn),
 

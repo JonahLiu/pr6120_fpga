@@ -44,6 +44,9 @@ read_verilog ../../src/device/nic_wrapper.v
 read_verilog ../../src/device/mpc_wrapper.v
 read_verilog ../../src/device/mps_wrapper.v
 read_verilog ../../src/device/phy_ft.v
+read_verilog ../../src/device/rgmii_if.v
+read_verilog ../../src/device/rgmii_rx.v
+read_verilog ../../src/device/rgmii_tx.v
 
 read_verilog ../../src/common/fifo_async.v
 read_verilog ../../src/common/axis_realign.v

@@ -7,17 +7,19 @@ module phy_ft(
 	output link_up,
 	output active_port,
 	output link_change,
+	output [1:0] phy0_speed,
+	output phy0_up,
+	output [1:0] phy1_speed,
+	output phy1_up,
 
 	// GMII Port
+	output  usrclk,
 	output	[7:0]	rxdat,
 	output	rxdv,
 	output	rxer,
-	output	rxsclk,
 	input	[7:0]	txdat,
 	input	txen,
 	input	txer,
-	output	txsclk,
-	input	gtxsclk,
 	output	crs,
 	output	col,
 
@@ -33,16 +35,14 @@ module phy_ft(
 	output	intr_out,
 	input	reset_in,
 
-	// GMII Port
+	// MAC Port
+	input	phy0_usrclk,
 	input	[7:0]	phy0_rxdat,
 	input	phy0_rxdv,
 	input	phy0_rxer,
-	input	phy0_rxsclk,
 	output	[7:0]	phy0_txdat,
 	output	phy0_txen,
 	output	phy0_txer,
-	input	phy0_txsclk,
-	output	phy0_gtxsclk,
 	input	phy0_crs,
 	input	phy0_col,
 
@@ -56,16 +56,14 @@ module phy_ft(
 	input	phy0_int,
 	output	phy0_reset_out,
 
-	// GMII Port
+	// MAC Port
+	input   phy1_usrclk,
 	input	[7:0]	phy1_rxdat,
 	input	phy1_rxdv,
 	input	phy1_rxer,
-	input	phy1_rxsclk,
 	output	[7:0]	phy1_txdat,
 	output	phy1_txen,
 	output	phy1_txer,
-	input	phy1_txsclk,
-	output	phy1_gtxsclk,
 	input	phy1_crs,
 	input	phy1_col,
 
@@ -83,6 +81,8 @@ module phy_ft(
 parameter PHY_ADDR = 5'b0;
 parameter CLK_PERIOD_NS = 8;
 localparam MDIO_DIV = (1000000000/8000000)/CLK_PERIOD_NS+1;
+
+wire reset;
 
 wire p0_mdc;
 wire p0_mdio_i;
@@ -125,58 +125,48 @@ reg rxdv_r;
 reg rxer_r;
 reg crs_r;
 reg col_r;
-reg txsclk_r;
 
-wire rxsclk_a;
-wire [7:0] rxdat_a;
-wire rxdv_a;
-wire rxer_a;
-wire crs_a;
-wire col_a;
-wire txsclk_a;
+reg [7:0] phy0_txdat_r;
+reg phy0_txen_r;
+reg phy0_txer_r;
+
+reg [7:0] phy1_txdat_r;
+reg phy1_txen_r;
+reg phy1_txer_r;
+
+reg mdio_req_0, mdio_req_1;
 
 integer state, state_next;
 localparam S_IDLE=0, S_HOST_ACCESS=1, S_READ_STRB=2, S_READ_WAIT=3, S_READ_LATCH=4,
 	S_SELECT=5;
 
-assign rxsclk_a = select? phy1_rxsclk:phy0_rxsclk;
-assign rxdat_a = select? phy1_rxdat:phy0_rxdat;
-assign rxdv_a = select? phy1_rxdat:phy0_rxdat;
-assign rxer_a = select? phy1_rxdat:phy0_rxdat;
-assign crs_a = select? phy1_rxdat:phy0_rxdat;
-assign col_a = select? phy1_rxdat:phy0_rxdat;
+assign reset = rst|reset_in;
 
-assign txsclk_a = select? phy1_txsclk:phy0_txsclk;
-
-assign rxsclk = rxsclk_a;
 assign rxdat = rxdat_r;
 assign rxdv = rxdv_r;
 assign rxer = rxer_r;
 assign crs = crs_r;
 assign col = col_r;
-assign txsclk = txsclk_a;
+
+assign phy0_txdat = phy0_txdat_r;
+assign phy0_txen = phy0_txen_r;
+assign phy0_txer = phy0_txer_r;
+
+assign phy1_txdat = phy0_txdat_r;
+assign phy1_txen = phy0_txen_r;
+assign phy1_txer = phy0_txer_r;
 
 assign mdio_i = select? phy1_mdio_i:phy0_mdio_i;
 
 assign intr_out = select? phy1_int:phy0_int;
 
-assign phy0_txdat = txdat;
-assign phy0_txen = (!select)? txen:1'b0;
-assign phy0_txer = (!select)? txer:1'b0;
-assign phy0_gtxsclk = gtxsclk;
-
-assign phy0_reset_out = reset_in;
+assign phy0_reset_out = reset;
 
 assign phy0_mdc = mdio_gnt? mdc:p0_mdc;
 assign phy0_mdio_o = mdio_gnt? mdio_o:p0_mdio_o;
 assign phy0_mdio_oe = mdio_gnt? mdio_oe:p0_mdio_oe;
 
-assign phy1_txdat = txdat;
-assign phy1_txen = (select)? txen:1'b0;
-assign phy1_txer = (select)? txer:1'b0;
-assign phy1_gtxsclk = gtxsclk;
-
-assign phy1_reset_out = reset_in;
+assign phy1_reset_out = reset;
 
 assign phy1_mdc = mdio_gnt? mdc:p1_mdc;
 assign phy1_mdio_o = mdio_gnt? mdio_o:p1_mdio_o;
@@ -195,9 +185,16 @@ assign p0_start = start;
 assign p1_wr_data = wr_data;
 assign p1_start = start;
 
+assign phy0_speed = p0_speed;
+assign phy0_up = p0_up;
+assign phy1_speed = p1_speed;
+assign phy1_up = p1_up;
+
+BUFGMUX_CTRL clk_mux_i(.I0(phy0_usrclk), .I1(phy1_usrclk), .S(select), .O(usrclk));
+
 shift_mdio #(.div(MDIO_DIV)) p0_mc_i(
 	.clk(clk),
-	.rst(rst),
+	.rst(reset),
 	.mdc_o(p0_mdc),
 	.mdio_i(p0_mdio_i),
 	.mdio_o(p0_mdio_o),
@@ -213,7 +210,7 @@ shift_mdio #(.div(MDIO_DIV)) p0_mc_i(
 
 shift_mdio #(.div(MDIO_DIV)) p1_mc_i(
 	.clk(clk),
-	.rst(rst),
+	.rst(reset),
 	.mdc_o(p1_mdc),
 	.mdio_i(p1_mdio_i),
 	.mdio_o(p1_mdio_o),
@@ -227,18 +224,60 @@ shift_mdio #(.div(MDIO_DIV)) p1_mc_i(
 	.bus_gnt(1'b1)
 );
 
-always @(posedge rxsclk)
+always @(posedge usrclk, posedge reset)
 begin
-	rxdat_r <= rxdat_a;
-	rxdv_r <= rxdv_a;
-	rxer_r <= rxer_a;
-	crs_r <= crs_a;
-	col_r <= col_a;
+	if(reset) begin
+		rxdat_r <= 'b0;
+		rxdv_r <= 'b0;
+		rxer_r <= 'b0;
+		crs_r <= 'b0;
+		col_r <= 'b0;
+		phy0_txdat_r <= 'b0;
+		phy0_txen_r <= 'b0;
+		phy0_txer_r <= 'b0;
+		phy1_txdat_r <= 'b0;
+		phy1_txen_r <= 'b0;
+		phy1_txer_r <= 'b0;
+	end
+	else begin
+		if(select) begin
+			rxdat_r <= phy1_rxdat;
+			rxdv_r <= phy1_rxdv;
+			rxer_r <= phy1_rxer;
+			crs_r <= phy1_crs;
+			col_r <= phy1_col;
+			phy0_txdat_r <= 1'b0;
+			phy0_txen_r <= 1'b0;
+			phy0_txer_r <= 1'b0;
+			phy1_txdat_r <= txdat;
+			phy1_txen_r <= txen;
+			phy1_txer_r <= txer;
+		end
+		else begin
+			rxdat_r <= phy0_rxdat;
+			rxdv_r <= phy0_rxdv;
+			rxer_r <= phy0_rxer;
+			crs_r <= phy0_crs;
+			col_r <= phy0_col;
+			phy0_txdat_r <= txdat;
+			phy0_txen_r <= txen;
+			phy0_txer_r <= txer;
+			phy1_txdat_r <= 1'b0;
+			phy1_txen_r <= 1'b0;
+			phy1_txer_r <= 1'b0;
+		end
+	end
 end
 
-always @(posedge clk, posedge rst)
+always @(posedge clk)
 begin
-	if(rst)
+	mdio_req_0 <= mdio_req;
+	mdio_req_1 <= mdio_req_0;
+end
+
+always @(posedge clk, posedge reset)
+begin
+	if(reset)
 		state <= S_IDLE;
 	else
 		state <= state_next;
@@ -248,7 +287,7 @@ always @(*)
 begin
 	case(state)
 		S_IDLE: begin
-			if(mdio_req)
+			if(mdio_req_1)
 				state_next = S_HOST_ACCESS;
 			else 
 				state_next = S_READ_STRB;
@@ -278,9 +317,9 @@ begin
 end
 
 
-always @(posedge clk, posedge rst)
+always @(posedge clk, posedge reset)
 begin
-	if(rst) begin
+	if(reset) begin
 		change <= 1'b0;
 		start <= 1'b0;
 		up <= 1'b0;
@@ -319,12 +358,11 @@ begin
 		end
 		S_READ_LATCH: begin
 			p0_up <= p0_rd_data[10];
-			// FIXME: enable speed switch
-			//p0_speed <= p0_rd_data[15:14];
-			//p0_duplex <= p0_rd_data[13];
+			p0_speed <= p0_rd_data[15:14];
+			p0_duplex <= p0_rd_data[13];
 			p1_up <= p1_rd_data[10];
-			//p1_speed <= p1_rd_data[15:14];
-			//p1_duplex <= p1_rd_data[13];
+			p1_speed <= p1_rd_data[15:14];
+			p1_duplex <= p1_rd_data[13];
 		end
 		S_SELECT: begin
 			if(up) begin
@@ -337,14 +375,13 @@ begin
 				else if(!select && !p0_up) begin
 					curr_speed <= p1_speed;
 					curr_duplex <= p1_duplex;
-					up <= 1'b1;
 					if(p1_speed!=curr_speed || p1_duplex!=curr_duplex)
 						change <= 1'b1;
 				end
-				else if(select && !p1_up) begin // if(select)
+				//else if(select && !p1_up) begin // if(select)
+				else if(select && p0_up) begin // P0 has priority
 					curr_speed <= p0_speed;
 					curr_duplex <= p0_duplex;
-					up <= 1'b1;
 					if(p0_speed!=curr_speed || p0_duplex!=curr_duplex)
 						change <= 1'b1;
 				end
