@@ -254,13 +254,13 @@ begin
 				state_next = S_READ_STRB;
 		end
 		S_READ_STRB: begin
-			if(!m0_rd_done && !m1_rd_done)
+			if(!p0_rd_done && !p1_rd_done)
 				state_next = S_READ_WAIT;
 			else
 				state_next = S_READ_STRB;
 		end
 		S_READ_WAIT: begin
-			if(m0_rd_done && m1_rd_done)
+			if(p0_rd_done && p1_rd_done)
 				state_next = S_READ_LATCH;
 			else
 				state_next = S_READ_WAIT;
@@ -297,13 +297,13 @@ begin
 		p1_speed <= 2'b10;
 		p1_duplex <= 1'b1;
 	end
-	else case
+	else case(state_next)
 		S_IDLE: begin
 			change <= 1'b0;
-			mdio_gnt <= 1'b0;
+			mdio_gnt_r <= 1'b0;
 		end
 		S_HOST_ACCESS: begin
-			mdio_gnt <= 1'b1;
+			mdio_gnt_r <= 1'b1;
 		end
 		S_READ_STRB: begin
 			wr_data[31:30] <= 2'b01;
