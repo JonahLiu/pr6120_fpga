@@ -114,21 +114,3 @@ set_property LOC Y30 [get_ports {AD[0]}]
 
 set_property IOSTANDARD LVCMOS33 [get_ports {PCI_EN_N}]
 set_property LOC AJ28 [get_ports {PCI_EN_N}]
-
-create_clock -period 30.000 -name pci_clock -waveform {0.000 15.000} [get_ports {PCLK}]
-
-set_input_delay -clock pci_clock -max 23.000 [get_ports -filter {NAME =~ AD[*]}]
-set_input_delay -clock pci_clock -min 0.000 [get_ports -filter {NAME =~ AD[*]}]
-set_output_delay -clock pci_clock -max 7.000 [get_ports -filter {NAME =~ AD[*]}]
-set_output_delay -clock pci_clock -min 0.000 [get_ports -filter {NAME =~ AD[*]}]
-
-set_input_delay -clock pci_clock -max 23.000 [get_ports -filter {NAME =~ CBE[*]}]
-set_input_delay -clock pci_clock -min 0.000 [get_ports -filter {NAME =~ CBE[*]}]
-set_output_delay -clock pci_clock -max 7.000 [get_ports -filter {NAME =~ CBE[*]}]
-set_output_delay -clock pci_clock -min 0.000 [get_ports -filter {NAME =~ CBE[*]}]
-
-set_input_delay -clock pci_clock -max 23.000 [get_ports {PAR FRAME_N TRDY_N IRDY_N STOP_N DEVSEL_N IDSEL PERR_N SERR_N GNT_N RST_N}]
-set_input_delay -clock pci_clock -min 0.000 [get_ports {PAR FRAME_N TRDY_N IRDY_N STOP_N DEVSEL_N IDSEL PERR_N SERR_N GNT_N RST_N}]
-set_output_delay -clock pci_clock -max 7.000 [get_ports {PAR FRAME_N TRDY_N IRDY_N STOP_N DEVSEL_N IDSEL PERR_N SERR_N INTA_N PMEA_N REQ_N}]
-set_output_delay -clock pci_clock -min 0.000 [get_ports {PAR FRAME_N TRDY_N IRDY_N STOP_N DEVSEL_N IDSEL PERR_N SERR_N INTA_N PMEA_N REQ_N}]
-

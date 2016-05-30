@@ -44,8 +44,9 @@ wire r1_addr_wr;
 wire r2_resp_full;
 wire r2_resp_wr;
 
+reg [31:0] r2_data_din;
 wire r2_data_full;
-wire r2_data_wr;
+reg r2_data_wr;
 
 wire r2_addr_empty;
 wire r2_addr_rd;
@@ -71,19 +72,31 @@ assign cmd_valid = !r2_addr_empty;
 
 assign resp_ready = !r2_resp_full;
 
-assign data_ready = !r2_data_full;
+assign data_ready = !r2_data_full; // FIXME: overrun possible?
 
 assign r1_addr_wr = mst_s_arvalid && mst_s_arready;
 
 assign r2_addr_rd = cmd_valid && cmd_ready;
 
-assign r2_data_wr = data_valid && data_ready;
+//assign r2_data_wr = data_valid && data_ready;
 
 assign r2_resp_wr = resp_valid && resp_ready;
 
 assign r3_data_rd = mst_s_rvalid && mst_s_rready;
 
 assign r3_resp_rd = mst_s_rvalid && mst_s_rready && mst_s_rlast;
+
+always @(posedge clk, posedge rst)
+begin
+	if(rst) begin
+		r2_data_din <= 'bx;
+		r2_data_wr <= 1'b0;
+	end
+	else begin
+		r2_data_din <= data_din;
+		r2_data_wr <= data_valid && data_ready;
+	end
+end
 
 fifo_async #(.DSIZE(4+8+64),.ASIZE(4),.MODE("FWFT")) rcmd_fifo_i(
 	.wr_rst(!mst_s_aresetn),
@@ -103,7 +116,7 @@ fifo_async #(.DSIZE(4+8+64),.ASIZE(4),.MODE("FWFT")) rcmd_fifo_i(
 fifo_async #(.DSIZE(32),.ASIZE(10),.MODE("FWFT")) rdata_fifo_i(
 	.wr_rst(rst),
 	.wr_clk(clk),
-	.din(data_din),
+	.din(r2_data_din),
 	.full(r2_data_full),
 	.wr_en(r2_data_wr),
 

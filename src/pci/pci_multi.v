@@ -107,8 +107,12 @@ module pci_multi (
 	output P2_STOPQ_N
 );
 
+
 IBUFG clk_ibufg_i(.O(CLK), .I(CLK_I));
-BUFG rst_bufg_i(.O(RST), .I(!RST_I));
+
+wire rsti, rstd, rstf;
+IBUF rst_ibuf_i(.O(rsti), .I(RST_I));
+ZHOLD_DELAY rst_dly_i(.DLYFABRIC(rstf), .DLYIFF(rstd), .DLYIN(rsti));
 
 wire [31:0] adi, adf, add;
 reg [31:0] ado, adt;
@@ -308,6 +312,19 @@ begin
 	else serro = 'bx;
 	serrt = p0_serrt & p1_serrt & p2_serrt;
 end
+
+reg [3:0] rst_sync;
+always @(posedge CLK, negedge rstf)
+begin
+	if(!rstf) begin
+		rst_sync <= 'b0;
+	end
+	else begin
+		rst_sync <= {rst_sync, 1'b1};
+	end
+end
+//assign RST = !rst_sync[3];
+BUFG rst_bufg_i(.I(!rst_sync[3]), .O(RST));
 
 pci32_p0 pci_p0_i(
 	.ado(p0_ado),

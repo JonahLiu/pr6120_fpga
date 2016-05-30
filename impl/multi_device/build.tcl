@@ -184,7 +184,7 @@ foreach ip [get_ips] {
 	generate_target -force {all} $ip
 }
 
-synth_design -top $top -part $part -include_dirs {../../src/mac} -gated_clock_conversion on
+synth_design -top $top -part $part -include_dirs {../../src/mac} 
 write_checkpoint -force [format "$outputDir/%s_synth" $projName]
 #report_timing_summary -file $outputDir/post_synth_timing_summary.rpt
 #report_power -file $outputDir/post_synth_power.rpt
@@ -195,7 +195,23 @@ write_checkpoint -force [format "$outputDir/%s_synth" $projName]
 opt_design
 #power_opt_design
 place_design
-#phys_opt_design
+# perform post optimization if required
+# Options
+#	-fanout_opt \
+#	-placement_opt \
+#	-routing_opt \
+#	-rewire \
+#	-critical_cell_opt \
+#	-dsp_register_opt \
+#	-bram_register_opt \
+#	-bram_enable_opt \
+#	-shift_register_opt \
+#	-hold_fix \
+#	-retime \
+#	-critical_pin_opt \
+#	-clock_opt 
+phys_opt_design  -hold_fix 
+
 write_checkpoint -force [format "$outputDir/%s_place" $projName]
 #report_timing_summary -file $outputDir/post_place_timing_summary.rpt
 

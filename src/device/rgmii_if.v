@@ -23,13 +23,6 @@ module rgmii_if(
 	output crs,
 	output col
 );
-reg crs_0;
-reg col_0;
-reg crs_1;
-reg col_1;
-
-assign crs = crs_1;
-assign col = col_1;
 
 rgmii_rx rx_i(
 	.reset(reset),
@@ -37,10 +30,14 @@ rgmii_rx rx_i(
 	.rgmii_rxclk(rgmii_rxclk),
 	.rgmii_rxdat(rgmii_rxdat),
 	.rgmii_rxctl(rgmii_rxctl),
+	.rgmii_crs(rgmii_crs),
+	.rgmii_col(rgmii_col),
 	.user_clk(user_clk),
 	.rxd(rxd),
 	.rxdv(rxdv),
 	.rxer(rxer),
+	.crs(crs),
+	.col(col),
 	.clk_x2(clk_x2)
 );
 
@@ -56,13 +53,5 @@ rgmii_tx tx_i(
 	.rgmii_txdat(rgmii_txdat),
 	.rgmii_txctl(rgmii_txctl)
 );
-
-always @(posedge user_clk)
-begin
-	crs_0 <= rgmii_crs;
-	col_0 <= rgmii_col;
-	crs_1 <= crs_0;
-	col_1 <= col_0;
-end
 
 endmodule

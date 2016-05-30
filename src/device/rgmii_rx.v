@@ -6,12 +6,16 @@ module rgmii_rx(
 	input rgmii_rxclk, // 125M/25M/2.5M
 	input [3:0] rgmii_rxdat,
 	input rgmii_rxctl,
+	input rgmii_crs,
+	input rgmii_col,
 
 	// GMII interface
 	output user_clk,
 	output [7:0] rxd,
 	output rxdv,
 	output rxer,
+	output crs,
+	output col,
 	output clk_x2
 );
 
@@ -21,13 +25,20 @@ wire [7:0] data_in;
 wire rxctl_r;
 wire rxctl_f;
 
+reg crs_l;
+reg col_l;
+
 reg odd_flag;
 reg [7:0] data_0;
 reg valid_0;
 reg error_0;
+reg crs_0;
+reg col_0;
 reg [7:0] data_1;
 reg valid_1;
 reg error_1;
+reg crs_1;
+reg col_1;
 
 reg [3:0] rst_sync;
 wire rst_in;
@@ -38,6 +49,8 @@ assign rxer_in = rxctl_r^rxctl_f;
 assign rxd = data_1;
 assign rxdv = valid_1;
 assign rxer = error_1;
+assign crs = crs_1;
+assign col = col_1;
 assign clk_x2 = clk_in;
 
 assign rst_in = !rst_sync[3];
@@ -47,7 +60,7 @@ begin
 	if(reset)
 		rst_sync <= 'b0;
 	else
-		rst_sync <= {rst_sync, 1'b0};
+		rst_sync <= {rst_sync, 1'b1};
 end
 
 BUFR #(.BUFR_DIVIDE("1")) clk_in_i(.I(rgmii_rxclk), .CLR(1'b0), .CE(1'b1), .O(clk_in));
@@ -68,6 +81,14 @@ IDDR #(.DDR_CLK_EDGE("SAME_EDGE_PIPELINED")) d3_iddr_i(
 
 IDDR #(.DDR_CLK_EDGE("SAME_EDGE_PIPELINED")) ctl_iddr_i(
 	.D(rgmii_rxctl),.C(clk_in),.Q1(rxctl_r),.Q2(rxctl_f),.CE(1'b1),.S(1'b0),.R(rst_in));
+
+always @(posedge clk_in)
+begin
+	crs_l <= rgmii_crs;
+	col_l <= rgmii_col;
+	crs_0 <= crs_l;
+	col_0 <= col_l;
+end
 
 always @(posedge clk_in, posedge rst_in)
 begin
@@ -106,11 +127,15 @@ begin
 		data_1 <= 'b0;
 		valid_1 <= 1'b0;
 		error_1 <= 1'b0;
+		crs_1 <= 1'b0;
+		col_1 <= 1'b0;
 	end
 	else begin
 		data_1 <= data_0;
 		valid_1 <= valid_0;
 		error_1 <= error_0;
+		crs_1 <= crs_0;
+		col_1 <= col_0;
 	end
 end
 

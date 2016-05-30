@@ -31,7 +31,7 @@ begin
 	if(reset)
 		rst_sync <= 'b0;
 	else
-		rst_sync <= {rst_sync, 1'b0};
+		rst_sync <= {rst_sync, 1'b1};
 end
 
 BUFGMUX_CTRL(.I0(clk_x2), .I1(user_clk), .S(speed), .O(clk_out));

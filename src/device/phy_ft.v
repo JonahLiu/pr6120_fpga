@@ -136,11 +136,17 @@ reg phy1_txer_r;
 
 reg mdio_req_0, mdio_req_1;
 
+reg select_0, select_1;
+reg [3:0] usrrst_sync;
+wire usrrst;
+
 integer state, state_next;
 localparam S_IDLE=0, S_HOST_ACCESS=1, S_READ_STRB=2, S_READ_WAIT=3, S_READ_LATCH=4,
 	S_SELECT=5;
 
 assign reset = rst|reset_in;
+
+assign usrrst = !usrrst_sync[3];
 
 assign rxdat = rxdat_r;
 assign rxdv = rxdv_r;
@@ -156,9 +162,9 @@ assign phy1_txdat = phy0_txdat_r;
 assign phy1_txen = phy0_txen_r;
 assign phy1_txer = phy0_txer_r;
 
-assign mdio_i = select? phy1_mdio_i:phy0_mdio_i;
+assign mdio_i = select_1? phy1_mdio_i:phy0_mdio_i;
 
-assign intr_out = select? phy1_int:phy0_int;
+assign intr_out = select_1? phy1_int:phy0_int;
 
 assign phy0_reset_out = reset;
 
@@ -224,51 +230,6 @@ shift_mdio #(.div(MDIO_DIV)) p1_mc_i(
 	.bus_gnt(1'b1)
 );
 
-always @(posedge usrclk, posedge reset)
-begin
-	if(reset) begin
-		rxdat_r <= 'b0;
-		rxdv_r <= 'b0;
-		rxer_r <= 'b0;
-		crs_r <= 'b0;
-		col_r <= 'b0;
-		phy0_txdat_r <= 'b0;
-		phy0_txen_r <= 'b0;
-		phy0_txer_r <= 'b0;
-		phy1_txdat_r <= 'b0;
-		phy1_txen_r <= 'b0;
-		phy1_txer_r <= 'b0;
-	end
-	else begin
-		if(select) begin
-			rxdat_r <= phy1_rxdat;
-			rxdv_r <= phy1_rxdv;
-			rxer_r <= phy1_rxer;
-			crs_r <= phy1_crs;
-			col_r <= phy1_col;
-			phy0_txdat_r <= 1'b0;
-			phy0_txen_r <= 1'b0;
-			phy0_txer_r <= 1'b0;
-			phy1_txdat_r <= txdat;
-			phy1_txen_r <= txen;
-			phy1_txer_r <= txer;
-		end
-		else begin
-			rxdat_r <= phy0_rxdat;
-			rxdv_r <= phy0_rxdv;
-			rxer_r <= phy0_rxer;
-			crs_r <= phy0_crs;
-			col_r <= phy0_col;
-			phy0_txdat_r <= txdat;
-			phy0_txen_r <= txen;
-			phy0_txer_r <= txer;
-			phy1_txdat_r <= 1'b0;
-			phy1_txen_r <= 1'b0;
-			phy1_txer_r <= 1'b0;
-		end
-	end
-end
-
 always @(posedge clk)
 begin
 	mdio_req_0 <= mdio_req;
@@ -325,7 +286,7 @@ begin
 		up <= 1'b0;
 		curr_speed <= 'b0;
 		curr_duplex <= 1'b0;
-		select <= 1'b1;
+		select <= 1'b0;
 		mdio_gnt_r <= 1'b0;
 
 		wr_data <= 'bx;
@@ -371,12 +332,7 @@ begin
 					curr_duplex <= 'b0;
 					up <= 1'b0;
 					change <= 1'b1;
-				end
-				else if(!select && !p0_up) begin
-					curr_speed <= p1_speed;
-					curr_duplex <= p1_duplex;
-					if(p1_speed!=curr_speed || p1_duplex!=curr_duplex)
-						change <= 1'b1;
+					select <= 1'b0;
 				end
 				//else if(select && !p1_up) begin // if(select)
 				else if(select && p0_up) begin // P0 has priority
@@ -384,6 +340,14 @@ begin
 					curr_duplex <= p0_duplex;
 					if(p0_speed!=curr_speed || p0_duplex!=curr_duplex)
 						change <= 1'b1;
+					select <= 1'b0;
+				end
+				else if(!select && !p0_up) begin
+					curr_speed <= p1_speed;
+					curr_duplex <= p1_duplex;
+					if(p1_speed!=curr_speed || p1_duplex!=curr_duplex)
+						change <= 1'b1;
+					select <= 1'b1;
 				end
 				// else keep status
 			end
@@ -393,12 +357,14 @@ begin
 					curr_duplex <= p0_duplex;
 					up <= 1'b1;
 					change <= 1'b1;
+					select <= 1'b0;
 				end
 				else if(p1_up) begin
 					curr_speed <= p1_speed;
 					curr_duplex <= p1_duplex;
 					up <= 1'b1;
 					change <= 1'b1;
+					select <= 1'b1;
 				end
 				// else keep status
 			end
@@ -406,5 +372,63 @@ begin
 	endcase
 end
 
+always @(posedge usrclk, posedge reset)
+begin
+	if(reset)
+		usrrst_sync <= 'b0;
+	else
+		usrrst_sync <= {usrrst_sync, 1'b1};
+end
+
+always @(posedge usrclk)
+begin
+	select_0 <= select;
+	select_1 <= select_0;
+end
+
+always @(posedge usrclk, posedge usrrst)
+begin
+	if(usrrst) begin
+		rxdat_r <= 'b0;
+		rxdv_r <= 'b0;
+		rxer_r <= 'b0;
+		crs_r <= 'b0;
+		col_r <= 'b0;
+		phy0_txdat_r <= 'b0;
+		phy0_txen_r <= 'b0;
+		phy0_txer_r <= 'b0;
+		phy1_txdat_r <= 'b0;
+		phy1_txen_r <= 'b0;
+		phy1_txer_r <= 'b0;
+	end
+	else begin
+		if(select_1) begin
+			rxdat_r <= phy1_rxdat;
+			rxdv_r <= phy1_rxdv;
+			rxer_r <= phy1_rxer;
+			crs_r <= phy1_crs;
+			col_r <= phy1_col;
+			phy0_txdat_r <= 1'b0;
+			phy0_txen_r <= 1'b0;
+			phy0_txer_r <= 1'b0;
+			phy1_txdat_r <= txdat;
+			phy1_txen_r <= txen;
+			phy1_txer_r <= txer;
+		end
+		else begin
+			rxdat_r <= phy0_rxdat;
+			rxdv_r <= phy0_rxdv;
+			rxer_r <= phy0_rxer;
+			crs_r <= phy0_crs;
+			col_r <= phy0_col;
+			phy0_txdat_r <= txdat;
+			phy0_txen_r <= txen;
+			phy0_txer_r <= txer;
+			phy1_txdat_r <= 1'b0;
+			phy1_txen_r <= 1'b0;
+			phy1_txer_r <= 1'b0;
+		end
+	end
+end
 
 endmodule
