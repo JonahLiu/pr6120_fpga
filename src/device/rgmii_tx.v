@@ -34,7 +34,7 @@ begin
 		rst_sync <= {rst_sync, 1'b1};
 end
 
-BUFGMUX_CTRL(.I0(clk_x2), .I1(user_clk), .S(speed), .O(clk_out));
+BUFGMUX_CTRL clk_mux_i(.I0(clk_x2), .I1(user_clk), .S(speed), .O(clk_out));
 
 ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) d0_oddr_i(
 	.D1(txd[0]), .D2(txd[4]), .CE(1'b1), .C(user_clk), .S(1'b0), .R(rst_in), .Q(rgmii_txdat[0]));

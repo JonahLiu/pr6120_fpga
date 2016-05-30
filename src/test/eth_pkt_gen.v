@@ -79,4 +79,9 @@ task send(input [15:0] length);
 	end
 endtask
 
+initial
+begin
+	tx_dat 
+end
+
 endmodule

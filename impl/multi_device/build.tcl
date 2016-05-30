@@ -210,20 +210,14 @@ place_design
 #	-retime \
 #	-critical_pin_opt \
 #	-clock_opt 
-#phys_opt_design \
-#	-fanout_opt \
-#	-placement_opt \
-#	-routing_opt \
-#	-rewire \
-#	-critical_cell_opt \
-#	-dsp_register_opt \
-#	-bram_register_opt \
-#	-bram_enable_opt \
-#	-shift_register_opt \
-#	-hold_fix \
-#	-retime \
-#	-critical_pin_opt \
-#	-clock_opt 
+phys_opt_design \
+	-placement_opt \
+	-bram_register_opt \
+	-bram_enable_opt \
+	-shift_register_opt \
+	-retime     \
+	-clock_opt  \
+	-hold_fix 
 
 write_checkpoint -force [format "$outputDir/%s_place" $projName]
 #report_timing_summary -file $outputDir/post_place_timing_summary.rpt

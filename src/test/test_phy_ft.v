@@ -90,7 +90,7 @@ reg [15:0] phy1_reg_val;
 assign phy0_mdio_i=phy0_mdio_oe?phy0_mdio_o:phy0_shift[15];
 assign phy1_mdio_i=phy1_mdio_oe?phy1_mdio_o:phy1_shift[15];
 
-phy_ft dut(
+phy_ft #(.CLK_PERIOD_NS(30),.INIT_TIMEOUT(100)) dut(
 	.rst(rst),
 	.clk(clk),
 	.speed(speed),
@@ -194,7 +194,7 @@ end
 initial 
 begin
 	clk=0;
-	forever #10 clk=!clk;
+	forever #15 clk=!clk;
 end
 
 initial

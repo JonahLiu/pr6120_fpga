@@ -81,6 +81,7 @@ module phy_ft(
 parameter PHY_ADDR = 5'b0;
 parameter CLK_PERIOD_NS = 8;
 localparam MDIO_DIV = (1000000000/8000000)/CLK_PERIOD_NS+1;
+parameter INIT_TIMEOUT = 6000000/CLK_PERIOD_NS+1;
 
 wire reset;
 
@@ -140,9 +141,14 @@ reg select_0, select_1;
 reg [3:0] usrrst_sync;
 wire usrrst;
 
+reg [23:0] init_timer;
+
 integer state, state_next;
-localparam S_IDLE=0, S_HOST_ACCESS=1, S_READ_STRB=2, S_READ_WAIT=3, S_READ_LATCH=4,
-	S_SELECT=5;
+localparam 
+	S_INIT=0,S_REPCR_STRB=1,S_REPCR_WAIT=2,S_WEPCR_STRB=3,S_WEPCR_WAIT=4,
+	S_RCTRL_STRB=5,S_RCTRL_WAIT=6,S_WCTRL_STRB=7,S_WCTRL_WAIT=8,
+	S_IDLE=9, S_HOST_ACCESS=10, S_READ_STRB=11, S_READ_WAIT=12, 
+	S_READ_LATCH=13, S_SELECT=14;
 
 assign reset = rst|reset_in;
 
@@ -241,7 +247,7 @@ end
 always @(posedge clk, posedge reset)
 begin
 	if(reset)
-		state <= S_IDLE;
+		state <= S_INIT;
 	else
 		state <= state_next;
 end
@@ -249,6 +255,60 @@ end
 always @(*)
 begin
 	case(state)
+		S_INIT: begin
+			if(init_timer==INIT_TIMEOUT) 
+				state_next = S_REPCR_STRB;
+			else
+				state_next = S_INIT;
+		end
+		S_REPCR_STRB: begin
+			if(!p0_rd_done)
+				state_next = S_REPCR_WAIT;
+			else
+				state_next = S_REPCR_STRB;
+		end
+		S_REPCR_WAIT: begin
+			if(p0_rd_done)
+				state_next = S_WEPCR_STRB;
+			else
+				state_next = S_REPCR_WAIT;
+		end
+		S_WEPCR_STRB: begin
+			if(!p0_wr_done)
+				state_next = S_WEPCR_WAIT;
+			else
+				state_next = S_WEPCR_STRB;
+		end
+		S_WEPCR_WAIT: begin
+			if(p0_wr_done)
+				state_next = S_RCTRL_STRB;
+			else
+				state_next = S_WEPCR_WAIT;
+		end
+		S_RCTRL_STRB: begin
+			if(!p0_rd_done)
+				state_next = S_RCTRL_WAIT;
+			else
+				state_next = S_RCTRL_STRB;
+		end
+		S_RCTRL_WAIT: begin
+			if(p0_rd_done)
+				state_next = S_WCTRL_STRB;
+			else
+				state_next = S_RCTRL_WAIT;
+		end
+		S_WCTRL_STRB: begin
+			if(!p0_wr_done)
+				state_next = S_WCTRL_WAIT;
+			else
+				state_next = S_WCTRL_STRB;
+		end
+		S_WCTRL_WAIT: begin
+			if(p0_wr_done)
+				state_next = S_IDLE;
+			else
+				state_next = S_WCTRL_WAIT;
+		end
 		S_IDLE: begin
 			if(mdio_req_1)
 				state_next = S_HOST_ACCESS;
@@ -285,7 +345,6 @@ begin
 	endcase
 end
 
-
 always @(posedge clk, posedge reset)
 begin
 	if(reset) begin
@@ -304,11 +363,65 @@ begin
 		p1_up <= 1'b0;
 		p1_speed <= 2'b10;
 		p1_duplex <= 1'b1;
+
+		init_timer <= 'b0;
 	end
 	else case(state_next)
+		S_INIT: begin
+			init_timer <= init_timer+1;
+		end
+		S_REPCR_STRB: begin
+			wr_data[31:30] <= 2'b01;
+			wr_data[29:28] <= 2'b10; // read
+			wr_data[27:23] <= PHY_ADDR;
+			wr_data[22:18] <= 20; // Extended PHY specific control register
+			wr_data[17:16] <= 2'b10;
+			wr_data[15:0] <= 16'b0;
+			start <= 1'b1;
+		end
+		S_REPCR_WAIT: begin
+			start <= 1'b0;
+		end
+		S_WEPCR_STRB: begin
+			wr_data[31:30] <= 2'b01;
+			wr_data[29:28] <= 2'b01; // write
+			wr_data[27:23] <= PHY_ADDR;
+			wr_data[22:18] <= 20; // Extended PHY specific control register
+			wr_data[17:16] <= 2'b10;
+			wr_data[15:0] <= p0_rd_data|16'h0082; // Enable delay
+			start <= 1'b1;
+		end
+		S_WEPCR_WAIT: begin
+			start <= 1'b0;
+		end
+		S_RCTRL_STRB: begin
+			wr_data[31:30] <= 2'b01;
+			wr_data[29:28] <= 2'b10; // read
+			wr_data[27:23] <= PHY_ADDR;
+			wr_data[22:18] <= 0; // control register
+			wr_data[17:16] <= 2'b10;
+			wr_data[15:0] <= 16'b0;
+			start <= 1'b1;
+		end
+		S_RCTRL_WAIT: begin
+			start <= 1'b0;
+		end
+		S_WCTRL_STRB: begin
+			wr_data[31:30] <= 2'b01;
+			wr_data[29:28] <= 2'b01; // write
+			wr_data[27:23] <= PHY_ADDR;
+			wr_data[22:18] <= 0; // control register
+			wr_data[17:16] <= 2'b10;
+			wr_data[15:0] <= p0_rd_data|16'h8000; // reset
+			start <= 1'b1;
+		end
+		S_WCTRL_WAIT: begin
+			start <= 1'b0;
+		end
 		S_IDLE: begin
 			change <= 1'b0;
 			mdio_gnt_r <= 1'b0;
+			start <= 1'b0;
 		end
 		S_HOST_ACCESS: begin
 			mdio_gnt_r <= 1'b1;
