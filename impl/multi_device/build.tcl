@@ -23,8 +23,8 @@ file delete -force $outputDir
 file mkdir $outputDir
 set_part $part
 
-set_param general.maxThreads 8
-set_param synth.maxThreads 8
+set_param general.maxThreads 4
+set_param synth.maxThreads 4
 
 ################################################################################
 # STEP#1: setup design sources and constraints
@@ -210,7 +210,20 @@ place_design
 #	-retime \
 #	-critical_pin_opt \
 #	-clock_opt 
-phys_opt_design  -hold_fix 
+#phys_opt_design \
+#	-fanout_opt \
+#	-placement_opt \
+#	-routing_opt \
+#	-rewire \
+#	-critical_cell_opt \
+#	-dsp_register_opt \
+#	-bram_register_opt \
+#	-bram_enable_opt \
+#	-shift_register_opt \
+#	-hold_fix \
+#	-retime \
+#	-critical_pin_opt \
+#	-clock_opt 
 
 write_checkpoint -force [format "$outputDir/%s_place" $projName]
 #report_timing_summary -file $outputDir/post_place_timing_summary.rpt

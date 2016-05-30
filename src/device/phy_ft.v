@@ -162,21 +162,23 @@ assign phy1_txdat = phy0_txdat_r;
 assign phy1_txen = phy0_txen_r;
 assign phy1_txer = phy0_txer_r;
 
-assign mdio_i = select_1? phy1_mdio_i:phy0_mdio_i;
+assign mdio_i = select? phy1_mdio_i:phy0_mdio_i;
 
-assign intr_out = select_1? phy1_int:phy0_int;
+assign intr_out = select? phy1_int:phy0_int;
 
 assign phy0_reset_out = reset;
 
 assign phy0_mdc = mdio_gnt? mdc:p0_mdc;
 assign phy0_mdio_o = mdio_gnt? mdio_o:p0_mdio_o;
 assign phy0_mdio_oe = mdio_gnt? mdio_oe:p0_mdio_oe;
+assign p0_mdio_i = phy0_mdio_i;
 
 assign phy1_reset_out = reset;
 
 assign phy1_mdc = mdio_gnt? mdc:p1_mdc;
 assign phy1_mdio_o = mdio_gnt? mdio_o:p1_mdio_o;
 assign phy1_mdio_oe = mdio_gnt? mdio_oe:p1_mdio_oe;
+assign p1_mdio_i = phy1_mdio_i;
 
 assign speed = curr_speed;
 assign full_duplex = curr_duplex;
@@ -252,6 +254,12 @@ begin
 				state_next = S_HOST_ACCESS;
 			else 
 				state_next = S_READ_STRB;
+		end
+		S_HOST_ACCESS: begin
+			if(!mdio_req_1)
+				state_next = S_IDLE;
+			else
+				state_next = S_HOST_ACCESS;
 		end
 		S_READ_STRB: begin
 			if(!p0_rd_done && !p1_rd_done)

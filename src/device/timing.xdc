@@ -3,6 +3,8 @@ create_clock -period 30.000 -name pci_clock -waveform {0.000 15.000} [get_ports 
 create_clock -period 8.000 -name p0_rxsclk -waveform {0.000 4.000} [get_ports {p0_rxsclk}]
 create_clock -period 8.000 -name p1_rxsclk -waveform {0.000 4.000} [get_ports {p1_rxsclk}]
 
+create_clock -period 8.000 -name mac_clock -waveform {0.000 4.000} [get_pins {phy_ft_i/clk_mux_i/O}]
+
 # rename generated clocks
 create_generated_clock -name p0_clk_in [get_pins {p0_if_i/rx_i/clk_in_i/O}]
 create_generated_clock -name p0_clk_div [get_pins {p0_if_i/rx_i/clk_div_i/O}]
@@ -16,14 +18,25 @@ create_generated_clock -name uart_clock [get_pins mps_wrapper_i/uart_clk_gen_i/m
 
 # define exclusive clocks
 set_clock_group -logically_exclusive -group [get_clocks p0_rxsclk] -group [get_clocks p1_rxsclk]
-set_clock_group -logically_exclusive -group [get_clocks p0_clk_in] -group [get_clocks p0_clk_div]
-set_clock_group -logically_exclusive -group [get_clocks p1_clk_in] -group [get_clocks p1_clk_div]
+#set_clock_group -logically_exclusive -group [get_clocks p0_clk_in] -group [get_clocks p0_clk_div]
+#set_clock_group -logically_exclusive -group [get_clocks p1_clk_in] -group [get_clocks p1_clk_div]
 
 # define unrelated clocks
-set_clock_group -group [get_clocks pci_clock] -group [get_clocks nic_clock] -group [get_clocks p0_clk_in] -asynchronous
-set_clock_group -group [get_clocks pci_clock] -group [get_clocks nic_clock] -group [get_clocks p0_clk_div] -asynchronous
-set_clock_group -group [get_clocks pci_clock] -group [get_clocks nic_clock] -group [get_clocks p1_clk_in] -asynchronous
-set_clock_group -group [get_clocks pci_clock] -group [get_clocks nic_clock] -group [get_clocks p1_clk_div] -asynchronous
+#set_clock_group -group [get_clocks pci_clock] -group [get_clocks nic_clock] -group [get_clocks p0_clk_in] -asynchronous
+#set_clock_group -group [get_clocks pci_clock] -group [get_clocks nic_clock] -group [get_clocks p0_clk_div] -asynchronous
+#set_clock_group -group [get_clocks pci_clock] -group [get_clocks nic_clock] -group [get_clocks p1_clk_in] -asynchronous
+#set_clock_group -group [get_clocks pci_clock] -group [get_clocks nic_clock] -group [get_clocks p1_clk_div] -asynchronous
+#
+set_clock_group -group [get_clocks pci_clock] -group [get_clocks p0_clk_in] -asynchronous
+set_clock_group -group [get_clocks pci_clock] -group [get_clocks p0_clk_div] -asynchronous
+set_clock_group -group [get_clocks pci_clock] -group [get_clocks p1_clk_in] -asynchronous
+set_clock_group -group [get_clocks pci_clock] -group [get_clocks p1_clk_div] -asynchronous
+
+set_clock_group -group [get_clocks mac_clock] -group [get_clocks nic_clock] -asynchronous
+
+set_clock_group -group [get_clocks pci_clock] -group [get_clocks mac_clock] -asynchronous
+
+set_clock_group -group [get_clocks pci_clock] -group [get_clocks nic_clock] -asynchronous
 
 set_clock_group -group [get_clocks pci_clock] -group [get_clocks can_clock] -asynchronous
 

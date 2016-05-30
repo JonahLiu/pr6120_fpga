@@ -748,6 +748,15 @@ if(DEBUG == "TRUE") begin
 ila_0 ila_mac_i0(
 	.clk(CLK), // input wire clk
 	.probe0({
+		p0_reset_out,
+		p0_mdc,
+		p0_mdio_o,
+		p0_mdio_oe,
+		p0_mdio_i,
+		phy1_speed,
+		phy1_up,
+		phy0_speed,
+		phy0_up,
 		phy_speed,
 		phy_duplex,
 		phy_up,

@@ -52,7 +52,7 @@ ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) ctl_oddr_i(
 	.D1(txctl_r), .D2(txctl_f), .CE(1'b1), .C(clk_out), .S(1'b0), .R(rst_in), .Q(rgmii_txctl));
 
 ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) clk_oddr_i(
-	.D1(1'b1), .D2(1'b0), .CE(1'b1), .C(clk_out), .S(1'b0), .R(rst_in), .Q(rgmii_gtxclk));
+	.D1(1'b1), .D2(1'b0), .CE(1'b1), .C(clk_out), .S(1'b0), .R(1'b0), .Q(rgmii_gtxclk));
 
 
 
