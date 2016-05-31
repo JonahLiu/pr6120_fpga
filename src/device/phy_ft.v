@@ -13,10 +13,11 @@ module phy_ft(
 	output phy1_up,
 
 	// GMII Port
-	output  usrclk,
+	output	rxclk,
 	output	[7:0]	rxdat,
 	output	rxdv,
 	output	rxer,
+	input	txclk,
 	input	[7:0]	txdat,
 	input	txen,
 	input	txer,
@@ -35,11 +36,12 @@ module phy_ft(
 	output	intr_out,
 	input	reset_in,
 
-	// MAC Port
-	input	phy0_usrclk,
+	// GMII Port
+	input	phy0_rxclk,
 	input	[7:0]	phy0_rxdat,
 	input	phy0_rxdv,
 	input	phy0_rxer,
+	output	phy0_txclk,
 	output	[7:0]	phy0_txdat,
 	output	phy0_txen,
 	output	phy0_txer,
@@ -57,10 +59,11 @@ module phy_ft(
 	output	phy0_reset_out,
 
 	// MAC Port
-	input   phy1_usrclk,
+	input   phy1_rxclk,
 	input	[7:0]	phy1_rxdat,
 	input	phy1_rxdv,
 	input	phy1_rxer,
+	output	phy1_txclk,
 	output	[7:0]	phy1_txdat,
 	output	phy1_txen,
 	output	phy1_txer,
@@ -121,25 +124,7 @@ reg p1_duplex;
 
 reg mdio_gnt_r;
 
-reg [7:0] rxdat_r;
-reg rxdv_r;
-reg rxer_r;
-reg crs_r;
-reg col_r;
-
-reg [7:0] phy0_txdat_r;
-reg phy0_txen_r;
-reg phy0_txer_r;
-
-reg [7:0] phy1_txdat_r;
-reg phy1_txen_r;
-reg phy1_txer_r;
-
 reg mdio_req_0, mdio_req_1;
-
-reg select_0, select_1;
-reg [3:0] usrrst_sync;
-wire usrrst;
 
 reg [23:0] init_timer;
 
@@ -151,22 +136,6 @@ localparam
 	S_READ_LATCH=13, S_SELECT=14;
 
 assign reset = rst|reset_in;
-
-assign usrrst = !usrrst_sync[3];
-
-assign rxdat = rxdat_r;
-assign rxdv = rxdv_r;
-assign rxer = rxer_r;
-assign crs = crs_r;
-assign col = col_r;
-
-assign phy0_txdat = phy0_txdat_r;
-assign phy0_txen = phy0_txen_r;
-assign phy0_txer = phy0_txer_r;
-
-assign phy1_txdat = phy0_txdat_r;
-assign phy1_txen = phy0_txen_r;
-assign phy1_txer = phy0_txer_r;
 
 assign mdio_i = select? phy1_mdio_i:phy0_mdio_i;
 
@@ -204,7 +173,39 @@ assign phy0_up = p0_up;
 assign phy1_speed = p1_speed;
 assign phy1_up = p1_up;
 
-BUFGMUX_CTRL clk_mux_i(.I0(phy0_usrclk), .I1(phy1_usrclk), .S(select), .O(usrclk));
+phy_switch switch_i(
+	.select(select),
+	.phy0_rxclk(phy0_rxclk),
+	.phy0_rxdat(phy0_rxdat),
+	.phy0_rxdv(phy0_rxdv),
+	.phy0_rxer(phy0_rxer),
+	.phy0_txclk(phy0_txclk),
+	.phy0_txdat(phy0_txdat),
+	.phy0_txen(phy0_txen),
+	.phy0_txer(phy0_txer),
+	.phy0_crs(phy0_crs),
+	.phy0_col(phy0_col),
+	.phy1_rxclk(phy1_rxclk),
+	.phy1_rxdat(phy1_rxdat),
+	.phy1_rxdv(phy1_rxdv),
+	.phy1_rxer(phy1_rxer),
+	.phy1_txclk(phy1_txclk),
+	.phy1_txdat(phy1_txdat),
+	.phy1_txen(phy1_txen),
+	.phy1_txer(phy1_txer),
+	.phy1_crs(phy1_crs),
+	.phy1_col(phy1_col),
+	.rxclk(rxclk),
+	.rxdat(rxdat),
+	.rxdv(rxdv),
+	.rxer(rxer),
+	.txclk(txclk),
+	.txdat(txdat),
+	.txen(txen),
+	.txer(txer),
+	.crs(crs),
+	.col(col)
+);
 
 shift_mdio #(.div(MDIO_DIV)) p0_mc_i(
 	.clk(clk),
@@ -493,63 +494,5 @@ begin
 	endcase
 end
 
-always @(posedge usrclk, posedge reset)
-begin
-	if(reset)
-		usrrst_sync <= 'b0;
-	else
-		usrrst_sync <= {usrrst_sync, 1'b1};
-end
-
-always @(posedge usrclk)
-begin
-	select_0 <= select;
-	select_1 <= select_0;
-end
-
-always @(posedge usrclk, posedge usrrst)
-begin
-	if(usrrst) begin
-		rxdat_r <= 'b0;
-		rxdv_r <= 'b0;
-		rxer_r <= 'b0;
-		crs_r <= 'b0;
-		col_r <= 'b0;
-		phy0_txdat_r <= 'b0;
-		phy0_txen_r <= 'b0;
-		phy0_txer_r <= 'b0;
-		phy1_txdat_r <= 'b0;
-		phy1_txen_r <= 'b0;
-		phy1_txer_r <= 'b0;
-	end
-	else begin
-		if(select_1) begin
-			rxdat_r <= phy1_rxdat;
-			rxdv_r <= phy1_rxdv;
-			rxer_r <= phy1_rxer;
-			crs_r <= phy1_crs;
-			col_r <= phy1_col;
-			phy0_txdat_r <= 1'b0;
-			phy0_txen_r <= 1'b0;
-			phy0_txer_r <= 1'b0;
-			phy1_txdat_r <= txdat;
-			phy1_txen_r <= txen;
-			phy1_txer_r <= txer;
-		end
-		else begin
-			rxdat_r <= phy0_rxdat;
-			rxdv_r <= phy0_rxdv;
-			rxer_r <= phy0_rxer;
-			crs_r <= phy0_crs;
-			col_r <= phy0_col;
-			phy0_txdat_r <= txdat;
-			phy0_txen_r <= txen;
-			phy0_txer_r <= txer;
-			phy1_txdat_r <= 1'b0;
-			phy1_txen_r <= 1'b0;
-			phy1_txer_r <= 1'b0;
-		end
-	end
-end
 
 endmodule
