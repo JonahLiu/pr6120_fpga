@@ -2,7 +2,7 @@ module e1000_top(
 	input aclk,
 	input aresetn,
 
-	input clk125,
+	input gtxclk, // TX clock
 
 	// Register Space Access Port
 	input [31:0] axi_s_awaddr,
@@ -70,7 +70,7 @@ module e1000_top(
 	input axi_m_rvalid,
 	output axi_m_rready,
 
-	// MAC Port
+	// GMII Port
 	input	[7:0]	mac_rxdat,
 	input	mac_rxdv,
 	input	mac_rxer,
@@ -78,7 +78,6 @@ module e1000_top(
 	output	[7:0]	mac_txdat,
 	output	mac_txen,
 	output	mac_txer,
-	input	mac_txsclk,
 	output	mac_gtxsclk,
 	input	mac_crs,
 	input	mac_col,
@@ -735,7 +734,7 @@ wire [5:0] IFGset;
 wire tx_pause_en;       
 wire Line_loop_en;
 
-assign  Speed = 3'b100; 
+assign  Speed = 3'b100; // We only use mac at GMII mode
 assign	RX_APPEND_CRC = !SECRC;
 assign	CRC_chk_en = 1'b1;
 assign	RX_IFG_SET = 16'h000c;
@@ -752,7 +751,7 @@ assign	tx_pause_en = 1'b0;
 assign	Line_loop_en = &LBM;// 2'b11 == loopback
 
 mac_axis mac_i(
-	.Clk_125M(clk125),
+	.Clk_125M(gtxclk),
 	.aclk(aclk),
 	.aresetn(aresetn),
 
@@ -792,7 +791,7 @@ mac_axis mac_i(
 	.Txd(mac_txdat),
 	.Tx_en(mac_txen),
 	.Tx_er(mac_txer),
-	.Tx_clk(mac_txsclk),
+	.Tx_clk(),
 	.Gtx_clk(mac_gtxsclk),
 	.Crs(mac_crs),
 	.Col(mac_col)

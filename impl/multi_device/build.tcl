@@ -44,6 +44,7 @@ read_verilog ../../src/device/nic_wrapper.v
 read_verilog ../../src/device/mpc_wrapper.v
 read_verilog ../../src/device/mps_wrapper.v
 read_verilog ../../src/device/phy_ft.v
+read_verilog ../../src/device/phy_switch.v
 read_verilog ../../src/device/rgmii_if.v
 read_verilog ../../src/device/rgmii_rx.v
 read_verilog ../../src/device/rgmii_tx.v
@@ -210,14 +211,14 @@ place_design
 #	-retime \
 #	-critical_pin_opt \
 #	-clock_opt 
-phys_opt_design \
-	-placement_opt \
-	-bram_register_opt \
-	-bram_enable_opt \
-	-shift_register_opt \
-	-retime     \
-	-clock_opt  \
-	-hold_fix 
+#phys_opt_design \
+#	-placement_opt \
+#	-bram_register_opt \
+#	-bram_enable_opt \
+#	-shift_register_opt \
+#	-retime     \
+#	-clock_opt  \
+#	-hold_fix 
 
 write_checkpoint -force [format "$outputDir/%s_place" $projName]
 #report_timing_summary -file $outputDir/post_place_timing_summary.rpt
@@ -227,11 +228,11 @@ write_checkpoint -force [format "$outputDir/%s_place" $projName]
 #
 route_design
 write_checkpoint -force [format "$outputDir/%s_route" $projName]
-write_verilog -force -include_xilinx_libs -mode funcsim [format "$outputDir/%s_funcsim.v" $projName]
-write_verilog -force -include_xilinx_libs -mode timesim -sdf_anno true [format "$outputDir/%s_timesim.v" $projName]
-write_sdf -force -mode timesim [format "$outputDir/%s_timesim.sdf" $projName]
-write_xdc -force -constraints INVALID $outputDir/ignored_constraints.xdc
-write_csv -force [format "$outputDir/%s_pins.csv" $projName]
+#write_verilog -force -include_xilinx_libs -mode funcsim [format "$outputDir/%s_funcsim.v" $projName]
+#write_verilog -force -include_xilinx_libs -mode timesim -sdf_anno true [format "$outputDir/%s_timesim.v" $projName]
+#write_sdf -force -mode timesim [format "$outputDir/%s_timesim.sdf" $projName]
+#write_xdc -force -constraints INVALID $outputDir/ignored_constraints.xdc
+#write_csv -force [format "$outputDir/%s_pins.csv" $projName]
 
 ################################################################################
 # STEP#5: generate final reports
@@ -266,10 +267,10 @@ set output_fn [format "$outputDir/%s_bpi_x16.mcs" $projName]
 write_cfgmem -force -format MCS -interface BPIx16 -loadbit "up 0x0 $bitstream_fn" $output_fn
 
 # Generate a SPI configuration file which need faster configuration clock
-set_property CONFIG_MODE SPIx1 [current_design]
-set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
-set bitstream_fn [format "$outputDir/%s_spi_x1.bit" $projName]
-write_bitstream -force $bitstream_fn
-set output_fn [format "$outputDir/%s_spi_x1.mcs" $projName]
-write_cfgmem -force -format MCS -interface SPIx1 -loadbit "up 0x0 $bitstream_fn" $output_fn 
+#set_property CONFIG_MODE SPIx1 [current_design]
+#set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
+#set bitstream_fn [format "$outputDir/%s_spi_x1.bit" $projName]
+#write_bitstream -force $bitstream_fn
+#set output_fn [format "$outputDir/%s_spi_x1.mcs" $projName]
+#write_cfgmem -force -format MCS -interface SPIx1 -loadbit "up 0x0 $bitstream_fn" $output_fn 
 

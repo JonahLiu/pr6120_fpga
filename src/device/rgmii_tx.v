@@ -4,7 +4,7 @@ module rgmii_tx(
 	input speed, // 0 - 10/100M, 1 - 1000M
 
 	// GMII interface
-	input txclk_x2, // for 10/100M mode, 125M/25M/2.5M
+	input txclk_x2, // 125M/25M/2.5M
 	input txclk, // 125M/12.5M/1.25M
 	input [7:0] txd,
 	input txen,
@@ -38,8 +38,9 @@ begin
 		rst_sync <= {rst_sync, 1'b1};
 end
 
-BUFGMUX_CTRL clk_mux_i(.I0(txclk_x2), .I1(txclk), .S(speed), .O(clk_out_i));
-assign #1 clk_out = clk_out_i; // for simulation purpose
+//BUFGMUX_CTRL clk_mux_i(.I0(txclk_x2), .I1(txclk), .S(speed), .O(clk_out_i));
+//assign #1 clk_out = clk_out_i; // for simulation purpose
+assign clk_out = txclk_x2; // simplified
 
 always @(negedge clk_out, posedge rst_in)
 begin
@@ -75,19 +76,19 @@ begin
 end
 
 ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) d0_oddr_i(
-	.D1(data_r[0]), .D2(data_f[0]), .CE(1'b1), .C(clk_out), .S(1'b0), .R(rst_in), .Q(rgmii_txdat[0]));
+	.D1(data_r[0]), .D2(data_f[0]), .CE(1'b1), .C(clk_out), .S(1'b0), .R(1'b0), .Q(rgmii_txdat[0]));
 
 ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) d1_oddr_i(
-	.D1(data_r[1]), .D2(data_f[1]), .CE(1'b1), .C(clk_out), .S(1'b0), .R(rst_in), .Q(rgmii_txdat[1]));
+	.D1(data_r[1]), .D2(data_f[1]), .CE(1'b1), .C(clk_out), .S(1'b0), .R(1'b0), .Q(rgmii_txdat[1]));
 
 ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) d2_oddr_i(
-	.D1(data_r[2]), .D2(data_f[2]), .CE(1'b1), .C(clk_out), .S(1'b0), .R(rst_in), .Q(rgmii_txdat[2]));
+	.D1(data_r[2]), .D2(data_f[2]), .CE(1'b1), .C(clk_out), .S(1'b0), .R(1'b0), .Q(rgmii_txdat[2]));
 
 ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) d3_oddr_i(
-	.D1(data_r[3]), .D2(data_f[3]), .CE(1'b1), .C(clk_out), .S(1'b0), .R(rst_in), .Q(rgmii_txdat[3]));
+	.D1(data_r[3]), .D2(data_f[3]), .CE(1'b1), .C(clk_out), .S(1'b0), .R(1'b0), .Q(rgmii_txdat[3]));
 
 ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) ctl_oddr_i(
-	.D1(txctl_r), .D2(txctl_f), .CE(1'b1), .C(clk_out), .S(1'b0), .R(rst_in), .Q(rgmii_txctl));
+	.D1(txctl_r), .D2(txctl_f), .CE(1'b1), .C(clk_out), .S(1'b0), .R(1'b0), .Q(rgmii_txctl));
 
 ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) clk_oddr_i(
 	.D1(1'b1), .D2(1'b0), .CE(1'b1), .C(clk_out), .S(1'b0), .R(1'b0), .Q(rgmii_gtxclk));

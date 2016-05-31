@@ -30,6 +30,8 @@ module nic_wrapper(
 
 	input [7:0] cacheline_size,
 
+	input	gtxclk,
+
 	// GMII Port
 	input	[7:0]	mac_rxdat,
 	input	mac_rxdv,
@@ -38,7 +40,6 @@ module nic_wrapper(
 	output	[7:0]	mac_txdat,
 	output	mac_txen,
 	output	mac_txer,
-	input	mac_txsclk,
 	output	mac_gtxsclk,
 	input	mac_crs,
 	input	mac_col,
@@ -285,8 +286,7 @@ e1000_top #(
 	.aclk(aclk),
 	.aresetn(aresetn),
 
-	//.clk125(nic_clk),
-	.clk125(mac_rxsclk),
+	.gtxclk(gtxclk),
 
 	// AXI4-lite for memory mapped registers
 	.axi_s_awvalid(nic_s_awvalid),
@@ -361,7 +361,6 @@ e1000_top #(
 	.mac_txdat(mac_txdat),
 	.mac_txen(mac_txen),
 	.mac_txer(mac_txer),
-	.mac_txsclk(mac_txsclk),
 	.mac_gtxsclk(mac_gtxsclk),
 	.mac_crs(mac_crs),
 	.mac_col(mac_col),

@@ -313,6 +313,7 @@ begin
 	serrt = p0_serrt & p1_serrt & p2_serrt;
 end
 
+(* ASYNC_REG = "TRUE" *)
 reg [3:0] rst_sync;
 always @(posedge CLK, negedge rstf)
 begin
@@ -323,8 +324,8 @@ begin
 		rst_sync <= {rst_sync, 1'b1};
 	end
 end
-//assign RST = !rst_sync[3];
-BUFG rst_bufg_i(.I(!rst_sync[3]), .O(RST));
+assign RST = !rst_sync[3];
+//BUFG rst_bufg_i(.I(!rst_sync[3]), .O(RST));
 
 pci32_p0 pci_p0_i(
 	.ado(p0_ado),

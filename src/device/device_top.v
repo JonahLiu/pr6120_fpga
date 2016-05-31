@@ -8,23 +8,22 @@ module device_top(
 	inout         IRDY_N,
 	inout         STOP_N,
 	inout         DEVSEL_N,
-	//input         IDSEL,
+	//input         IDSEL, // not connected on current board
 	inout         PERR_N,
 	inout         SERR_N,
 	output        INTA_N,
 	output        INTB_N,
 	output        INTC_N,
 	output        INTD_N,
-	//output        PMEA_N,
+	//output        PMEA_N, // not connected on current board
 	output        [2:0] REQ_N,
 	input         [2:0] GNT_N,
 	input         RST_N,
 	input         PCLK,
-	//  output        FPGA_RTR,
-	//  output        FPGA_RST,
-	output	PCI_EN_N,
+	output	PCI_EN_N, // This signal controls interrupt output on current board
 
 	// Ethernet 0 GMII
+	// 88E1111, RGMII mode
 	input	[7:0]	p0_rxdat,
 	input	p0_rxdv,
 	input	p0_rxer,
@@ -42,6 +41,7 @@ module device_top(
 	output	p0_resetn,
 
 	// Ethernet 1 GMII
+	// 88E1111, RGMII mode
 	input	[7:0]	p1_rxdat,
 	input	p1_rxdv,
 	input	p1_rxer,
@@ -61,18 +61,18 @@ module device_top(
 	// CAN 0
 	input	can0_rx,
 	output	can0_tx,
-	output  can0_rs,
+	output  can0_rs, // low-active enable
 
 	// CAN 1
 	input	can1_rx,
 	output	can1_tx,
-	output  can1_rs,
+	output  can1_rs, // low-active enable
 
 	// UART 0
 	input	uart0_rx,
 	output	uart0_rxen_n,
 	output	uart0_tx,
-	output	uart0_txen,
+	output	uart0_txen, 
 
 	// UART 1
 	input	uart1_rx,
@@ -94,8 +94,8 @@ module device_top(
 );
 
 parameter DEBUG="TRUE";
-parameter UART_PORT_NUM = 8;
-parameter CAN_PORT_NUM = 4;
+parameter UART_PORT_NUM = 4;
+parameter CAN_PORT_NUM = 2;
 
 wire CLK;
 wire RST;
@@ -312,10 +312,13 @@ pci_multi pci_multi_i(
 ////////////////////////////////////////////////////////////////////////////////
 // E1000 NIC Controller
 
-wire	mac_usrclk;
+wire	nic_txclk;
+
+wire	mac_rxclk;
 wire	[7:0]	mac_rxdat;
 wire	mac_rxdv;
 wire	mac_rxer;
+wire	mac_txclk;
 wire	[7:0]	mac_txdat;
 wire	mac_txen;
 wire	mac_txer;
@@ -341,10 +344,13 @@ wire	p1_mdio_oe;
 
 wire	p1_reset_out;
 
-wire	phy0_usrclk;
+wire	phy0_rxclk_x2;
+wire	phy0_rxclk;
 wire	[7:0] phy0_rxdat;
 wire	phy0_rxdv;
 wire	phy0_rxer;
+wire 	phy0_txclk_x2;
+wire	phy0_txclk;
 wire	[7:0] phy0_txdat;
 wire 	phy0_txen;
 wire	phy0_txer;
@@ -353,10 +359,13 @@ wire	phy0_col;
 wire	phy0_up;
 wire	[1:0] phy0_speed;
 
-wire	phy1_usrclk;
+wire	phy1_rxclk_x2;
+wire	phy1_rxclk;
 wire	[7:0] phy1_rxdat;
 wire	phy1_rxdv;
 wire	phy1_rxer;
+wire 	phy1_txclk_x2;
+wire	phy1_txclk;
 wire	[7:0] phy1_txdat;
 wire 	phy1_txen;
 wire	phy1_txer;
@@ -395,6 +404,17 @@ assign  p0_txer = 1'b0;
 assign  p1_txdat[7:4] = 4'b0;
 assign  p1_txer = 1'b0;
 
+// RX clock was loop back as TX clock
+assign nic_txclk = mac_rxclk;
+// so we can use clk_x2 directly.
+assign phy0_txclk_x2 = phy0_rxclk_x2;
+assign phy1_txclk_x2 = phy1_rxclk_x2;
+// If a standalone clock used for TX, connect these
+// to a clock that is x2 of mac_gtxclk.
+// assign nic_txclk = clkout;
+// assign phy0_txclk_x2 = clkout_x2;
+// assign phy1_txclk_x2 = clkout_x2;
+
 nic_wrapper #(
 	.DEBUG(DEBUG)
 )nic_wrapper_i(
@@ -429,16 +449,17 @@ nic_wrapper #(
 
 	.cacheline_size(8'd16),
 
+	.gtxclk(nic_txclk),
+
 	// GMII interface
 	.mac_rxdat(mac_rxdat),
 	.mac_rxdv(mac_rxdv),
 	.mac_rxer(mac_rxer),
-	.mac_rxsclk(mac_usrclk),
+	.mac_rxsclk(mac_rxclk),
 	.mac_txdat(mac_txdat),
 	.mac_txen(mac_txen),
 	.mac_txer(mac_txer),
-	.mac_txsclk(mac_usrclk),
-	.mac_gtxsclk(),
+	.mac_gtxsclk(mac_txclk),
 	.mac_crs(mac_crs),
 	.mac_col(mac_col),
 
@@ -480,10 +501,11 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30)) phy_ft_i(
 	.phy1_up(phy1_up),
 	.phy1_speed(phy1_speed),
 
-	.usrclk(mac_usrclk),
+	.rxclk(mac_rxclk),
 	.rxdat(mac_rxdat),
 	.rxdv(mac_rxdv),
 	.rxer(mac_rxer),
+	.txclk(mac_txclk),
 	.txdat(mac_txdat),
 	.txen(mac_txen),
 	.txer(mac_txer),
@@ -498,10 +520,11 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30)) phy_ft_i(
 	.intr_out(phy_int),
 	.reset_in(phy_reset_out),
 
-	.phy0_usrclk(phy0_usrclk),
+	.phy0_rxclk(phy0_rxclk),
 	.phy0_rxdat(phy0_rxdat),
 	.phy0_rxdv(phy0_rxdv),
 	.phy0_rxer(phy0_rxer),
+	.phy0_txclk(phy0_txclk),
 	.phy0_txdat(phy0_txdat),
 	.phy0_txen(phy0_txen),
 	.phy0_txer(phy0_txer),
@@ -514,10 +537,11 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30)) phy_ft_i(
 	.phy0_int(p0_int),
 	.phy0_reset_out(p0_reset_out),
 
-	.phy1_usrclk(phy1_usrclk),
+	.phy1_rxclk(phy1_rxclk),
 	.phy1_rxdat(phy1_rxdat),
 	.phy1_rxdv(phy1_rxdv),
 	.phy1_rxer(phy1_rxer),
+	.phy1_txclk(phy1_txclk),
 	.phy1_txdat(phy1_txdat),
 	.phy1_txen(phy1_txen),
 	.phy1_txer(phy1_txer),
@@ -544,10 +568,13 @@ rgmii_if p0_if_i(
 	.rgmii_crs(p0_crs),
 	.rgmii_col(p0_col),
 
-	.user_clk(phy0_usrclk),
+	.txclk_x2(phy0_txclk_x2),
+	.txclk(phy0_txclk),
 	.txd(phy0_txdat),
 	.txen(phy0_txen),
 	.txer(phy0_txer),
+	.rxclk_x2(phy0_rxclk_x2),
+	.rxclk(phy0_rxclk),
 	.rxd(phy0_rxdat),
 	.rxdv(phy0_rxdv),
 	.rxer(phy0_rxer),
@@ -568,10 +595,13 @@ rgmii_if p1_if_i(
 	.rgmii_crs(p1_crs),
 	.rgmii_col(p1_col),
 
-	.user_clk(phy1_usrclk),
+	.txclk_x2(phy1_txclk_x2),
+	.txclk(phy1_txclk),
 	.txd(phy1_txdat),
 	.txen(phy1_txen),
 	.txer(phy1_txer),
+	.rxclk_x2(phy1_rxclk_x2),
+	.rxclk(phy1_rxclk),
 	.rxd(phy1_rxdat),
 	.rxdv(phy1_rxdv),
 	.rxer(phy1_rxer),
@@ -616,8 +646,8 @@ assign can1_rs = 1'b0;
 assign can_rx[1] = can1_rx;
 
 // Connect CAN2 and CAN3 for testing
-assign can_rx[2] = can_tx[2]&can_tx[3];
-assign can_rx[3] = can_tx[2]&can_tx[3];
+//assign can_rx[2] = can_tx[2]&can_tx[3];
+//assign can_rx[3] = can_tx[2]&can_tx[3];
 
 mpc_wrapper #(
 	.PORT_NUM(CAN_PORT_NUM),
@@ -669,6 +699,7 @@ wire [UART_PORT_NUM-1:0] uart_dsrn;
 wire [UART_PORT_NUM-1:0] uart_ri;
 wire [UART_PORT_NUM-1:0] uart_dcdn;
 
+// FIXME: Should we consider about half-duplex?
 assign uart0_rxen_n = 1'b0;
 assign uart0_tx = uart_txd[0];
 assign uart0_txen = 1'b1;
@@ -690,15 +721,15 @@ assign uart3_txen = 1'b1;
 assign uart_rxd[3] = uart3_rx;
 
 // Connect UART4 with UART5 and UART6 with UART7 for testing
-assign uart_rxd[4] = uart_txd[5];
-assign uart_rxd[5] = uart_txd[4];
-assign uart_rxd[6] = uart_txd[7];
-assign uart_rxd[7] = uart_txd[6];
+//assign uart_rxd[4] = uart_txd[5];
+//assign uart_rxd[5] = uart_txd[4];
+//assign uart_rxd[6] = uart_txd[7];
+//assign uart_rxd[7] = uart_txd[6];
 
-assign uart_ctsn = 8'hFF;
-assign uart_dsrn = 8'hFF;
-assign uart_ri = 8'hFF;
-assign uart_dcdn = 8'hFF;
+assign uart_ctsn = ~0;
+assign uart_dsrn = ~0;
+assign uart_ri = ~0;
+assign uart_dcdn = ~0;
 
 mps_wrapper #(
 	.PORT_NUM(UART_PORT_NUM),
@@ -743,16 +774,14 @@ mps_wrapper #(
 	.dcdn(uart_dcdn)
 );
 
+////////////////////////////////////////////////////////////////////////////////
+// Debug probes
+
 generate
 if(DEBUG == "TRUE") begin
 ila_0 ila_mac_i0(
 	.clk(CLK), // input wire clk
 	.probe0({
-		p0_reset_out,
-		p0_mdc,
-		p0_mdio_o,
-		p0_mdio_oe,
-		p0_mdio_i,
 		phy1_speed,
 		phy1_up,
 		phy0_speed,
@@ -787,6 +816,7 @@ ila_0 ila_mac_i0(
 		P0_M_DATA,
 		P0_M_ADDR_N,
 		P0_STOPQ_N,
+
 		P1_ADDR,
 		P1_ADDR_VLD,
 		P1_BASE_HIT,
@@ -799,18 +829,7 @@ ila_0 ila_mac_i0(
 		P1_S_DATA_VLD,
 		P1_S_CBE,
 		P1_INT_N,
-		P1_REQUEST,
-		P1_REQUESTHOLD,
-		P1_M_CBE,
-		P1_M_WRDN,
-		P1_COMPLETE,
-		P1_M_READY,
-		P1_M_DATA_VLD,
-		P1_M_SRC_EN,
-		P1_TIME_OUT,
-		P1_M_DATA,
-		P1_M_ADDR_N,
-		P1_STOPQ_N,
+
 		P2_ADDR,
 		P2_ADDR_VLD,
 		P2_BASE_HIT,
@@ -822,19 +841,7 @@ ila_0 ila_mac_i0(
 		P2_S_DATA,
 		P2_S_DATA_VLD,
 		P2_S_CBE,
-		P2_INT_N,
-		P2_REQUEST,
-		P2_REQUESTHOLD,
-		P2_M_CBE,
-		P2_M_WRDN,
-		P2_COMPLETE,
-		P2_M_READY,
-		P2_M_DATA_VLD,
-		P2_M_SRC_EN,
-		P2_TIME_OUT,
-		P2_M_DATA,
-		P2_M_ADDR_N,
-		P2_STOPQ_N
+		P2_INT_N
 	})
 );
 end
