@@ -16,6 +16,11 @@ module rgmii_tx(
 	output rgmii_txctl
 );
 
+// STANDARD - output clock edge aligned with data edge (Source Synchronous)
+// DELAYED - output clock edge has 2ns delay after data edge (Clock Delayed)
+// SYSTEM - output clock edge is ahead of data edge (System Synchronous)
+parameter MODE = "STANDARD"; 
+
 reg [3:0] rst_sync;
 wire rst_in;
 wire clk_out;
@@ -90,9 +95,22 @@ ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) d3_oddr_i(
 ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) ctl_oddr_i(
 	.D1(txctl_r), .D2(txctl_f), .CE(1'b1), .C(clk_out), .S(1'b0), .R(1'b0), .Q(rgmii_txctl));
 
-ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) clk_oddr_i(
-	.D1(1'b1), .D2(1'b0), .CE(1'b1), .C(clk_out), .S(1'b0), .R(1'b0), .Q(rgmii_gtxclk));
 
-
+generate
+if(MODE=="STANDARD") begin
+	ODDR #(.DDR_CLK_EDGE("SAME_EDGE")) clk_oddr_i(
+		.D1(1'b1), .D2(1'b0), .CE(1'b1), .C(clk_out), .S(1'b0), .R(1'b0), .Q(rgmii_gtxclk));
+end
+else if(MODE=="DELAYED") begin // about 2ns additional output delay on 7-series HR bank
+	wire rgmii_gtxclk_d;
+	OBUF clk_obuf_i(.I(clk_out), .O(rgmii_gtxclk_d));
+	assign #2 rgmii_gtxclk = rgmii_gtxclk_d; // simulation only
+end
+else if(MODE=="SYSTEM") begin // same with "DELAYED" but inverted so the rise-edge will be ahead of data
+	wire rgmii_gtxclk_d;
+	OBUF clk_obuf_i(.I(!clk_out), .O(rgmii_gtxclkd));
+	assign #2 rgmii_gtxclk = rgmii_gtxclk_d; // simulation only
+end
+endgenerate
 
 endmodule

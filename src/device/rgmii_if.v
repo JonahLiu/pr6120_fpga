@@ -26,8 +26,13 @@ module rgmii_if(
 	output crs,
 	output col
 );
+// EXTERNAL - input clock has 2ns delay, output clock edge-aligned with data
+// INTERNAL - input clock has no delay, output clock delayed 2ns after data
+parameter DELAY_MODE = "INTERNAL";
+parameter RX_MODE = (DELAY_MODE=="INTERNAL") ? "STANDARD" : "DELAYED";
+parameter TX_MODE = (DELAY_MODE=="INTERNAL") ? "DELAYED" : "STANDARD";
 
-rgmii_rx rx_i(
+rgmii_rx #(.MODE(RX_MODE)) rx_i(
 	.reset(reset),
 	.speed(speed),
 	.rgmii_rxclk(rgmii_rxclk),
@@ -44,7 +49,7 @@ rgmii_rx rx_i(
 	.col(col)
 );
 
-rgmii_tx tx_i(
+rgmii_tx #(.MODE(TX_MODE)) tx_i(
 	.reset(reset),
 	.speed(speed),
 	.txclk_x2(txclk_x2),

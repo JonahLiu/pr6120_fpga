@@ -237,11 +237,11 @@ pulldown (p1_int);
 assign p0_crs = p0_txen;
 assign p0_col = 1'b0;
 
-assign p1_rxsclk = 1'b0;
-assign p1_rxdat = 8'b0;
-assign p1_rxdv = 1'b0;
-assign p1_rxer = 1'b0;
-assign p1_crs = 1'b0;
+//assign p1_rxsclk = 1'b0;
+//assign p1_rxdat = 8'b0;
+//assign p1_rxdv = 1'b0;
+//assign p1_rxer = 1'b0;
+assign p1_crs = p1_txen;
 assign p1_col = 1'b0;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -400,13 +400,104 @@ pci_blue_arbiter arbiter(
 );
 ////////////////////////////////////////////////////////////////////////////////
 
+wire pg0_txclk;
+wire [7:0] pg0_txdat;
+wire pg0_txen;
+wire pg0_txer;
+wire pg0_rxclk;
+wire [7:0] pg0_rxd;
+wire pg0_rxdv;
+wire pg0_rxer;
+wire pg0_crs;
+wire pg0_col;
+wire p0_gtxsclk_i;
+wire p0_rxsclk_i;
+
+assign #2 p0_gtxsclk_i = p0_gtxsclk;
+assign #2 p0_rxsclk = p0_rxsclk_i;
+
 eth_pkt_gen pkt_gen(
 	//.clk(p0_gtxsclk),
 	.clk(clk125),
-	.tx_clk(p0_rxsclk),
-	.tx_dat(p0_rxdat),
-	.tx_en(p0_rxdv),
-	.tx_er(p0_rxer)
+	.tx_clk(pg0_txclk),
+	.tx_dat(pg0_txdat),
+	.tx_en(pg0_txen),
+	.tx_er(pg0_txer)
+);
+
+rgmii_if p0_rgmii_if_i(
+	.reset(!RST_N),
+	.speed(1'b1),
+	.rgmii_rxclk(p0_gtxsclk_i),
+	.rgmii_rxdat(p0_txdat[3:0]),
+	.rgmii_rxctl(p0_txen),
+	.rgmii_gtxclk(p0_rxsclk_i),
+	.rgmii_txdat(p0_rxdat[3:0]),
+	.rgmii_txctl(p0_rxdv),
+	.rgmii_crs(1'b0),
+	.rgmii_col(1'b0),
+	.txclk_x2(clk125),
+	.txclk(clk125),
+	.txd(pg0_txclk),
+	.txen(pg0_txen),
+	.txer(pg0_txer),
+	.rxclk_x2(),
+	.rxclk(pg0_rxclk),
+	.rxd(pg0_rxd),
+	.rxdv(pg0_rxdv),
+	.rxer(pg0_rxer),
+	.crs(pg0_crs),
+	.col(pg0_col)
+);
+
+wire pg1_txclk;
+wire [7:0] pg1_txdat;
+wire pg1_txen;
+wire pg1_txer;
+wire pg1_rxclk;
+wire [7:0] pg1_rxd;
+wire pg1_rxdv;
+wire pg1_rxer;
+wire pg1_crs;
+wire pg1_col;
+wire p1_gtxsclk_i;
+wire p1_rxsclk_i;
+
+assign #2 p1_gtxsclk_i = p1_gtxsclk;
+assign #2 p1_rxsclk = p1_rxsclk_i;
+
+eth_pkt_gen pkt_g1(
+	//.clk(p0_gtxsclk),
+	.clk(clk125),
+	.tx_clk(pg1_txclk),
+	.tx_dat(pg1_txdat),
+	.tx_en(pg1_txen),
+	.tx_er(pg1_txer)
+);
+
+rgmii_if p1_rgmii_if_i(
+	.reset(!RST_N),
+	.speed(1'b1),
+	.rgmii_rxclk(p1_gtxsclk_i),
+	.rgmii_rxdat(p1_txdat[3:0]),
+	.rgmii_rxctl(p1_txen),
+	.rgmii_gtxclk(p1_rxsclk_i),
+	.rgmii_txdat(p1_rxdat[3:0]),
+	.rgmii_txctl(p1_rxdv),
+	.rgmii_crs(1'b0),
+	.rgmii_col(1'b0),
+	.txclk_x2(clk125),
+	.txclk(clk125),
+	.txd(pg1_txclk),
+	.txen(pg1_txen),
+	.txer(pg1_txer),
+	.rxclk_x2(),
+	.rxclk(pg1_rxclk),
+	.rxd(pg1_rxd),
+	.rxdv(pg1_rxdv),
+	.rxer(pg1_rxer),
+	.crs(pg1_crs),
+	.col(pg1_col)
 );
 
 ////////////////////////////////////////////////////////////////////////////////

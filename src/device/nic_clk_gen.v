@@ -25,7 +25,7 @@ wire [15:0] do_unused;
 wire        drdy_unused;
 wire        psdone_unused;
 wire        locked_int;
-wire        clkfbout_nic_clk_gen;
+wire        clkfbout_clk_gen;
 wire        clkfbout_buf_nic_clk_gen;
 wire        clkfboutb_unused;
 wire clkout0b_unused;
@@ -58,7 +58,7 @@ MMCME2_ADV #(
 	.CLKIN1_PERIOD        (30.0)
 ) mmcm_adv_inst (
 	// Output clocks
-	.CLKFBOUT            (clkfbout_nic_clk_gen),
+	.CLKFBOUT            (clkfbout_clk_gen),
 	.CLKFBOUTB           (clkfboutb_unused),
 	.CLKOUT0             (clk_out1_nic_clk_gen),
 	.CLKOUT0B            (clkout0b_unused),
@@ -105,7 +105,7 @@ assign locked = locked_int;
 // Output buffering
 //-----------------------------------
 
-BUFG clkf_buf (.O(clkfbout_buf_nic_clk_gen), .I(clkfbout_nic_clk_gen));
+BUFG clkf_buf (.O(clkfbout_buf_nic_clk_gen), .I(clkfbout_clk_gen));
 
 BUFG clkout1_buf (.O(clk_out1), .I(clk_out1_nic_clk_gen)); 
 

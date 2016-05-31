@@ -85,6 +85,7 @@ parameter PHY_ADDR = 5'b0;
 parameter CLK_PERIOD_NS = 8;
 localparam MDIO_DIV = (1000000000/8000000)/CLK_PERIOD_NS+1;
 parameter INIT_TIMEOUT = 6000000/CLK_PERIOD_NS+1;
+parameter INIT_EPCR = "TRUE";
 
 wire reset;
 
@@ -258,7 +259,10 @@ begin
 	case(state)
 		S_INIT: begin
 			if(init_timer==INIT_TIMEOUT) 
-				state_next = S_REPCR_STRB;
+				if(INIT_EPCR=="TRUE")
+					state_next = S_REPCR_STRB;
+				else
+					state_next = S_IDLE;
 			else
 				state_next = S_INIT;
 		end

@@ -58,19 +58,19 @@ assign phy0_txclk = speed ? clk125 : clk12p5;
 assign phy1_txclk_x2 = speed ? clk125 : clk25;
 assign phy1_txclk = speed ? clk125 : clk12p5;
 
-assign #2 p0_rxsclk = p1_gtxsclk;
+assign p0_rxsclk = p1_gtxsclk;
 assign p0_rxdat = p1_txdat;
 assign p0_rxdv = p1_txen;
 assign p0_crs = 1'b0;
 assign p0_col = 1'b0;
 
-assign #2 p1_rxsclk = p0_gtxsclk;
+assign p1_rxsclk = p0_gtxsclk;
 assign p1_rxdat = p0_txdat;
 assign p1_rxdv = p0_txen;
 assign p1_crs = 1'b0;
 assign p1_col = 1'b0;
 
-rgmii_if dut0(
+rgmii_if #(.DELAY_MODE("INTERNAL")) dut0(
 	.reset(reset),
 	.speed(speed),
 
@@ -97,7 +97,7 @@ rgmii_if dut0(
 	.col(phy0_col)
 );
 
-rgmii_if dut1(
+rgmii_if #(.DELAY_MODE("EXTERNAL")) dut1(
 	.reset(reset),
 	.speed(speed),
 

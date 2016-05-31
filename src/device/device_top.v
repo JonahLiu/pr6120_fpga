@@ -487,7 +487,7 @@ nic_wrapper #(
 );
 
 // Dual redundancy fault-tolerant
-phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30)) phy_ft_i(
+phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30), .INIT_EPCR("TRUE")) phy_ft_i(
 	.clk(CLK),
 	.rst(RST),
 
@@ -555,7 +555,7 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30)) phy_ft_i(
 	.phy1_reset_out(p1_reset_out)
 );
 
-rgmii_if p0_if_i(
+rgmii_if #(.DELAY_MODE("EXTERNAL")) p0_if_i(
 	.reset(!phy0_up),
 	.speed(phy0_speed[1]),
 
@@ -582,7 +582,7 @@ rgmii_if p0_if_i(
 	.col(phy0_col)
 );
 
-rgmii_if p1_if_i(
+rgmii_if #(.DELAY_MODE("EXTERNAL")) p1_if_i(
 	.reset(!phy1_up),
 	.speed(phy1_speed[1]),
 
