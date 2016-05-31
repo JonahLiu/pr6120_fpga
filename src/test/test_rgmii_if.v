@@ -26,32 +26,45 @@ wire p1_txen;
 wire p1_crs;
 wire p1_col;
 
-wire phy0_usrclk;
+wire phy0_txclk;
+wire phy0_txclk_x2;
 wire [7:0] phy0_txdat;
 wire phy0_txen;
 wire phy0_txer;
+wire phy0_rxclk_x2;
+wire phy0_rxclk;
 wire [7:0] phy0_rxdat;
 wire phy0_rxdv;
 wire phy0_rxer;
 wire phy0_crs;
 wire phy0_col;
 
-wire phy1_usrclk;
+wire phy1_txclk;
+wire phy1_txclk_x2;
 wire [7:0] phy1_txdat;
 wire phy1_txen;
 wire phy1_txer;
+wire phy1_rxclk_x2;
+wire phy1_rxclk;
 wire [7:0] phy1_rxdat;
 wire phy1_rxdv;
 wire phy1_rxer;
 wire phy1_crs;
 wire phy1_col;
 
-assign p0_rxsclk = clk125;
+assign phy0_txclk_x2 = speed ? clk125 : clk25;
+assign phy0_txclk = speed ? clk125 : clk12p5;
+
+assign phy1_txclk_x2 = speed ? clk125 : clk25;
+assign phy1_txclk = speed ? clk125 : clk12p5;
+
+assign #2 p0_rxsclk = p1_gtxsclk;
 assign p0_rxdat = p1_txdat;
 assign p0_rxdv = p1_txen;
 assign p0_crs = 1'b0;
 assign p0_col = 1'b0;
-assign p1_rxsclk = clk125;
+
+assign #2 p1_rxsclk = p0_gtxsclk;
 assign p1_rxdat = p0_txdat;
 assign p1_rxdv = p0_txen;
 assign p1_crs = 1'b0;
@@ -70,10 +83,13 @@ rgmii_if dut0(
 	.rgmii_crs(p0_crs),
 	.rgmii_col(p0_col),
 
-	.user_clk(phy0_usrclk),
+	.txclk_x2(phy0_txclk_x2),
+	.txclk(phy0_txclk),
 	.txd(phy0_txdat),
 	.txen(phy0_txen),
 	.txer(phy0_txer),
+	.rxclk_x2(phy0_rxclk_x2),
+	.rxclk(phy0_rxclk),
 	.rxd(phy0_rxdat),
 	.rxdv(phy0_rxdv),
 	.rxer(phy0_rxer),
@@ -94,10 +110,13 @@ rgmii_if dut1(
 	.rgmii_crs(p1_crs),
 	.rgmii_col(p1_col),
 
-	.user_clk(phy1_usrclk),
+	.txclk_x2(phy1_txclk_x2),
+	.txclk(phy1_txclk),
 	.txd(phy1_txdat),
 	.txen(phy1_txen),
 	.txer(phy1_txer),
+	.rxclk_x2(phy1_rxclk_x2),
+	.rxclk(phy1_rxclk),
 	.rxd(phy1_rxdat),
 	.rxdv(phy1_rxdv),
 	.rxer(phy1_rxer),
@@ -106,8 +125,7 @@ rgmii_if dut1(
 );
 
 eth_pkt_gen pg0(
-	//.clk(p0_gtxsclk),
-	.clk(phy0_usrclk),
+	.clk(phy0_txclk),
 	.tx_clk(),
 	.tx_dat(phy0_txdat),
 	.tx_en(phy0_txen),
@@ -115,8 +133,7 @@ eth_pkt_gen pg0(
 );
 
 eth_pkt_gen pg1(
-	//.clk(p0_gtxsclk),
-	.clk(phy1_usrclk),
+	.clk(phy1_txclk),
 	.tx_clk(),
 	.tx_dat(phy1_txdat),
 	.tx_en(phy1_txen),
@@ -132,6 +149,18 @@ end
 
 initial
 begin
+	clk25 = 0;
+	forever #20 clk25 = !clk25;
+end
+
+initial clk12p5=0;
+always @(posedge clk25)
+begin
+	clk12p5 <= !clk12p5;
+end
+
+initial
+begin
 	$dumpfile("test_rgmii_if.vcd");
 	$dumpvars(0);
 	reset <= 1;
@@ -140,6 +169,15 @@ begin
 	#1000;
 	pg0.send(60);
 	pg1.send(60);
+	pg0.send_err(60,16);
+	pg1.send_err(60,16);
+	#1000;
+	speed = 0;
+	#1000;
+	pg0.send(60);
+	pg1.send(60);
+	pg0.send_err(60,16);
+	pg1.send_err(60,16);
 	#1000;
 	$finish();
 end

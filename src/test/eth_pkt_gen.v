@@ -3,11 +3,10 @@ module eth_pkt_gen(
 	output	tx_clk,
 	output reg [7:0] tx_dat,
 	output reg tx_en,
-	output tx_er
+	output reg tx_er
 );
 
 assign tx_clk = clk;
-assign tx_er = 1'b0;
 
 function[31:0]  NextCRC;
     input[7:0]      D;
@@ -51,6 +50,10 @@ function[31:0]  NextCRC;
 endfunction
 
 task send(input [15:0] length);
+	send_err(length, length);
+endtask
+
+task send_err(input [15:0] length, input [15:0] erridx);
 	reg [31:0] crc;
 	integer i;
 	begin
@@ -65,6 +68,10 @@ task send(input [15:0] length);
 			@(posedge clk);
 			crc <= NextCRC(i,crc);
 			tx_dat <= i;
+			if(i>=erridx)
+				tx_er <= 1'b1;
+			else
+				tx_er <= 1'b0;
 		end
 
 		for(i=0;i<4;i=i+1) begin
@@ -75,13 +82,16 @@ task send(input [15:0] length);
 
 		@(posedge clk);
 		tx_en <= 1'b0;
+		tx_er <= 1'b0;
 		repeat(8) @(posedge clk);
 	end
 endtask
 
 initial
 begin
-	tx_dat 
+	tx_dat = 0;
+	tx_en = 0;
+	tx_er = 0;
 end
 
 endmodule

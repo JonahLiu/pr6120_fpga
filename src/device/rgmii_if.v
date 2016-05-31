@@ -13,10 +13,13 @@ module rgmii_if(
 	input rgmii_col,
 
 	// GMII interface
-	output user_clk, // user app use this clock for both tx and rx
+	input txclk_x2, // 125M/25M/2.5M, used in 10M/100M mode
+	input txclk, // 125M/12.5M/1.25M
 	input [7:0] txd,
 	input txen,
 	input txer,
+	output rxclk_x2, // 125M/25M/2.5M
+	output rxclk, // 125M/12.5M/1.25M
 	output [7:0] rxd,
 	output rxdv,
 	output rxer,
@@ -32,20 +35,20 @@ rgmii_rx rx_i(
 	.rgmii_rxctl(rgmii_rxctl),
 	.rgmii_crs(rgmii_crs),
 	.rgmii_col(rgmii_col),
-	.user_clk(user_clk),
+	.rxclk_x2(rxclk_x2),
+	.rxclk(rxclk),
 	.rxd(rxd),
 	.rxdv(rxdv),
 	.rxer(rxer),
 	.crs(crs),
-	.col(col),
-	.clk_x2(clk_x2)
+	.col(col)
 );
 
 rgmii_tx tx_i(
 	.reset(reset),
 	.speed(speed),
-	.clk_x2(clk_x2),
-	.user_clk(user_clk),
+	.txclk_x2(txclk_x2),
+	.txclk(txclk),
 	.txd(txd),
 	.txen(txen),
 	.txer(txer),

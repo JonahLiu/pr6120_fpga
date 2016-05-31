@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 module rgmii_rx(
 	input reset,
 	input speed, // 0 - 10/100M, 1 - 1000M
@@ -10,17 +11,18 @@ module rgmii_rx(
 	input rgmii_col,
 
 	// GMII interface
-	output user_clk,
+	output rxclk_x2,
+	output rxclk,
 	output [7:0] rxd,
 	output rxdv,
 	output rxer,
 	output crs,
-	output col,
-	output clk_x2
+	output col
 );
 
 wire clk_in;
 wire clk_div;
+wire rxclk_i;
 wire [7:0] data_in;
 wire rxctl_r;
 wire rxctl_f;
@@ -51,7 +53,7 @@ assign rxdv = valid_1;
 assign rxer = error_1;
 assign crs = crs_1;
 assign col = col_1;
-assign clk_x2 = clk_in;
+assign rxclk_x2 = clk_in;
 
 assign rst_in = !rst_sync[3];
 
@@ -65,7 +67,8 @@ end
 
 BUFR #(.BUFR_DIVIDE("1")) clk_in_i(.I(rgmii_rxclk), .CLR(1'b0), .CE(1'b1), .O(clk_in));
 BUFR #(.BUFR_DIVIDE("2")) clk_div_i(.I(rgmii_rxclk), .CLR(1'b0), .CE(1'b1), .O(clk_div));
-BUFGMUX_CTRL clk_mux_i(.I0(clk_div), .I1(clk_in), .S(speed), .O(user_clk));
+BUFGMUX_CTRL clk_mux_i(.I0(clk_div), .I1(clk_in), .S(speed), .O(rxclk_i));
+assign #1 rxclk = rxclk_i; // for simulation purpose
 
 IDDR #(.DDR_CLK_EDGE("SAME_EDGE_PIPELINED")) d0_iddr_i(
 	.D(rgmii_rxdat[0]),.C(clk_in),.Q1(data_in[0]),.Q2(data_in[4]),.CE(1'b1),.S(1'b0),.R(rst_in));
@@ -86,11 +89,15 @@ always @(posedge clk_in)
 begin
 	crs_l <= rgmii_crs;
 	col_l <= rgmii_col;
+end
+
+always @(negedge clk_in)
+begin
 	crs_0 <= crs_l;
 	col_0 <= col_l;
 end
 
-always @(posedge clk_in, posedge rst_in)
+always @(negedge clk_in, posedge rst_in)
 begin
 	if(rst_in) begin
 		data_0 <= 'b0;
@@ -121,7 +128,7 @@ begin
 	end
 end
 
-always @(posedge user_clk, posedge rst_in)
+always @(posedge rxclk, posedge rst_in)
 begin
 	if(rst_in) begin
 		data_1 <= 'b0;
