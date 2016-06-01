@@ -102,8 +102,29 @@ if(MODE=="STANDARD") begin
 		.D1(1'b1), .D2(1'b0), .CE(1'b1), .C(clk_out), .S(1'b0), .R(1'b0), .Q(rgmii_gtxclk));
 end
 else if(MODE=="DELAYED") begin // about 2ns additional output delay on 7-series HR bank
+	/*
+	(* DONT_TOUCH = "TRUE" *)
+	wire [6:0] clk_dly;
+	assign clk_dly[0] = clk_out;
+	(* DONT_TOUCH = "TRUE" *) 
+	LUT1 #(.INIT(2'b01)) d1(.I0(clk_dly[0]),.O(clk_dly[1]));
+	(* DONT_TOUCH = "TRUE" *) 
+	LUT1 #(.INIT(2'b01)) d1(.I0(clk_dly[1]),.O(clk_dly[2]));
+	(* DONT_TOUCH = "TRUE" *) 
+	LUT1 #(.INIT(2'b01)) d1(.I0(clk_dly[2]),.O(clk_dly[3]));
+	(* DONT_TOUCH = "TRUE" *) 
+	LUT1 #(.INIT(2'b01)) d1(.I0(clk_dly[3]),.O(clk_dly[4]));
+	(* DONT_TOUCH = "TRUE" *) 
+	LUT1 #(.INIT(2'b01)) d1(.I0(clk_dly[4]),.O(clk_dly[5]));
+	(* DONT_TOUCH = "TRUE" *) 
+	LUT1 #(.INIT(2'b01)) d1(.I0(clk_dly[5]),.O(clk_dly[6]));
+	*/
 	wire rgmii_gtxclk_d;
-	OBUF clk_obuf_i(.I(clk_out), .O(rgmii_gtxclk_d));
+	wire clk_dly;
+	(* DONT_TOUCH = "TRUE" *) 
+	LDCE d1(.D(clk_out),.GE(1'b1),.G(1'b1),.CLR(1'b0),.Q(clk_dly));
+
+	OBUF clk_obuf_i(.I(clk_dly), .O(rgmii_gtxclk_d));
 	assign #2 rgmii_gtxclk = rgmii_gtxclk_d; // simulation only
 end
 else if(MODE=="SYSTEM") begin // same with "DELAYED" but inverted so the rise-edge will be ahead of data
