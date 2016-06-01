@@ -416,7 +416,7 @@ assign phy1_txclk_x2 = phy1_rxclk_x2;
 // assign phy1_txclk_x2 = clkout_x2;
 
 nic_wrapper #(
-	.DEBUG(DEBUG)
+	.DEBUG("FALSE")
 )nic_wrapper_i(
 	.RST(RST),
 	.CLK(CLK),
@@ -487,7 +487,7 @@ nic_wrapper #(
 );
 
 // Dual redundancy fault-tolerant
-phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30), .INIT_EPCR("FALSE")) phy_ft_i(
+phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30), .INIT_EPCR("TRUE")) phy_ft_i(
 	.clk(CLK),
 	.rst(RST),
 
@@ -555,7 +555,7 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30), .INIT_EPCR("FALSE")) phy_ft_i(
 	.phy1_reset_out(p1_reset_out)
 );
 
-rgmii_if #(.DELAY_MODE("INTERNAL")) p0_if_i(
+rgmii_if #(.DELAY_MODE("EXTERNAL")) p0_if_i(
 	.reset(!phy0_up),
 	.speed(phy0_speed[1]),
 
@@ -582,7 +582,7 @@ rgmii_if #(.DELAY_MODE("INTERNAL")) p0_if_i(
 	.col(phy0_col)
 );
 
-rgmii_if #(.DELAY_MODE("INTERNAL")) p1_if_i(
+rgmii_if #(.DELAY_MODE("EXTERNAL")) p1_if_i(
 	.reset(!phy1_up),
 	.speed(phy1_speed[1]),
 
@@ -651,7 +651,7 @@ assign can_rx[1] = can1_rx;
 
 mpc_wrapper #(
 	.PORT_NUM(CAN_PORT_NUM),
-	.DEBUG(DEBUG)
+	.DEBUG("FALSE")
 )mpc_wrapper_i(
 	.RST(RST),
 	.CLK(CLK),
@@ -733,7 +733,7 @@ assign uart_dcdn = ~0;
 
 mps_wrapper #(
 	.PORT_NUM(UART_PORT_NUM),
-	.DEBUG(DEBUG)
+	.DEBUG("FALSE")
 )mps_wrapper_i(
 	.RST(RST),
 	.CLK(CLK),
@@ -842,6 +842,19 @@ ila_0 ila_mac_i0(
 		P2_S_DATA_VLD,
 		P2_S_CBE,
 		P2_INT_N
+	})
+);
+ila_0 ila_i0(
+	.clk(mac_rxclk), // input wire clk
+	.probe0({
+		mac_rxdat,
+		mac_rxdv,
+		mac_rxer,
+		mac_txdat,
+		mac_txen,
+		mac_txer,
+		mac_crs,
+		mac_col
 	})
 );
 end

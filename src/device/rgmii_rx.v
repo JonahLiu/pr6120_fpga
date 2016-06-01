@@ -57,7 +57,8 @@ reg col_1;
 reg [3:0] rst_sync;
 wire rst_in;
 
-assign rxdv_in = rxctl_r|rxctl_f;
+//assign rxdv_in = rxctl_r|rxctl_f;
+assign rxdv_in = rxctl_r;
 assign rxer_in = rxctl_r^rxctl_f;
 
 assign rxd = data_1;
@@ -80,7 +81,8 @@ end
 generate
 if(MODE=="STANDARD") begin
 	assign #2 clk_dly = rgmii_rxclk; // simulation only
-	BUFIO clk_src_i(.I(clk_dly), .O(clk_src)); // BUFIO has a delay of about 1ns
+	assign clk_src = clk_in;
+	//BUFIO clk_src_i(.I(clk_dly), .O(clk_src)); // BUFIO has a delay of about 1ns
 	BUFR #(.BUFR_DIVIDE("1")) clk_in_i(.I(clk_dly), .CLR(1'b0), .CE(1'b1), .O(clk_in));
 	BUFR #(.BUFR_DIVIDE("2")) clk_div_i(.I(clk_dly), .CLR(1'b0), .CE(1'b1), .O(clk_div));
 end
@@ -88,7 +90,7 @@ else if(MODE=="DELAYED") begin
 	assign clk_dly = rgmii_rxclk;
 	assign clk_src = clk_in;
 	//BUFG clk_in_i (.I(clk_dly), .O(clk_in)); // BUFG has smallest delay
-	BUFR #(.BUFR_DIVIDE("1")) clk_in_i(.I(clk_dly), .CLR(1'b0), .CE(1'b1), .O(clk_in));
+	BUFR #(.BUFR_DIVIDE("BYPASS")) clk_in_i(.I(clk_dly), .CLR(1'b0), .CE(1'b1), .O(clk_in));
 	BUFR #(.BUFR_DIVIDE("2")) clk_div_i(.I(clk_dly), .CLR(1'b0), .CE(1'b1), .O(clk_div));
 end
 else if(MODE=="SYSTEM") begin
