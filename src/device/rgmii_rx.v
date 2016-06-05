@@ -20,6 +20,12 @@ module rgmii_rx(
 	output col
 );
 
+// About in-band status
+// Link status indicated when {rxdv,rxer}=={0,0}
+// rxd[0]: 0 - link down, 1 - link up
+// rxd[2:1]: 00 - 10M, 01 - 100M, 10 - 1000M, 11 - reserved
+// rxd[3]: 0 - half duplex, 1 - full duplex
+
 // STANDARD - input clock edge aligned with data edge (Source Synchronous)
 // DELAYED - input clock edge has 2ns delay after data edge (Clock Delayed)
 // SYSTEM - input clock edge is ahead of data edge (System Synchronous)
@@ -42,6 +48,7 @@ wire ctl_dly;
 wire crs_dly;
 wire col_dly;
 
+reg [3:0] data_0_r;
 reg odd_flag;
 reg [7:0] data_0;
 reg valid_0;
@@ -81,8 +88,8 @@ end
 generate
 if(MODE=="STANDARD") begin
 	assign #2 clk_dly = rgmii_rxclk; // simulation only
-	assign clk_src = clk_in;
-	//BUFIO clk_src_i(.I(clk_dly), .O(clk_src)); // BUFIO has a delay of about 1ns
+	//assign clk_src = clk_in;
+	BUFIO clk_src_i(.I(clk_dly), .O(clk_src)); // BUFIO has a delay of about 1ns
 	BUFR #(.BUFR_DIVIDE("1")) clk_in_i(.I(clk_dly), .CLR(1'b0), .CE(1'b1), .O(clk_in));
 	BUFR #(.BUFR_DIVIDE("2")) clk_div_i(.I(clk_dly), .CLR(1'b0), .CE(1'b1), .O(clk_div));
 end
@@ -150,6 +157,7 @@ begin
 		crs_0 <= 1'b0;
 		col_0 <= 1'b0;
 		odd_flag <= 1'b0;
+		data_0_r <= 'b0;
 	end
 	else if(speed) begin
 		data_0 <= data_in;
@@ -161,14 +169,15 @@ begin
 	end
 	else begin
 		if(!odd_flag) begin
-			if(rxdv_in)
-				data_0[3:0] <= data_in[3:0];
+			//if(rxdv_in)
+				data_0_r[3:0] <= data_in[3:0];
 
 			if(rxdv_in || valid_0) begin
 				odd_flag <= 1'b1;
 			end
 		end
 		else begin
+			data_0[3:0] <= data_0_r[3:0];
 			data_0[7:4] <= data_in[3:0];
 			valid_0 <= rxdv_in;
 			error_0 <= rxer_in;
