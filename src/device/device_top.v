@@ -96,6 +96,11 @@ module device_top(
 parameter DEBUG="TRUE";
 parameter UART_PORT_NUM = 4;
 parameter CAN_PORT_NUM = 2;
+parameter [23:0] MAC_OUI=24'hEC3F05;
+parameter [15:0] SUB_PID=16'h6120;
+parameter [15:0] SUB_VID=16'hFACE;
+parameter [15:0] PID=16'hABCD;
+parameter [15:0] VID=16'h8086;
 
 wire CLK;
 wire RST;
@@ -622,7 +627,13 @@ eeprom_emu eeprom_emu_i(
 	.read_data(eeprom_rdata)
 );
 
-config_rom rom_i(
+config_rom #(
+	.MAC_OUI(MAC_OUI),
+	.SUB_PID(SUB_PID),
+	.SUB_VID(SUB_VID),
+	.PID(PID),
+	.VID(VID)
+) rom_i (
 	.clk_i(CLK),
 	.rst_i(RST),
 	.read_addr(eeprom_raddr),

@@ -82,6 +82,7 @@ read_verilog ../../src/e1000/rx_engine.v
 read_verilog ../../src/e1000/rx_frame.v
 read_verilog ../../src/e1000/rx_checksum.v
 read_verilog ../../src/e1000/mac_axis.v
+read_verilog ../../src/e1000/dna.v
 read_verilog ../../src/mac/Clk_ctrl.v
 read_verilog ../../src/mac/Phy_int.v
 read_verilog ../../src/mac/MAC_rx.v

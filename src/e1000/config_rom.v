@@ -5,13 +5,42 @@ module config_rom(
 	input read_enable,
 	output reg [15:0] read_data
 );
+parameter [23:0] MAC_OUI=24'hEC3F05;
+parameter [15:0] ICW1=16'h6000;
+parameter [15:0] SUB_PID=16'h6120;
+parameter [15:0] SUB_VID=16'hFACE;
+parameter [15:0] PID=16'hABCD;
+parameter [15:0] VID=16'h8086;
+parameter [15:0] ICW2=16'h1000;
+parameter [15:0] BAMSO=16'h8000;
+
+parameter [15:0] CSUM_PRECALC= ICW1 + SUB_PID + SUB_VID + PID + VID + ICW2 + BAMSO +
+	{MAC_OUI[15:8],MAC_OUI[23:16]} + {8'b0,MAC_OUI[7:0]};
+
+wire [56:0] id;
+
+reg [15:0] csum;
+
+reg [23:0] mac;
+
+dna dna_i(
+	.clk(clk_i),
+	.id(id),
+	.valid()
+);
+
+always @(posedge clk_i)
+	mac <= id[56:48] + id[47:24] + id[23:0];
+
+always @(posedge clk_i)
+	csum <= 16'hBABA-CSUM_PRECALC-({mac[23:16],8'b0}+{mac[7:0],mac[15:8]});
 
 always @(posedge clk_i)
 begin
 	case(read_addr)
-		8'h00: read_data <= 16'h0E00; // MAC[15:0]
-		8'h01: read_data <= 16'h010C; // MAC[31:16]
-		8'h02: read_data <= 16'h0302; // MAC[47:32]
+		8'h00: read_data <= {MAC_OUI[15:8],MAC_OUI[23:16]}; // MAC[15:0]
+		8'h01: read_data <= {mac[23:16],MAC_OUI[7:0]}; // MAC[31:16]
+		8'h02: read_data <= {mac[7:0],mac[15:8]}; // MAC[47:32]
 		8'h03: read_data <= 16'h0000; // Compatiblility
 		8'h04: read_data <= 16'h0000; // No use
 		8'h05: read_data <= 16'h0000; // No use
@@ -19,12 +48,12 @@ begin
 		8'h07: read_data <= 16'h0000; // No use
 		8'h08: read_data <= 16'h0000; // PBA Number
 		8'h09: read_data <= 16'h0000; // PBA Number
-		8'h0A: read_data <= 16'h6000; // Initialization
-		8'h0B: read_data <= 16'h6120; // Subsystem ID
-		8'h0C: read_data <= 16'hFACE; // Subsystem VID
-		8'h0D: read_data <= 16'hABCD; // Device ID
-		8'h0E: read_data <= 16'h8086; // Vendor ID
-		8'h0F: read_data <= 16'h1000; // Init 2
+		8'h0A: read_data <= ICW1; // Initialization
+		8'h0B: read_data <= SUB_PID; // Subsystem ID
+		8'h0C: read_data <= SUB_VID; // Subsystem VID
+		8'h0D: read_data <= PID; // Device ID
+		8'h0E: read_data <= VID; // Vendor ID
+		8'h0F: read_data <= ICW2; // Init 2
 		8'h10: read_data <= 16'h0000; // No use
 		8'h11: read_data <= 16'h0000; // No use
 		8'h12: read_data <= 16'h0000; // No use
@@ -57,7 +86,7 @@ begin
 		8'h2D: read_data <= 16'h0000;
 		8'h2E: read_data <= 16'h0000;
 		8'h2F: read_data <= 16'h0000;
-		8'h30: read_data <= 16'h8000; // BA Setup
+		8'h30: read_data <= BAMSO; // BA Setup
 		8'h31: read_data <= 16'h0000;
 		8'h32: read_data <= 16'h0000;
 		8'h33: read_data <= 16'h0000;
@@ -72,7 +101,7 @@ begin
 		8'h3C: read_data <= 16'h0000;
 		8'h3D: read_data <= 16'h0000;
 		8'h3E: read_data <= 16'h0000;
-		8'h3F: read_data <= 16'h306B; // Checksum, must add up to BABA
+		8'h3F: read_data <= csum; // Checksum, must add up to BABA
 		default: read_data <= 16'hFFFF;
 	endcase
 end
