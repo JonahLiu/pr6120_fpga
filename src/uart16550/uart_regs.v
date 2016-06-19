@@ -350,8 +350,8 @@ assign 									dlab = lcr[`UART_LC_DL];
 assign 									loopback = mcr[4];
 
 // assign modem outputs
-assign 									rts_pad_o = mcr[`UART_MC_RTS];
-assign 									dtr_pad_o = mcr[`UART_MC_DTR];
+assign 									rts_pad_o = ~mcr[`UART_MC_RTS];
+assign 									dtr_pad_o = ~mcr[`UART_MC_DTR];
 
 // Interrupt signals
 wire 										rls_int;  // receiver line status interrupt

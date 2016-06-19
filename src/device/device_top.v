@@ -416,7 +416,7 @@ assign phy1_txclk_x2 = phy1_rxclk_x2;
 // assign phy1_txclk_x2 = clkout_x2;
 
 nic_wrapper #(
-	.DEBUG("FALSE")
+	.DEBUG(DEBUG)
 )nic_wrapper_i(
 	.RST(RST),
 	.CLK(CLK),
@@ -645,13 +645,9 @@ assign can1_tx = can_tx[1];
 assign can1_rs = 1'b0;
 assign can_rx[1] = can1_rx;
 
-// Connect CAN2 and CAN3 for testing
-//assign can_rx[2] = can_tx[2]&can_tx[3];
-//assign can_rx[3] = can_tx[2]&can_tx[3];
-
 mpc_wrapper #(
 	.PORT_NUM(CAN_PORT_NUM),
-	.DEBUG("FALSE")
+	.DEBUG(DEBUG)
 )mpc_wrapper_i(
 	.RST(RST),
 	.CLK(CLK),
@@ -692,48 +688,41 @@ mpc_wrapper #(
 
 wire [UART_PORT_NUM-1:0] uart_rxd;
 wire [UART_PORT_NUM-1:0] uart_txd;
-wire [UART_PORT_NUM-1:0] uart_rtsn;
-wire [UART_PORT_NUM-1:0] uart_ctsn;
-wire [UART_PORT_NUM-1:0] uart_dtrn;
-wire [UART_PORT_NUM-1:0] uart_dsrn;
+wire [UART_PORT_NUM-1:0] uart_rts;
+wire [UART_PORT_NUM-1:0] uart_cts;
+wire [UART_PORT_NUM-1:0] uart_dtr;
+wire [UART_PORT_NUM-1:0] uart_dsr;
 wire [UART_PORT_NUM-1:0] uart_ri;
-wire [UART_PORT_NUM-1:0] uart_dcdn;
+wire [UART_PORT_NUM-1:0] uart_dcd;
 
-// FIXME: Should we consider about half-duplex?
-assign uart0_rxen_n = 1'b0;
+assign uart0_rxen_n = uart_dtr[0];
 assign uart0_tx = uart_txd[0];
-assign uart0_txen = 1'b1;
+assign uart0_txen = ~uart_rts[0];
 assign uart_rxd[0] = uart0_rx;
 
-assign uart1_rxen_n = 1'b0;
+assign uart1_rxen_n = uart_dtr[1];
 assign uart1_tx = uart_txd[1];
-assign uart1_txen = 1'b1;
+assign uart1_txen = ~uart_rts[1];
 assign uart_rxd[1] = uart1_rx;
 
-assign uart2_rxen_n = 1'b0;
+assign uart2_rxen_n = uart_dtr[2];
 assign uart2_tx = uart_txd[2];
-assign uart2_txen = 1'b1;
+assign uart2_txen = ~uart_rts[2];
 assign uart_rxd[2] = uart2_rx;
 
-assign uart3_rxen_n = 1'b0;
+assign uart3_rxen_n = uart_dtr[3];
 assign uart3_tx = uart_txd[3];
-assign uart3_txen = 1'b1;
+assign uart3_txen = ~uart_rts[3];
 assign uart_rxd[3] = uart3_rx;
 
-// Connect UART4 with UART5 and UART6 with UART7 for testing
-//assign uart_rxd[4] = uart_txd[5];
-//assign uart_rxd[5] = uart_txd[4];
-//assign uart_rxd[6] = uart_txd[7];
-//assign uart_rxd[7] = uart_txd[6];
-
-assign uart_ctsn = ~0;
-assign uart_dsrn = ~0;
-assign uart_ri = ~0;
-assign uart_dcdn = ~0;
+assign uart_cts = {UART_PORT_NUM{1'b0}};
+assign uart_dsr = {UART_PORT_NUM{1'b0}};
+assign uart_ri = {UART_PORT_NUM{1'b1}};
+assign uart_dcd = {UART_PORT_NUM{1'b1}};
 
 mps_wrapper #(
 	.PORT_NUM(UART_PORT_NUM),
-	.DEBUG("FALSE")
+	.DEBUG(DEBUG)
 )mps_wrapper_i(
 	.RST(RST),
 	.CLK(CLK),
@@ -766,19 +755,19 @@ mps_wrapper #(
 
 	.rxd(uart_rxd),
 	.txd(uart_txd),
-	.rtsn(uart_rtsn),
-	.ctsn(uart_ctsn),
-	.dtrn(uart_dtrn),
-	.dsrn(uart_dsrn),
+	.rts(uart_rts),
+	.cts(uart_cts),
+	.dtr(uart_dtr),
+	.dsr(uart_dsr),
 	.ri(uart_ri),
-	.dcdn(uart_dcdn)
+	.dcd(uart_dcd)
 );
 
 ////////////////////////////////////////////////////////////////////////////////
 // Debug probes
 
 generate
-if(DEBUG == "TRUE") begin
+if(DEBUG == "FALSE") begin
 ila_0 ila_mac_i0(
 	.clk(CLK), // input wire clk
 	.probe0({
@@ -842,19 +831,6 @@ ila_0 ila_mac_i0(
 		P2_S_DATA_VLD,
 		P2_S_CBE,
 		P2_INT_N
-	})
-);
-ila_0 ila_i0(
-	.clk(mac_rxclk), // input wire clk
-	.probe0({
-		mac_rxdat,
-		mac_rxdv,
-		mac_rxer,
-		mac_txdat,
-		mac_txen,
-		mac_txer,
-		mac_crs,
-		mac_col
 	})
 );
 end

@@ -32,12 +32,12 @@ module multi_serial #(
 	// UART signals
 	input  [PORT_NUM-1:0] rxd  ,
 	output [PORT_NUM-1:0] txd  ,
-	output [PORT_NUM-1:0] rtsn ,
-	input  [PORT_NUM-1:0] ctsn ,
-	output [PORT_NUM-1:0] dtrn ,
-	input  [PORT_NUM-1:0] dsrn ,
-	input  [PORT_NUM-1:0] ri   ,
-	input  [PORT_NUM-1:0] dcdn ,
+	output [PORT_NUM-1:0] rts ,
+	input  [PORT_NUM-1:0] cts ,
+	output [PORT_NUM-1:0] dtr ,
+	input  [PORT_NUM-1:0] dsr ,
+	input  [PORT_NUM-1:0] ri  ,
+	input  [PORT_NUM-1:0] dcd ,
 
 	output	interrupt
 );
@@ -104,11 +104,11 @@ begin
 			.wb_dat_o(wb_dat_mux[i]),
 			.wb_we_i(select&wb_we_i),
 			.wb_re_i(select&wb_re_i),
-			.modem_inputs({ctsn[i],dsrn[i],ri[i],dcdn[i]}),
+			.modem_inputs({cts[i],dsr[i],ri[i],dcd[i]}),
 			.stx_pad_o(txd[i]),
 			.srx_pad_i(rxd[i]),
-			.rts_pad_o(rtsn[i]),
-			.dtr_pad_o(dtrn[i]),
+			.rts_pad_o(rts[i]),
+			.dtr_pad_o(dtr[i]),
 			.int_o(intr_int[i])
 		);
 	end

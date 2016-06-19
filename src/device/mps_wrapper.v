@@ -36,12 +36,12 @@ module mps_wrapper #(
 	// UART Port
 	input	[PORT_NUM-1:0] rxd,
 	output	[PORT_NUM-1:0] txd,
-	output  [PORT_NUM-1:0] rtsn,
-	input   [PORT_NUM-1:0] ctsn,
-	output  [PORT_NUM-1:0] dtrn,
-	input   [PORT_NUM-1:0] dsrn,
+	output  [PORT_NUM-1:0] rts,
+	input   [PORT_NUM-1:0] cts,
+	output  [PORT_NUM-1:0] dtr,
+	input   [PORT_NUM-1:0] dsr,
 	input   [PORT_NUM-1:0] ri,
-	input   [PORT_NUM-1:0] dcdn
+	input   [PORT_NUM-1:0] dcd
 );
 
 
@@ -189,12 +189,12 @@ mps_top #(.PORT_NUM(PORT_NUM), .BASE_BAUD(BASE_BAUD),.CLK_PERIOD_NS(CLK_PERIOD_N
 
 	.rxd(rxd),
 	.txd(txd),
-	.rtsn(rtsn),
-	.ctsn(ctsn),
-	.dtrn(dtrn),
-	.dsrn(dsrn),
+	.rts(rts),
+	.cts(cts),
+	.dtr(dtr),
+	.dsr(dsr),
 	.ri(ri),
-	.dcdn(dcdn)
+	.dcd(dcd)
 );
 
 generate
@@ -202,6 +202,15 @@ if(DEBUG == "TRUE") begin
 ila_0 ila_i0(
 	.clk(aclk), // input wire clk
 	.probe0({
+		rxd,
+		txd,
+		rts,
+		cts,
+		dtr,
+		dsr,
+		ri,
+		dcd,
+
 		mps_s_awvalid,
 		mps_s_awready,
 		mps_s_awaddr,

@@ -191,6 +191,10 @@ if(DEBUG == "TRUE") begin
 ila_0 ila_i0(
 	.clk(aclk), // input wire clk
 	.probe0({
+		rx_i,
+		tx_o,
+		bus_off_on,
+
 		mpc_s_awvalid,
 		mpc_s_awready,
 		mpc_s_awaddr,

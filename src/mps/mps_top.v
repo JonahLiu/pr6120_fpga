@@ -37,12 +37,12 @@ module mps_top #(
 	// UART Port
 	input	[PORT_NUM-1:0] rxd,
 	output	[PORT_NUM-1:0] txd,
-	output  [PORT_NUM-1:0] rtsn,
-	input   [PORT_NUM-1:0] ctsn,
-	output  [PORT_NUM-1:0] dtrn,
-	input   [PORT_NUM-1:0] dsrn,
+	output  [PORT_NUM-1:0] rts,
+	input   [PORT_NUM-1:0] cts,
+	output  [PORT_NUM-1:0] dtr,
+	input   [PORT_NUM-1:0] dsr,
 	input   [PORT_NUM-1:0] ri,
-	input   [PORT_NUM-1:0] dcdn
+	input   [PORT_NUM-1:0] dcd
 );
 
 localparam PRESCALE_F =(1_000_000_000.0/(BASE_BAUD*16.0))/CLK_PERIOD_NS;
@@ -81,12 +81,12 @@ multi_serial_i (
 
 	.rxd(rxd),
 	.txd(txd),
-	.rtsn(rtsn),
-	.ctsn(ctsn),
-	.dtrn(dtrn),
-	.dsrn(dsrn),
+	.rts(rts),
+	.cts(cts),
+	.dtr(dtr),
+	.dsr(dsr),
 	.ri(ri),
-	.dcdn(dcdn)
+	.dcd(dcd)
 );
 
 
