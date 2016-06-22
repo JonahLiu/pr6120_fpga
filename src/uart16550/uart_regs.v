@@ -344,7 +344,7 @@ assign 									{cts_pad_i, dsr_pad_i, ri_pad_i, dcd_pad_i} = modem_inputs;
 assign 									{cts, dsr, ri, dcd} = ~{cts_pad_i,dsr_pad_i,ri_pad_i,dcd_pad_i};
 
 assign                  {cts_c, dsr_c, ri_c, dcd_c} = loopback ? {mcr[`UART_MC_RTS],mcr[`UART_MC_DTR],mcr[`UART_MC_OUT1],mcr[`UART_MC_OUT2]}
-                                                               : {cts_pad_i,dsr_pad_i,ri_pad_i,dcd_pad_i};
+                                                               : ~{cts_pad_i,dsr_pad_i,ri_pad_i,dcd_pad_i};
 
 assign 									dlab = lcr[`UART_LC_DL];
 assign 									loopback = mcr[4];
