@@ -99,6 +99,7 @@ localparam MDIO_DIV = (1000000000/8000000)/CLK_PERIOD_NS+1;
 parameter INIT_TIMEOUT = 6000000/CLK_PERIOD_NS+1;
 parameter INIT_EPCR = "TRUE";
 parameter USE_PHY_IBS = "TRUE";
+parameter LINK_UP_DELAY_CYCLES = (100000000/CLK_PERIOD_NS);
 
 wire reset;
 
@@ -142,12 +143,14 @@ reg mdio_req_0, mdio_req_1;
 
 reg [23:0] init_timer;
 
-reg phy0_ibs_up_0, phy0_ibs_up_1;
+reg phy0_ibs_up_0, phy0_ibs_up_1, phy0_ibs_up_d;
 reg phy0_ibs_dplx_0, phy0_ibs_dplx_1;
 reg [1:0] phy0_ibs_spd_0, phy0_ibs_spd_1;
-reg phy1_ibs_up_0, phy1_ibs_up_1;
+reg [23:0] phy0_up_delay;
+reg phy1_ibs_up_0, phy1_ibs_up_1, phy1_ibs_up_d;
 reg phy1_ibs_dplx_0, phy1_ibs_dplx_1;
 reg [1:0] phy1_ibs_spd_0, phy1_ibs_spd_1;
+reg [23:0] phy1_up_delay;
 
 integer state, state_next;
 localparam 
@@ -473,10 +476,10 @@ begin
 			mdio_gnt_r <= 1'b0;
 			start <= 1'b0;
 			if(USE_PHY_IBS == "TRUE") begin
-				p0_up <= phy0_ibs_up_1;
+				p0_up <= phy0_ibs_up_d;
 				p0_speed <= phy0_ibs_spd_1;
 				p0_duplex <= phy0_ibs_dplx_1;
-				p1_up <= phy1_ibs_up_1;
+				p1_up <= phy1_ibs_up_d;
 				p1_speed <= phy1_ibs_spd_1;
 				p1_duplex <= phy1_ibs_dplx_1;
 			end
@@ -549,6 +552,42 @@ begin
 			end
 		end
 	endcase
+end
+
+always @(posedge clk, posedge reset)
+begin
+	if(reset) begin
+		phy0_up_delay <= 1'b0;
+		phy0_ibs_up_d <= 1'b0;
+	end
+	else if(!phy0_ibs_up_1) begin
+		phy0_up_delay <= 1'b0;
+		phy0_ibs_up_d <= 1'b0;
+	end
+	else if(phy0_up_delay == LINK_UP_DELAY_CYCLES) begin
+		phy0_ibs_up_d <= 1'b1;
+	end
+	else begin
+		phy0_up_delay <= phy0_up_delay+1;
+	end
+end
+
+always @(posedge clk, posedge reset)
+begin
+	if(reset) begin
+		phy1_up_delay <= 1'b0;
+		phy1_ibs_up_d <= 1'b0;
+	end
+	else if(!phy1_ibs_up_1) begin
+		phy1_up_delay <= 1'b0;
+		phy1_ibs_up_d <= 1'b0;
+	end
+	else if(phy1_up_delay == LINK_UP_DELAY_CYCLES) begin
+		phy1_ibs_up_d <= 1'b1;
+	end
+	else begin
+		phy1_up_delay <= phy1_up_delay+1;
+	end
 end
 
 
