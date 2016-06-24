@@ -2,6 +2,11 @@ module rgmii_if(
 	input reset,
 	input speed, // 0 - 10/100M, 1 - 1000M
 
+	// In-band Status
+	output ibs_up,
+	output [1:0] ibs_spd,
+	output ibs_dplx,
+
 	// RGMII interface
 	input rgmii_rxclk, // 125M/25M/2.5M
 	input [3:0] rgmii_rxdat,
@@ -11,6 +16,10 @@ module rgmii_if(
 	output rgmii_txctl,
 	input rgmii_crs,
 	input rgmii_col,
+
+	output [7:0] dbg_data,
+	output dbg_dv,
+	output dbg_er,
 
 	// GMII interface
 	input txclk_x2, // 125M/25M/2.5M, used in 10M/100M mode
@@ -35,11 +44,17 @@ parameter TX_MODE = (DELAY_MODE=="INTERNAL") ? "DELAYED" : "STANDARD";
 rgmii_rx #(.MODE(RX_MODE)) rx_i(
 	.reset(reset),
 	.speed(speed),
+	.ibs_up(ibs_up),
+	.ibs_spd(ibs_spd),
+	.ibs_dplx(ibs_dplx),
 	.rgmii_rxclk(rgmii_rxclk),
 	.rgmii_rxdat(rgmii_rxdat),
 	.rgmii_rxctl(rgmii_rxctl),
 	.rgmii_crs(rgmii_crs),
 	.rgmii_col(rgmii_col),
+	.dbg_data(dbg_data),
+	.dbg_dv(dbg_dv),
+	.dbg_er(dbg_er),
 	.rxclk_x2(rxclk_x2),
 	.rxclk(rxclk),
 	.rxd(rxd),

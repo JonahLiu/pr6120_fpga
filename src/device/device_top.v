@@ -363,6 +363,7 @@ wire	phy0_crs;
 wire	phy0_col;
 wire	phy0_up;
 wire	[1:0] phy0_speed;
+wire	phy0_duplex;
 
 wire	phy1_rxclk_x2;
 wire	phy1_rxclk;
@@ -378,6 +379,7 @@ wire	phy1_crs;
 wire	phy1_col;
 wire	phy1_up;
 wire	[1:0] phy1_speed;
+wire	phy1_duplex;
 
 wire	eesk;
 wire	eecs;
@@ -396,6 +398,20 @@ wire	phy_duplex;
 wire	phy_up;
 wire	phy_lsc;
 wire 	phy_port;
+
+wire    [1:0] p0_ibs_spd;
+wire	p0_ibs_up;
+wire	p0_ibs_dplx;
+wire    [1:0] p1_ibs_spd;
+wire	p1_ibs_up;
+wire	p1_ibs_dplx;
+
+wire	[7:0] p0_dbg_data;
+wire	p0_dbg_dv;
+wire	p0_dbg_er;
+wire	[7:0] p1_dbg_data;
+wire	p1_dbg_dv;
+wire	p1_dbg_er;
 
 assign	p0_mdio = p0_mdio_oe?p0_mdio_o:1'bz;
 assign  p0_mdio_i = p0_mdio;
@@ -492,7 +508,9 @@ nic_wrapper #(
 );
 
 // Dual redundancy fault-tolerant
-phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30), .INIT_EPCR("FALSE")) phy_ft_i(
+phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30), 
+	.INIT_EPCR("FALSE"), .USE_PHY_IBS("TRUE")
+) phy_ft_i(
 	.clk(CLK),
 	.rst(RST),
 
@@ -503,8 +521,10 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30), .INIT_EPCR("FALSE")) phy_ft_i(
 	.link_change(phy_lsc),
 	.phy0_up(phy0_up),
 	.phy0_speed(phy0_speed),
+	.phy0_duplex(phy0_duplex),
 	.phy1_up(phy1_up),
 	.phy1_speed(phy1_speed),
+	.phy1_duplex(phy1_duplex),
 
 	.rxclk(mac_rxclk),
 	.rxdat(mac_rxdat),
@@ -535,6 +555,9 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30), .INIT_EPCR("FALSE")) phy_ft_i(
 	.phy0_txer(phy0_txer),
 	.phy0_crs(phy0_crs),
 	.phy0_col(phy0_col),
+	.phy0_ibs_up(p0_ibs_up),
+	.phy0_ibs_spd(p0_ibs_spd),
+	.phy0_ibs_dplx(p0_ibs_dplx),
 	.phy0_mdc(p0_mdc),
 	.phy0_mdio_i(p0_mdio_i),
 	.phy0_mdio_o(p0_mdio_o),
@@ -552,6 +575,9 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30), .INIT_EPCR("FALSE")) phy_ft_i(
 	.phy1_txer(phy1_txer),
 	.phy1_crs(phy1_crs),
 	.phy1_col(phy1_col),
+	.phy1_ibs_up(p1_ibs_up),
+	.phy1_ibs_spd(p1_ibs_spd),
+	.phy1_ibs_dplx(p1_ibs_dplx),
 	.phy1_mdc(p1_mdc),
 	.phy1_mdio_i(p1_mdio_i),
 	.phy1_mdio_o(p1_mdio_o),
@@ -561,8 +587,12 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30), .INIT_EPCR("FALSE")) phy_ft_i(
 );
 
 rgmii_if #(.DELAY_MODE("INTERNAL")) p0_if_i(
-	.reset(!phy0_up),
+	.reset(p0_reset_out),
 	.speed(phy0_speed[1]),
+
+	.ibs_up(p0_ibs_up),
+	.ibs_spd(p0_ibs_spd),
+	.ibs_dplx(p0_ibs_dplx),
 
 	.rgmii_rxclk(p0_rxsclk),
 	.rgmii_rxdat(p0_rxdat[3:0]),
@@ -572,6 +602,10 @@ rgmii_if #(.DELAY_MODE("INTERNAL")) p0_if_i(
 	.rgmii_txctl(p0_txen),
 	.rgmii_crs(p0_crs),
 	.rgmii_col(p0_col),
+
+	.dbg_data(p0_dbg_data),
+	.dbg_dv(p0_dbg_dv),
+	.dbg_er(p0_dbg_er),
 
 	.txclk_x2(phy0_txclk_x2),
 	.txclk(phy0_txclk),
@@ -588,8 +622,12 @@ rgmii_if #(.DELAY_MODE("INTERNAL")) p0_if_i(
 );
 
 rgmii_if #(.DELAY_MODE("INTERNAL")) p1_if_i(
-	.reset(!phy1_up),
+	.reset(p1_reset_out),
 	.speed(phy1_speed[1]),
+
+	.ibs_up(p1_ibs_up),
+	.ibs_spd(p1_ibs_spd),
+	.ibs_dplx(p1_ibs_dplx),
 
 	.rgmii_rxclk(p1_rxsclk),
 	.rgmii_rxdat(p1_rxdat[3:0]),
@@ -599,6 +637,10 @@ rgmii_if #(.DELAY_MODE("INTERNAL")) p1_if_i(
 	.rgmii_txctl(p1_txen),
 	.rgmii_crs(p1_crs),
 	.rgmii_col(p1_col),
+
+	.dbg_data(p1_dbg_data),
+	.dbg_dv(p1_dbg_dv),
+	.dbg_er(p1_dbg_er),
 
 	.txclk_x2(phy1_txclk_x2),
 	.txclk(phy1_txclk),
@@ -778,12 +820,26 @@ mps_wrapper #(
 // Debug probes
 
 generate
-if(DEBUG == "FALSE") begin
+if(DEBUG == "TRUE") begin
 ila_0 ila_mac_i0(
 	.clk(CLK), // input wire clk
 	.probe0({
+		p0_dbg_er,
+		p0_dbg_dv,
+		p0_dbg_data,
+		p1_dbg_er,
+		p1_dbg_dv,
+		p1_dbg_data,
+		p1_ibs_dplx,
+		p1_ibs_spd,
+		p1_ibs_up,
+		p0_ibs_dplx,
+		p0_ibs_spd,
+		p0_ibs_up,
+		phy1_duplex,
 		phy1_speed,
 		phy1_up,
+		phy0_duplex,
 		phy0_speed,
 		phy0_up,
 		phy_speed,

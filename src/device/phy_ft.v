@@ -8,8 +8,10 @@ module phy_ft(
 	output active_port,
 	output link_change,
 	output [1:0] phy0_speed,
+	output phy0_duplex,
 	output phy0_up,
 	output [1:0] phy1_speed,
+	output phy1_duplex,
 	output phy1_up,
 
 	// GMII Port
@@ -48,6 +50,11 @@ module phy_ft(
 	input	phy0_crs,
 	input	phy0_col,
 
+	// In-band Status
+	input phy0_ibs_up,
+	input [1:0] phy0_ibs_spd,
+	input phy0_ibs_dplx,
+
 	// MDIO Port
 	output	phy0_mdc,
 	input	phy0_mdio_i,
@@ -70,6 +77,11 @@ module phy_ft(
 	input	phy1_crs,
 	input	phy1_col,
 
+	// In-band Status
+	input phy1_ibs_up,
+	input [1:0] phy1_ibs_spd,
+	input phy1_ibs_dplx,
+
 	// MDIO Port
 	output	phy1_mdc,
 	input	phy1_mdio_i,
@@ -86,6 +98,7 @@ parameter CLK_PERIOD_NS = 8;
 localparam MDIO_DIV = (1000000000/8000000)/CLK_PERIOD_NS+1;
 parameter INIT_TIMEOUT = 6000000/CLK_PERIOD_NS+1;
 parameter INIT_EPCR = "TRUE";
+parameter USE_PHY_IBS = "TRUE";
 
 wire reset;
 
@@ -129,6 +142,13 @@ reg mdio_req_0, mdio_req_1;
 
 reg [23:0] init_timer;
 
+reg phy0_ibs_up_0, phy0_ibs_up_1;
+reg phy0_ibs_dplx_0, phy0_ibs_dplx_1;
+reg [1:0] phy0_ibs_spd_0, phy0_ibs_spd_1;
+reg phy1_ibs_up_0, phy1_ibs_up_1;
+reg phy1_ibs_dplx_0, phy1_ibs_dplx_1;
+reg [1:0] phy1_ibs_spd_0, phy1_ibs_spd_1;
+
 integer state, state_next;
 localparam 
 	S_INIT=0,S_REPCR_STRB=1,S_REPCR_WAIT=2,S_WEPCR_STRB=3,S_WEPCR_WAIT=4,
@@ -171,8 +191,31 @@ assign p1_start = start;
 
 assign phy0_speed = p0_speed;
 assign phy0_up = p0_up;
+assign phy0_duplex = p0_duplex;
 assign phy1_speed = p1_speed;
 assign phy1_up = p1_up;
+assign phy1_duplex = p1_duplex;
+
+always @(posedge clk)
+begin
+	phy0_ibs_spd_0 <= phy0_ibs_spd;
+	phy0_ibs_spd_1 <= phy0_ibs_spd_0;
+
+	phy0_ibs_dplx_0 <= phy0_ibs_dplx;
+	phy0_ibs_dplx_1 <= phy0_ibs_dplx_0;
+
+	phy0_ibs_up_0 <= phy0_ibs_up;
+	phy0_ibs_up_1 <= phy0_ibs_up_0;
+
+	phy1_ibs_spd_0 <= phy1_ibs_spd;
+	phy1_ibs_spd_1 <= phy1_ibs_spd_0;
+
+	phy1_ibs_up_0 <= phy1_ibs_up;
+	phy1_ibs_up_1 <= phy1_ibs_up_0;
+
+	phy1_ibs_dplx_0 <= phy1_ibs_dplx;
+	phy1_ibs_dplx_1 <= phy1_ibs_dplx_0;
+end
 
 phy_switch switch_i(
 	.select(select),
@@ -317,6 +360,8 @@ begin
 		S_IDLE: begin
 			if(mdio_req_1)
 				state_next = S_HOST_ACCESS;
+			else if(USE_PHY_IBS == "TRUE")
+				state_next = S_SELECT;
 			else 
 				state_next = S_READ_STRB;
 		end
@@ -427,6 +472,14 @@ begin
 			change <= 1'b0;
 			mdio_gnt_r <= 1'b0;
 			start <= 1'b0;
+			if(USE_PHY_IBS == "TRUE") begin
+				p0_up <= phy0_ibs_up_1;
+				p0_speed <= phy0_ibs_spd_1;
+				p0_duplex <= phy0_ibs_dplx_1;
+				p1_up <= phy1_ibs_up_1;
+				p1_speed <= phy1_ibs_spd_1;
+				p1_duplex <= phy1_ibs_dplx_1;
+			end
 		end
 		S_HOST_ACCESS: begin
 			mdio_gnt_r <= 1'b1;
@@ -453,41 +506,41 @@ begin
 		end
 		S_SELECT: begin
 			if(up) begin
-				if(!p0_up && !p1_up) begin
+				if(!phy0_up && !phy1_up) begin
 					curr_speed <= 'b0;
 					curr_duplex <= 'b0;
 					up <= 1'b0;
 					change <= 1'b1;
 					select <= 1'b0;
 				end
-				//else if(select && !p1_up) begin // if(select)
-				else if(select && p0_up) begin // P0 has priority
-					curr_speed <= p0_speed;
-					curr_duplex <= p0_duplex;
-					if(p0_speed!=curr_speed || p0_duplex!=curr_duplex)
+				//else if(select && !phy1_up) begin // if(select)
+				else if(select && phy0_up) begin // P0 has priority
+					curr_speed <= phy0_speed;
+					curr_duplex <= phy0_duplex;
+					if(phy0_speed!=curr_speed || phy0_duplex!=curr_duplex)
 						change <= 1'b1;
 					select <= 1'b0;
 				end
-				else if(!select && !p0_up) begin
-					curr_speed <= p1_speed;
-					curr_duplex <= p1_duplex;
-					if(p1_speed!=curr_speed || p1_duplex!=curr_duplex)
+				else if(!select && !phy0_up) begin
+					curr_speed <= phy1_speed;
+					curr_duplex <= phy1_duplex;
+					if(phy1_speed!=curr_speed || phy1_duplex!=curr_duplex)
 						change <= 1'b1;
 					select <= 1'b1;
 				end
 				// else keep status
 			end
 			else begin // if(!up)
-				if(p0_up) begin
-					curr_speed <= p0_speed;
-					curr_duplex <= p0_duplex;
+				if(phy0_up) begin
+					curr_speed <= phy0_speed;
+					curr_duplex <= phy0_duplex;
 					up <= 1'b1;
 					change <= 1'b1;
 					select <= 1'b0;
 				end
-				else if(p1_up) begin
-					curr_speed <= p1_speed;
-					curr_duplex <= p1_duplex;
+				else if(phy1_up) begin
+					curr_speed <= phy1_speed;
+					curr_duplex <= phy1_duplex;
 					up <= 1'b1;
 					change <= 1'b1;
 					select <= 1'b1;

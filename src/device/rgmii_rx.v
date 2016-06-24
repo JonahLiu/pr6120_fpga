@@ -3,12 +3,21 @@ module rgmii_rx(
 	input reset,
 	input speed, // 0 - 10/100M, 1 - 1000M
 
+	// In-band Status
+	output ibs_up,
+	output [1:0] ibs_spd,
+	output ibs_dplx,
+
 	// RGMII interface
 	input rgmii_rxclk, // 125M/25M/2.5M
 	input [3:0] rgmii_rxdat,
 	input rgmii_rxctl,
 	input rgmii_crs,
 	input rgmii_col,
+
+	output [7:0] dbg_data,
+	output dbg_dv,
+	output dbg_er,
 
 	// GMII interface
 	output rxclk_x2,
@@ -61,6 +70,10 @@ reg error_1;
 reg crs_1;
 reg col_1;
 
+reg up_0, up_1;
+reg [1:0] spd_0, spd_1;
+reg dplx_0, dplx_1;
+
 reg [3:0] rst_sync;
 wire rst_in;
 
@@ -74,6 +87,10 @@ assign rxer = error_1;
 assign crs = crs_1;
 assign col = col_1;
 assign rxclk_x2 = clk_in;
+
+assign ibs_up = up_1;
+assign ibs_spd = spd_1;
+assign ibs_dplx = dplx_1;
 
 assign rst_in = !rst_sync[3];
 
@@ -205,5 +222,37 @@ begin
 		col_1 <= col_0;
 	end
 end
+
+always @(negedge clk_in, posedge rst_in)
+begin
+	if(rst_in) begin
+		up_0 <= 1'b0;
+		spd_0 <= 2'b10;
+		dplx_0 <= 1'b1;
+	end
+	else if(!rxdv_in && !rxer_in) begin
+		up_0 <= data_in[0];
+		spd_0 <= data_in[2:1];
+		dplx_0 <= data_in[3];
+	end
+end
+
+always @(posedge clk_in, posedge rst_in)
+begin
+	if(rst_in) begin
+		up_1 <= 1'b0;
+		spd_1 <= 2'b10;
+		dplx_1 <= 1'b1;
+	end
+	else begin
+		up_1 <= up_0;
+		spd_1 <= spd_0;
+		dplx_1 <= dplx_0;
+	end
+end
+
+assign dbg_data = data_in;
+assign dbg_dv = rxdv_in;
+assign dbg_er = rxer_in;
 
 endmodule
