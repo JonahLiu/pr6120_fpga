@@ -330,6 +330,9 @@ wire	mac_txer;
 wire	mac_crs;
 wire	mac_col;
 
+wire	mac_rx_err_flag;
+wire	mac_rx_ok_flag;
+
 wire	phy_mdc;
 wire	phy_mdio_i;
 wire	phy_mdio_o;
@@ -484,6 +487,9 @@ nic_wrapper #(
 	.mac_crs(mac_crs),
 	.mac_col(mac_col),
 
+	.mac_rx_err_flag(mac_rx_err_flag),
+	.mac_rx_ok_flag(mac_rx_ok_flag),
+
 	// MDIO interface
 	.phy_mdc(phy_mdc),
 	.phy_mdio_i(phy_mdio_i),
@@ -536,6 +542,10 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30),
 	.txer(mac_txer),
 	.crs(mac_crs),
 	.col(mac_col),
+
+	.mac_rx_err(mac_rx_err_flag),
+	.mac_rx_ok(mac_rx_ok_flag),
+
 	.mdc(phy_mdc),
 	.mdio_i(phy_mdio_i),
 	.mdio_o(phy_mdio_o),
@@ -836,6 +846,8 @@ ila_0 ila_mac_i0(
 		p0_ibs_dplx,
 		p0_ibs_spd,
 		p0_ibs_up,
+		mac_rx_err_flag,
+		mac_rx_ok_flag,
 		phy1_duplex,
 		phy1_speed,
 		phy1_up,

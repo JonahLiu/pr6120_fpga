@@ -82,6 +82,10 @@ module e1000_top(
 	input	mac_crs,
 	input	mac_col,
 
+	// Rx feedback
+	output	mac_rx_err_flag,
+	output	mac_rx_ok_flag,
+
 	// MDIO Port
 	output	phy_mdc,
 	input	phy_mdio_i,
@@ -783,6 +787,9 @@ mac_axis mac_i(
 	.tx_mac_tlast(mac_tx_s_tlast),
 	.tx_mac_tvalid(mac_tx_s_tvalid),
 	.tx_mac_tready(mac_tx_s_tready),
+
+	.rx_err_flag(mac_rx_err_flag),
+	.rx_ok_flag(mac_rx_ok_flag),
 
 	.Rxd(mac_rxdat),
 	.Rx_dv(mac_rxdv),

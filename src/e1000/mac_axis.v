@@ -35,6 +35,10 @@ input			tx_mac_tlast			,
 input			tx_mac_tvalid			,
 output			tx_mac_tready			,
 
+// Rx feedback
+output			rx_err_flag             ,
+output          rx_ok_flag              ,
+
 //Phy interface         
 output          Gtx_clk                 ,//used only in GMII mode
 input           Rx_clk                  ,
@@ -169,6 +173,9 @@ reg rx_rd_lgth;
 reg [1:0] rx_state;
 //reg [15:0] rx_length;
 
+reg [3:0] rx_err_flag_r;
+reg [3:0] rx_ok_flag_r;
+
 assign areset = !aresetn;
 assign Rst_user = areset;
 assign Clk_user = aclk;
@@ -225,6 +232,9 @@ assign MAC_tx_add_prom_wr = 1'b0;
 assign rx_fifo_din = {Rx_mac_sop,Rx_mac_eop,Rx_mac_BE,Rx_mac_data};
 
 assign tx_fifo_din = {!tx_flag, tx_mac_tlast, tx_be, tx_mac_tdata};
+
+assign rx_err_flag = rx_err_flag_r[3];
+assign rx_ok_flag = rx_ok_flag_r[3];
 
 //******************************************************************************
 // internal modules
@@ -364,6 +374,26 @@ always @ (posedge Rst_rx or posedge MAC_rx_clk_div)
         rx_pkg_lgth_fifo_wr <=1; 
     else
         rx_pkg_lgth_fifo_wr <=0; 
+
+always @(posedge MAC_rx_clk_div, posedge Rst_rx)
+begin
+	if(Rst_rx) begin
+		rx_err_flag_r <= 'b0;
+		rx_ok_flag_r <= 'b0;
+	end
+	else if(Rx_apply_rmon) begin
+		if(Rx_pkt_err_type_rmon==3'b100) begin
+			rx_ok_flag_r <= 4'b1111;
+		end
+		else begin
+			rx_err_flag_r <= 4'b1111;
+		end
+	end
+	else begin
+		rx_ok_flag_r <= {rx_ok_flag_r,1'b0};
+		rx_err_flag_r <= {rx_err_flag_r,1'b0};
+	end
+end
 
 fifo_async #(.DSIZE(16),.ASIZE(8),.MODE("FWFT")) U_rx_pkg_lgth_fifo (
 .din                        (RX_APPEND_CRC?Rx_pkt_length_rmon:Rx_pkt_length_rmon-16'd4),

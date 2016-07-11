@@ -44,6 +44,9 @@ module nic_wrapper(
 	input	mac_crs,
 	input	mac_col,
 
+	output  mac_rx_err_flag,
+	output	mac_rx_ok_flag,
+
 	// MDIO Port
 	output	phy_mdc,
 	input	phy_mdio_i,
@@ -364,6 +367,9 @@ e1000_top #(
 	.mac_gtxsclk(mac_gtxsclk),
 	.mac_crs(mac_crs),
 	.mac_col(mac_col),
+
+	.mac_rx_err_flag(mac_rx_err_flag),
+	.mac_rx_ok_flag(mac_rx_ok_flag),
 
 	// MDIO interface
 	.phy_mdc(phy_mdc),

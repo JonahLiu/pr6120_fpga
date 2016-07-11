@@ -26,6 +26,10 @@ module phy_ft(
 	output	crs,
 	output	col,
 
+	// Error feedback, asynchronous
+	input	mac_rx_err,
+	input	mac_rx_ok,
+
 	// MDIO Port
 	input	mdc,
 	output	mdio_i,
@@ -151,6 +155,10 @@ reg phy1_ibs_up_0, phy1_ibs_up_1, phy1_ibs_up_d;
 reg phy1_ibs_dplx_0, phy1_ibs_dplx_1;
 reg [1:0] phy1_ibs_spd_0, phy1_ibs_spd_1;
 reg [23:0] phy1_up_delay;
+
+reg [3:0] error_count;
+reg mac_rx_err_r0, mac_rx_err_r1, mac_rx_err_r2;
+reg mac_rx_ok_r0, mac_rx_ok_r1, mac_rx_ok_r2;
 
 integer state, state_next;
 localparam 
@@ -531,6 +539,22 @@ begin
 						change <= 1'b1;
 					select <= 1'b1;
 				end
+				else if(error_count[3]) begin // Switch at 8 consecutive errors
+					if(select && phy0_up) begin
+						curr_speed <= phy0_speed;
+						curr_duplex <= phy0_duplex;
+						if(phy0_speed!=curr_speed || phy0_duplex!=curr_duplex)
+							change <= 1'b1;
+						select <= 1'b0;
+					end
+					else if(!select && phy1_up) begin
+						curr_speed <= phy1_speed;
+						curr_duplex <= phy1_duplex;
+						if(phy1_speed!=curr_speed || phy1_duplex!=curr_duplex)
+							change <= 1'b1;
+						select <= 1'b1;
+					end
+				end
 				// else keep status
 			end
 			else begin // if(!up)
@@ -587,6 +611,42 @@ begin
 	end
 	else begin
 		phy1_up_delay <= phy1_up_delay+1;
+	end
+end
+
+always @(posedge clk, posedge reset)
+begin
+	if(reset) begin
+		mac_rx_err_r0 <= 1'b0;
+		mac_rx_err_r1 <= 1'b0;
+		mac_rx_err_r2 <= 1'b0;
+		mac_rx_ok_r0 <= 1'b0;
+		mac_rx_ok_r1 <= 1'b0;
+		mac_rx_ok_r2 <= 1'b0;
+	end
+	else begin
+		mac_rx_err_r0 <= mac_rx_err;
+		mac_rx_err_r1 <= mac_rx_err_r0;
+		mac_rx_err_r2 <= mac_rx_err_r1;
+		mac_rx_ok_r0 <= mac_rx_ok;
+		mac_rx_ok_r1 <= mac_rx_ok_r0;
+		mac_rx_ok_r2 <= mac_rx_ok_r1;
+	end
+end
+
+assign mac_rx_err_incr = !mac_rx_err_r2 && mac_rx_err_r1;
+assign mac_rx_ok_incr = !mac_rx_ok_r2 && mac_rx_ok_r1;
+
+always @(posedge clk, posedge reset)
+begin
+	if(reset) begin
+		error_count <= 'b0;
+	end
+	else if(change || mac_rx_ok_incr) begin
+		error_count <= 'b0;
+	end
+	else if(mac_rx_err_incr && !error_count[3]) begin
+			error_count <= error_count+1;
 	end
 end
 
