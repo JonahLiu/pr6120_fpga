@@ -515,7 +515,7 @@ nic_wrapper #(
 
 // Dual redundancy fault-tolerant
 phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30), 
-	.INIT_EPCR("FALSE"), .USE_PHY_IBS("TRUE")
+	.INIT_EPCR("FALSE")
 ) phy_ft_i(
 	.clk(CLK),
 	.rst(RST),
