@@ -99,7 +99,13 @@ localparam MDIO_DIV = (1000000000/8000000)/CLK_PERIOD_NS+1;
 parameter INIT_TIMEOUT = 6000000/CLK_PERIOD_NS+1;
 parameter INIT_EPCR = "TRUE";
 parameter USE_PHY_IBS = "TRUE";
-parameter LINK_UP_DELAY_CYCLES = (100000000/CLK_PERIOD_NS);
+parameter USE_POLLING = "TRUE";
+parameter LINK_UP_DELAY_CYCLES = (500000000/CLK_PERIOD_NS);
+parameter POLLING_INTERVAL_US = 100;
+
+localparam POLLING_INTERVAL = POLLING_INTERVAL_US*1000/CLK_PERIOD_NS;
+
+parameter MASSIVE_ERROR_THRESHOLD = 10;
 
 wire reset;
 
@@ -133,9 +139,13 @@ reg [31:0] wr_data;
 reg p0_up;
 reg [1:0] p0_speed;
 reg p0_duplex;
+reg p0_new_page;
+reg p0_massive_error;
 reg p1_up;
 reg [1:0] p1_speed;
 reg p1_duplex;
+reg p1_new_page;
+reg p1_massive_error;
 
 reg mdio_gnt_r;
 
@@ -146,18 +156,21 @@ reg [23:0] init_timer;
 reg phy0_ibs_up_0, phy0_ibs_up_1, phy0_ibs_up_d;
 reg phy0_ibs_dplx_0, phy0_ibs_dplx_1;
 reg [1:0] phy0_ibs_spd_0, phy0_ibs_spd_1;
-reg [23:0] phy0_up_delay;
+reg [31:0] phy0_up_delay;
 reg phy1_ibs_up_0, phy1_ibs_up_1, phy1_ibs_up_d;
 reg phy1_ibs_dplx_0, phy1_ibs_dplx_1;
 reg [1:0] phy1_ibs_spd_0, phy1_ibs_spd_1;
-reg [23:0] phy1_up_delay;
+reg [31:0] phy1_up_delay;
+
+reg [31:0] polling_timer;
+wire polling_timeout;
 
 integer state, state_next;
 localparam 
 	S_INIT=0,S_REPCR_STRB=1,S_REPCR_WAIT=2,S_WEPCR_STRB=3,S_WEPCR_WAIT=4,
 	S_RCTRL_STRB=5,S_RCTRL_WAIT=6,S_WCTRL_STRB=7,S_WCTRL_WAIT=8,
 	S_IDLE=9, S_HOST_ACCESS=10, S_READ_STRB=11, S_READ_WAIT=12, 
-	S_READ_LATCH=13, S_SELECT=14;
+	S_READ_LATCH=13, S_SELECT=14, S_RECR_STRB=15, S_RECR_WAIT=16, S_RECR_LATCH=17;
 
 assign reset = rst|reset_in;
 
@@ -363,10 +376,10 @@ begin
 		S_IDLE: begin
 			if(mdio_req_1)
 				state_next = S_HOST_ACCESS;
-			else if(USE_PHY_IBS == "TRUE")
-				state_next = S_SELECT;
-			else 
+			else if(USE_POLLING == "TRUE" && polling_timeout)
 				state_next = S_READ_STRB;
+			else
+				state_next = S_SELECT;
 		end
 		S_HOST_ACCESS: begin
 			if(!mdio_req_1)
@@ -387,7 +400,22 @@ begin
 				state_next = S_READ_WAIT;
 		end
 		S_READ_LATCH: begin
-			state_next = S_SELECT;
+			state_next = S_RECR_STRB;
+		end
+		S_RECR_STRB: begin
+			if(!p0_rd_done && !p1_rd_done)
+				state_next = S_RECR_WAIT;
+			else
+				state_next = S_RECR_STRB;
+		end
+		S_RECR_WAIT: begin
+			if(p0_rd_done && p1_rd_done)
+				state_next = S_RECR_LATCH;
+			else
+				state_next = S_RECR_WAIT;
+		end
+		S_RECR_LATCH: begin
+			state_next = S_IDLE;
 		end
 		S_SELECT: begin
 			state_next = S_IDLE;
@@ -413,9 +441,13 @@ begin
 		p0_up <= 1'b0;
 		p0_speed <= 2'b10;
 		p0_duplex <= 1'b1;
+		p0_new_page <= 1'b0;
+		p0_massive_error <= 1'b0;
 		p1_up <= 1'b0;
 		p1_speed <= 2'b10;
 		p1_duplex <= 1'b1;
+		p1_new_page <= 1'b0;
+		p1_massive_error <= 1'b0;
 
 		init_timer <= 'b0;
 	end
@@ -477,9 +509,9 @@ begin
 			start <= 1'b0;
 			if(USE_PHY_IBS == "TRUE") begin
 				p0_up <= phy0_ibs_up_d;
+				p1_up <= phy1_ibs_up_d;
 				p0_speed <= phy0_ibs_spd_1;
 				p0_duplex <= phy0_ibs_dplx_1;
-				p1_up <= phy1_ibs_up_d;
 				p1_speed <= phy1_ibs_spd_1;
 				p1_duplex <= phy1_ibs_dplx_1;
 			end
@@ -500,12 +532,30 @@ begin
 			start <= 1'b0;
 		end
 		S_READ_LATCH: begin
-			p0_up <= p0_rd_data[10];
+			p0_up <= p0_rd_data[10] && p0_rd_data[12];
 			p0_speed <= p0_rd_data[15:14];
 			p0_duplex <= p0_rd_data[13];
-			p1_up <= p1_rd_data[10];
+			p1_up <= p1_rd_data[10] && p1_rd_data[12];
 			p1_speed <= p1_rd_data[15:14];
 			p1_duplex <= p1_rd_data[13];
+			p0_new_page <= p0_rd_data[12];
+			p1_new_page <= p1_rd_data[12];
+		end
+		S_RECR_STRB: begin
+			wr_data[31:30] <= 2'b01;
+			wr_data[29:28] <= 2'b10; // read
+			wr_data[27:23] <= PHY_ADDR;
+			wr_data[22:18] <= 21; // Error counter register
+			wr_data[17:16] <= 2'b10;
+			wr_data[15:0] <= 16'b0;
+			start <= 1'b1;
+		end
+		S_RECR_WAIT: begin
+			start <= 1'b0;
+		end
+		S_RECR_LATCH: begin
+			p0_massive_error <= p0_rd_data > MASSIVE_ERROR_THRESHOLD;
+			p1_massive_error <= p1_rd_data > MASSIVE_ERROR_THRESHOLD;
 		end
 		S_SELECT: begin
 			if(up) begin
@@ -560,7 +610,7 @@ begin
 		phy0_up_delay <= 1'b0;
 		phy0_ibs_up_d <= 1'b0;
 	end
-	else if(!phy0_ibs_up_1) begin
+	else if(!phy0_ibs_up_1 || p0_massive_error) begin
 		phy0_up_delay <= 1'b0;
 		phy0_ibs_up_d <= 1'b0;
 	end
@@ -578,7 +628,7 @@ begin
 		phy1_up_delay <= 1'b0;
 		phy1_ibs_up_d <= 1'b0;
 	end
-	else if(!phy1_ibs_up_1) begin
+	else if(!phy1_ibs_up_1 || p1_massive_error) begin
 		phy1_up_delay <= 1'b0;
 		phy1_ibs_up_d <= 1'b0;
 	end
@@ -590,5 +640,18 @@ begin
 	end
 end
 
+always @(posedge clk, posedge reset)
+begin
+	if(reset) begin
+		polling_timer <= 'b0;
+	end
+	else if(state_next == S_READ_STRB) begin
+		polling_timer <= 'b0;
+	end
+	else if(polling_timer != POLLING_INTERVAL) begin
+		polling_timer <= polling_timer + 1;
+	end
+end
+assign polling_timeout = polling_timer==POLLING_INTERVAL;
 
 endmodule
