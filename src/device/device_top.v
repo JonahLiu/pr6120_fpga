@@ -413,6 +413,9 @@ wire	[7:0] p1_dbg_data;
 wire	p1_dbg_dv;
 wire	p1_dbg_er;
 
+wire	sdp6_data;
+wire	sdp7_data;
+
 assign	p0_mdio = p0_mdio_oe?p0_mdio_o:1'bz;
 assign  p0_mdio_i = p0_mdio;
 assign	p0_resetn = !p0_reset_out;
@@ -435,6 +438,9 @@ assign phy1_txclk_x2 = phy1_rxclk_x2;
 // assign nic_txclk = clkout;
 // assign phy0_txclk_x2 = clkout_x2;
 // assign phy1_txclk_x2 = clkout_x2;
+
+assign sdp6_data = phy_port;
+assign sdp7_data = phy_lsc;
 
 nic_wrapper #(
 	.DEBUG(DEBUG)
@@ -499,6 +505,10 @@ nic_wrapper #(
 	.phy_duplex(phy_duplex),
 	.phy_up(phy_up),
 	.phy_lsc(phy_lsc),
+
+	// GPI Input
+	.sdp6_data(sdp6_data),
+	.sdp7_data(sdp7_data),
 
 	// EEPROM interface
 	.eesk(eesk),

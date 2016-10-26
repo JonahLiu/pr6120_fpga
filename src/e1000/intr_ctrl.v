@@ -21,6 +21,8 @@ module intr_ctrl(
 
 	output intr_request,
 
+	input SDP6_req,
+	input SDP7_req,
 	input TXDW_req,
 	input TXQE_req,
 	input LSC_req,
@@ -72,7 +74,8 @@ assign src_req[9] = MDAC_req;
 assign src_req[10] = RXCFG_req;
 assign src_req[11] = 1'b0;
 assign src_req[12] = PHYINT_req;
-assign src_req[14:13] = 2'b0;
+assign src_req[13] = SDP6_req;
+assign src_req[14] = SDP7_req;
 assign src_req[15] = TXD_LOW_req;
 assign src_req[16] = SRPD_req;
 assign src_req[31:17] = 24'b0;
