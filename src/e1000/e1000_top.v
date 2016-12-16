@@ -31,6 +31,10 @@ module e1000_top(
 	output intr_request,
 	output reset_request,
 
+	// GPI Input
+	input  sdp6_data,
+	input  sdp7_data,
+
 	// DMA Port
 	output [3:0] axi_m_awid,
 	output [63:0] axi_m_awaddr,
@@ -389,6 +393,9 @@ e1000_regs cmd_i(
 	.EERD_DONE_i(ee_rdatao[4]),
 	.EERD_DATA_i(ee_rdatao[31:16]),
 
+	.CTRL_EXT_SDP6(sdp6_data),
+	.CTRL_EXT_SDP7(sdp7_data),
+
 	.MDIC(MDIC),
 	.MDIC_start(MDIC_start),
 	.MDIC_R_i(mm_rd_doneo&&mm_wr_doneo),
@@ -518,6 +525,8 @@ intr_ctrl #(.CLK_PERIOD_NS(CLK_PERIOD_NS)) intr_ctrl_i(
 
 	.intr_request(intr_request),
 
+	.SDP6_req(sdp6_data),
+	.SDP7_req(sdp7_data),
 	.TXDW_req(TXDW_req),
 	.TXQE_req(TXQE_req),
 	.LSC_req(LSC_req),

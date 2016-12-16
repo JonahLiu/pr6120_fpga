@@ -49,6 +49,9 @@ module e1000_regs(
 	input EERD_DONE_i,
 	input [15:0] EERD_DATA_i,
 
+	input CTRL_EXT_SDP6,
+	input CTRL_EXT_SDP7,
+
 	output [31:0] MDIC,
 	output MDIC_start,
 	input MDIC_R_i,
@@ -363,14 +366,16 @@ assign FLA_B = FLA; // FLA is ignored
 
 wire [31:0] CTRL_EXT, CTRL_EXT_Q, CTRL_EXT_B;
 wire CTRL_EXT_get, CTRL_EXT_set;
-e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0018),.BMSK(32'hFFFF_7FFF)) CTRL_EXT_reg_i(
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0018),.BMSK(32'hFFFF_7F3F)) CTRL_EXT_reg_i(
 	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
 	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
 	.O(CTRL_EXT),.Q(CTRL_EXT_Q),.B(CTRL_EXT_B),.S(CTRL_EXT_set),.G(CTRL_EXT_get)
 );
 assign CTRL_EXT_B[4:0] = 5'b0;
 assign CTRL_EXT_B[5] = PHYINT_fb_i;
-assign CTRL_EXT_B[31:6] = 26'b0;
+assign CTRL_EXT_B[6] = CTRL_EXT_SDP6;
+assign CTRL_EXT_B[7] = CTRL_EXT_SDP7;
+assign CTRL_EXT_B[31:8] = 24'b0;
 
 wire [31:0] MDIC_Q, MDIC_B;
 wire MDIC_get, MDIC_set;

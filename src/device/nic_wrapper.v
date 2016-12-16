@@ -63,6 +63,10 @@ module nic_wrapper(
 	input	phy_up,
 	input	phy_lsc,
 
+	// GPI Input
+	input  sdp6_data,
+	input  sdp7_data,
+
 	// EEPROM Port
 	output	eesk,
 	output	eecs,
@@ -317,6 +321,10 @@ e1000_top #(
 	// Interrupt Request
 	.intr_request(intr_request),
 	.reset_request(rst_request),
+
+	// GPI Input
+	.sdp6_data(sdp6_data),
+	.sdp7_data(sdp7_data),
 
 	// AXI4 for DMA
 	.axi_m_awid(nic_m_awid),
