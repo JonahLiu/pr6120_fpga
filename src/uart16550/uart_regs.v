@@ -270,10 +270,10 @@ output	baud_o;
 `ifdef DATA_BUS_WIDTH_8
 `else
 // if 32-bit databus and debug interface are enabled
-output [3:0]							ier;
-output [3:0]							iir;
-output [1:0]							fcr;  /// bits 7 and 6 of fcr. Other bits are ignored
-output [4:0]							mcr;
+output [7:0]							ier;
+output [7:0]							iir;
+output [7:0]							fcr;  /// bits 7 and 6 of fcr. Other bits are ignored
+output [7:0]							mcr;
 output [7:0]							lcr;
 output [7:0]							msr;
 output [7:0] 							lsr;
@@ -301,14 +301,19 @@ wire [`UART_ADDR_WIDTH-1:0] 		wb_addr_i;
 wire [7:0] 								wb_dat_i;
 
 
-reg [3:0] 								ier;
-reg [3:0] 								iir;
-reg [1:0] 								fcr;  /// bits 7 and 6 of fcr. Other bits are ignored
-reg [4:0] 								mcr;
+reg [7:0] 								ier;
+reg [7:0] 								iir;
+reg [7:0] 								fcr;
+reg [7:0] 								mcr;
 reg [7:0] 								lcr;
 reg [7:0] 								msr;
 reg [15:0] 								dl;  // 32-bit divisor latch
 reg [7:0] 								scratch; // UART scratch register
+reg [7:0] 								efr;
+reg [7:0]								xon1w;
+reg [7:0]								xon2w;
+reg [7:0]								xoff1w;
+reg [7:0]								xoff2w;
 reg 										start_dlc; // activate dlc on writing to UART_DL1
 reg 										lsr_mask_d; // delay for lsr_mask condition
 reg 										msi_reset; // reset MSR 4 lower bits indicator
@@ -316,12 +321,14 @@ reg 										msi_reset; // reset MSR 4 lower bits indicator
 reg [15:0] 								dlc;  // 32-bit divisor latch counter
 reg 										int_o;
 
-reg [3:0] 								trigger_level; // trigger level of the receiver FIFO
+reg [`UART_FIFO_POINTER_W-1:0]			trigger_level; // trigger level of the receiver FIFO
+reg [`UART_FIFO_POINTER_W-1:0]			tx_trig_level; // trigger level of the transmitter FIFO
 reg 										rx_reset;
 reg 										tx_reset;
 reg [15:0] 								prec;  // 16-bit prescaler
 
-wire 										dlab;			   // divisor latch access bit
+reg 										dlab;			   // divisor latch access bit
+reg											dlab2;				// Xon/Xoff words access bit
 wire 										cts_pad_i, dsr_pad_i, ri_pad_i, dcd_pad_i; // modem status bits
 wire 										loopback;		   // loopback bit (MCR bit 4)
 wire 										cts, dsr, ri, dcd;	   // effective signals
@@ -346,7 +353,8 @@ assign 									{cts, dsr, ri, dcd} = ~{cts_pad_i,dsr_pad_i,ri_pad_i,dcd_pad_i};
 assign                  {cts_c, dsr_c, ri_c, dcd_c} = loopback ? {mcr[`UART_MC_RTS],mcr[`UART_MC_DTR],mcr[`UART_MC_OUT1],mcr[`UART_MC_OUT2]}
                                                                : ~{cts_pad_i,dsr_pad_i,ri_pad_i,dcd_pad_i};
 
-assign 									dlab = lcr[`UART_LC_DL];
+always @(posedge clk) dlab <= lcr[`UART_LC_DL];
+always @(posedge clk) dlab2 <= lcr==8'hBF;
 assign 									loopback = mcr[4];
 
 // assign modem outputs
@@ -403,17 +411,18 @@ uart_receiver receiver(clk, wb_rst_i, lcr, rf_pop, serial_in, enable,
 
 
 // Asynchronous reading here because the outputs are sampled in uart_wb.v file 
-always @(dl or dlab or ier or iir or scratch
+always @(dl or dlab or dlab2 or ier or iir or scratch
 			or lcr or lsr or msr or rf_data_out or wb_addr_i or wb_re_i)   // asynchrounous reading
 begin
 	case (wb_addr_i)
 		`UART_REG_RB   : wb_dat_o = dlab ? dl[`UART_DL1] : rf_data_out[10:3];
 		`UART_REG_IE	: wb_dat_o = dlab ? dl[`UART_DL2] : ier;
-		`UART_REG_II	: wb_dat_o = {4'b1100,iir};
+		`UART_REG_II	: wb_dat_o = dlab ? efr : {{2{fcr[`UART_FC_EN]}},iir[5:0]};
 		`UART_REG_LC	: wb_dat_o = lcr;
-		`UART_REG_LS	: wb_dat_o = lsr;
-		`UART_REG_MS	: wb_dat_o = msr;
-		`UART_REG_SR	: wb_dat_o = scratch;
+		`UART_REG_MC	: wb_dat_o = dlab2 ? xon1w : mcr;
+		`UART_REG_LS	: wb_dat_o = dlab2 ? xon2w : lsr;
+		`UART_REG_MS	: wb_dat_o = dlab2 ? xoff1w : msr;
+		`UART_REG_SR	: wb_dat_o = dlab2 ? xoff2w : scratch;
 		default:  wb_dat_o = 8'b0; // ??
 	endcase // case(wb_addr_i)
 end // always @ (dl or dlab or ier or iir or scratch...
@@ -485,7 +494,7 @@ always @(posedge clk or posedge wb_rst_i)
 always @(posedge clk or posedge wb_rst_i)
 	if (wb_rst_i)
 	begin
-		ier <= #1 4'b0000; // no interrupts after reset
+		ier <= #1 8'b0000; // no interrupts after reset
 		dl[`UART_DL2] <= #1 8'b0;
 	end
 	else
@@ -495,18 +504,19 @@ always @(posedge clk or posedge wb_rst_i)
 			dl[`UART_DL2] <= #1 wb_dat_i;
 		end
 		else
-			ier <= #1 wb_dat_i[3:0]; // ier uses only 4 lsb
+			ier <= #1 wb_dat_i[7:0]; // ier uses only 4 lsb
 
 
 // FIFO Control Register and rx_reset, tx_reset signals
 always @(posedge clk or posedge wb_rst_i)
 	if (wb_rst_i) begin
-		fcr <= #1 2'b11; 
+		fcr <= #1 8'b0; 
 		rx_reset <= #1 0;
 		tx_reset <= #1 0;
 	end else
-	if (wb_we_i && wb_addr_i==`UART_REG_FC) begin
-		fcr <= #1 wb_dat_i[7:6];
+	if (wb_we_i && wb_addr_i==`UART_REG_FC && !dlab) begin
+		fcr[7:3] <= #1 wb_dat_i[7:3];
+		fcr[0] <= #1 wb_dat_i[0];
 		rx_reset <= #1 wb_dat_i[1];
 		tx_reset <= #1 wb_dat_i[2];
 	end else begin
@@ -514,13 +524,53 @@ always @(posedge clk or posedge wb_rst_i)
 		tx_reset <= #1 0;
 	end
 
+// Enhanced Feature Register
+always @(posedge clk or posedge wb_rst_i)
+	if (wb_rst_i)
+		efr <= #1 8'b0; 
+	else
+	if (wb_we_i && wb_addr_i==`UART_REG_EF && dlab)
+		efr <= #1 wb_dat_i[7:0];
+
+// Xon-1 Word Register
+always @(posedge clk or posedge wb_rst_i)
+	if (wb_rst_i)
+		xon1w <= #1 8'b0; 
+	else
+	if (wb_we_i && wb_addr_i==`UART_REG_XON1W && dlab2)
+		xon1w <= #1 wb_dat_i[7:0];
+
+// Xon-2 Word Register
+always @(posedge clk or posedge wb_rst_i)
+	if (wb_rst_i)
+		xon2w <= #1 8'b0; 
+	else
+	if (wb_we_i && wb_addr_i==`UART_REG_XON2W && dlab2)
+		xon2w <= #1 wb_dat_i[7:0];
+
+// Xoff-1 Word Register
+always @(posedge clk or posedge wb_rst_i)
+	if (wb_rst_i)
+		xoff1w <= #1 8'b0; 
+	else
+	if (wb_we_i && wb_addr_i==`UART_REG_XOFF1W && dlab2)
+		xoff1w <= #1 wb_dat_i[7:0];
+
+// Xoff-2 Word Register
+always @(posedge clk or posedge wb_rst_i)
+	if (wb_rst_i)
+		xoff2w <= #1 8'b0; 
+	else
+	if (wb_we_i && wb_addr_i==`UART_REG_XOFF2W && dlab2)
+		xoff2w <= #1 wb_dat_i[7:0];
+
 // Modem Control Register
 always @(posedge clk or posedge wb_rst_i)
 	if (wb_rst_i)
-		mcr <= #1 5'b0; 
+		mcr <= #1 8'b0; 
 	else
-	if (wb_we_i && wb_addr_i==`UART_REG_MC)
-			mcr <= #1 wb_dat_i[4:0];
+	if (wb_we_i && wb_addr_i==`UART_REG_MC && !dlab2)
+		mcr <= #1 wb_dat_i[7:0];
 
 // Scratch register
 // Line Control Register
@@ -528,7 +578,7 @@ always @(posedge clk or posedge wb_rst_i)
 	if (wb_rst_i)
 		scratch <= #1 0; // 8n1 setting
 	else
-	if (wb_we_i && wb_addr_i==`UART_REG_SR)
+	if (wb_we_i && wb_addr_i==`UART_REG_SR && !dlab2)
 		scratch <= #1 wb_dat_i;
 
 // TX_FIFO or UART_DL1
@@ -561,11 +611,20 @@ always @(posedge clk or posedge wb_rst_i)
 // Receiver FIFO trigger level selection logic (asynchronous mux)
 always @(fcr)
 	case (fcr[`UART_FC_TL])
-		2'b00 : trigger_level = 1;
-		2'b01 : trigger_level = 4;
-		2'b10 : trigger_level = 8;
-		2'b11 : trigger_level = 14;
+		2'b00 : trigger_level = 8;
+		2'b01 : trigger_level = 16;
+		2'b10 : trigger_level = 56;
+		2'b11 : trigger_level = 60;
 	endcase // case(fcr[`UART_FC_TL])
+
+// Transmitter FIFO trigger level selection logic (asynchronous mux)
+always @(fcr)
+	case (fcr[`UART_FC_TTL])
+		2'b00 : tx_trig_level = 8;
+		2'b01 : tx_trig_level = 16;
+		2'b10 : tx_trig_level = 32;
+		2'b11 : tx_trig_level = 56;
+	endcase // case(fcr[`UART_FC_TTL])
 	
 //
 //  STATUS REGISTERS  //
@@ -697,7 +756,10 @@ begin
 		prec <= #1 0;
 	else
 		if (start_dlc | (~(|prec)))
-  			prec <= #1 clock_prescale - 1;               // preset counter
+			if (mcr[`UART_MC_DIV])
+				prec <= #1 clock_prescale*4 - 1;
+			else
+				prec <= #1 clock_prescale - 1;               // preset counter
 		else
 			prec <= #1 prec - 1;              // decrement counter
 end
@@ -766,7 +828,8 @@ assign thre_set_en = ~(|block_cnt);
 
 assign rls_int  = ier[`UART_IE_RLS] && (lsr[`UART_LS_OE] || lsr[`UART_LS_PE] || lsr[`UART_LS_FE] || lsr[`UART_LS_BI]);
 assign rda_int  = ier[`UART_IE_RDA] && (rf_count >= {1'b0,trigger_level});
-assign thre_int = ier[`UART_IE_THRE] && lsr[`UART_LS_TFE];
+//assign thre_int = ier[`UART_IE_THRE] && lsr[`UART_LS_TFE];
+assign thre_int = ier[`UART_IE_THRE] && (tf_count < {1'b0,tx_trig_level});
 assign ms_int   = ier[`UART_IE_MS] && (| msr[3:0]);
 assign ti_int   = ier[`UART_IE_RDA] && (counter_t == 10'b0) && (|rf_count);
 

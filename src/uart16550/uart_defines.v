@@ -162,32 +162,44 @@
 `define UART_REG_SR  `UART_ADDR_WIDTH'd7	// Scratch register
 `define UART_REG_DL1	`UART_ADDR_WIDTH'd0	// Divisor latch bytes (1-2)
 `define UART_REG_DL2	`UART_ADDR_WIDTH'd1
+`define UART_REG_EF		`UART_ADDR_WIDTH'd2 // Enhanced Feature
+
+`define	UART_REG_XON1W	`UART_ADDR_WIDTH'd4
+`define	UART_REG_XON2W	`UART_ADDR_WIDTH'd5
+`define	UART_REG_XOFF1W	`UART_ADDR_WIDTH'd6
+`define	UART_REG_XOFF2W	`UART_ADDR_WIDTH'd7
 
 // Interrupt Enable register bits
 `define UART_IE_RDA	0	// Received Data available interrupt
 `define UART_IE_THRE	1	// Transmitter Holding Register empty interrupt
 `define UART_IE_RLS	2	// Receiver Line Status Interrupt
 `define UART_IE_MS	3	// Modem Status Interrupt
+`define UART_IE_SLP 4	// Enable sleep mode
+`define UART_IE_XOFF	5	// Xoff interrupt
+`define UART_IE_RTS	6	// RTS interrupt
+`define UART_IE_CTS	7	// CTS interrupt
 
 // Interrupt Identification register bits
 `define UART_II_IP	0	// Interrupt pending when 0
-`define UART_II_II	3:1	// Interrupt identification
+`define UART_II_II	5:1	// Interrupt identification
+`define UART_II_MOD	7:6 // if UART_FC_EN is set, these bits are 2'b11, else 2'b00
 
 // Interrupt identification values for bits 3:1
-`define UART_II_RLS	3'b011	// Receiver Line Status
-`define UART_II_RDA	3'b010	// Receiver Data available
-`define UART_II_TI	3'b110	// Timeout Indication
-`define UART_II_THRE	3'b001	// Transmitter Holding Register empty
-`define UART_II_MS	3'b000	// Modem Status
+`define UART_II_RLS	5'b00011	// Receiver Line Status
+`define UART_II_RDA	5'b00010	// Receiver Data available
+`define UART_II_TI	5'b00110	// Timeout Indication
+`define UART_II_THRE	5'b00001	// Transmitter Holding Register empty
+`define UART_II_MS	5'b00000	// Modem Status
+`define UART_II_XOFF	5'b01000 // Xoff received
+`define UART_II_CTS	5'b10000	// CTS,RTS change
 
 // FIFO Control Register bits
-`define UART_FC_TL	1:0	// Trigger level
-
-// FIFO trigger level values
-`define UART_FC_1		2'b00
-`define UART_FC_4		2'b01
-`define UART_FC_8		2'b10
-`define UART_FC_14	2'b11
+`define UART_FC_EN	0	// Enable FIFO
+`define UART_FC_RCL	1	// Clear Rx FIFO
+`define UART_FC_TCL	2	// Clear Tx FIFO
+`define UART_FC_MOD	3	// RDY pin mode
+`define UART_FC_TL	5:4	// Rx trigger level 2'b00-2'b11 represent 8,16,32,56 respectively
+`define UART_FC_TTL	7:6	// Tx trigger level 2'b00-2'b11 represent 8,16,56,60 respectively
 
 // Line Control register bits
 `define UART_LC_BITS	1:0	// bits in character
@@ -204,6 +216,9 @@
 `define UART_MC_OUT1	2
 `define UART_MC_OUT2	3
 `define UART_MC_LB	4	// Loopback mode
+`define UART_MC_XON	5  
+`define UART_MC_IR	6	 
+`define UART_MC_DIV	7	 
 
 // Line Status Register bits
 `define UART_LS_DR	0	// Data ready
@@ -225,12 +240,18 @@
 `define UART_MS_CRI	6
 `define UART_MS_CDCD	7
 
+`define UART_EF_FC	3:0	// Flow control combinations
+`define UART_EF_EN	4	// Enable enhanced functions
+`define UART_EF_SPCD	5	// Special character detect
+`define UART_EF_RTSFC	6	// RTS flow control
+`define UART_EF_CTSFC	7	// CTS flow control
+
 // FIFO parameter defines
 
 `define UART_FIFO_WIDTH	8
-`define UART_FIFO_DEPTH	16
-`define UART_FIFO_POINTER_W	4
-`define UART_FIFO_COUNTER_W	5
+`define UART_FIFO_DEPTH	64
+`define UART_FIFO_POINTER_W	6
+`define UART_FIFO_COUNTER_W	7
 // receiver fifo has width 11 because it has break, parity and framing error bits
 `define UART_FIFO_REC_WIDTH  11
 
