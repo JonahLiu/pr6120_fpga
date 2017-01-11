@@ -107,6 +107,9 @@ module pci_multi (
 	output P2_STOPQ_N
 );
 
+parameter P0_ENABLE = "TRUE";
+parameter P1_ENABLE = "TRUE";
+parameter P2_ENABLE = "TRUE";
 
 IBUFG clk_ibufg_i(.O(CLK), .I(CLK_I));
 
@@ -327,6 +330,8 @@ end
 assign RST = !rst_sync[3];
 //BUFG rst_bufg_i(.I(!rst_sync[3]), .O(RST));
 
+generate
+if(P0_ENABLE=="TRUE") begin
 pci32_p0 pci_p0_i(
 	.ado(p0_ado),
 	.adt(p0_adt),
@@ -450,7 +455,23 @@ pci32_p0 pci_p0_i(
 	.cfg(),
 	.clk(CLK)
 );
+end
+else begin
+	assign p0_adt = 32'hFFFFFFFF;
+	assign p0_cbt = 4'b1111;
+	assign p0_part = 1'b1;
+	assign p0_framet = 1'b1;
+	assign p0_trdyt = 1'b1;
+	assign p0_irdyt = 1'b1;
+	assign p0_stopt = 1'b1;
+	assign p0_devselt = 1'b1;
+	assign p0_perrt = 1'b1;
+	assign p0_serrt = 1'b1;
+end
+endgenerate
 
+generate
+if(P1_ENABLE=="TRUE") begin
 pci32_p1 pci_p1_i(
 	.ado(p1_ado),
 	.adt(p1_adt),
@@ -574,7 +595,23 @@ pci32_p1 pci_p1_i(
 	.cfg(),
 	.clk(CLK)
 );
+end
+else begin
+	assign p1_adt = 32'hFFFFFFFF;
+	assign p1_cbt = 4'b1111;
+	assign p1_part = 1'b1;
+	assign p1_framet = 1'b1;
+	assign p1_trdyt = 1'b1;
+	assign p1_irdyt = 1'b1;
+	assign p1_stopt = 1'b1;
+	assign p1_devselt = 1'b1;
+	assign p1_perrt = 1'b1;
+	assign p1_serrt = 1'b1;
+end
+endgenerate
 
+generate
+if(P2_ENABLE=="TRUE") begin
 pci32_p2 pci_p2_i(
 	.ado(p2_ado),
 	.adt(p2_adt),
@@ -698,5 +735,19 @@ pci32_p2 pci_p2_i(
 	.cfg(),
 	.clk(CLK)
 );
+end
+else begin
+	assign p2_adt = 32'hFFFFFFFF;
+	assign p2_cbt = 4'b1111;
+	assign p2_part = 1'b1;
+	assign p2_framet = 1'b1;
+	assign p2_trdyt = 1'b1;
+	assign p2_irdyt = 1'b1;
+	assign p2_stopt = 1'b1;
+	assign p2_devselt = 1'b1;
+	assign p2_perrt = 1'b1;
+	assign p2_serrt = 1'b1;
+end
+endgenerate
 
 endmodule

@@ -93,6 +93,9 @@ module device_top(
 	output	uart3_txen
 );
 
+parameter NIC_ENABLE="TRUE";
+parameter MPC_ENABLE="TRUE";
+parameter MPS_ENABLE="TRUE";
 parameter DEBUG="TRUE";
 parameter UART_PORT_NUM = 4;
 parameter CAN_PORT_NUM = 2;
@@ -205,7 +208,11 @@ assign INTB_N=INT_N[1];
 assign INTC_N=INT_N[2];
 assign INTD_N=1'bz;
 
-pci_multi pci_multi_i(
+pci_multi #(
+	.P0_ENABLE(NIC_ENABLE),
+	.P1_ENABLE(MPC_ENABLE),
+	.P2_ENABLE(MPS_ENABLE)
+)pci_multi_i(
 	.AD_IO(AD),
 	.CBE_IO(CBE),
 	.PAR_IO(PAR),
@@ -316,6 +323,9 @@ pci_multi pci_multi_i(
 
 ////////////////////////////////////////////////////////////////////////////////
 // E1000 NIC Controller
+
+generate
+if(NIC_ENABLE=="TRUE") begin
 
 wire	nic_txclk;
 
@@ -703,8 +713,14 @@ config_rom #(
 	.read_data(eeprom_rdata)
 );
 
+end
+endgenerate
+
 ////////////////////////////////////////////////////////////////////////////////
 // Multi-Port CAN Controller
+
+generate
+if(MPC_ENABLE=="TRUE") begin
 
 wire [CAN_PORT_NUM-1:0] can_rx;
 wire [CAN_PORT_NUM-1:0] can_tx;
@@ -756,8 +772,13 @@ mpc_wrapper #(
 	.bus_off_on(can_bus_off_on)
 );
 
+end
+endgenerate
+
 ////////////////////////////////////////////////////////////////////////////////
 // Multi-Port Serial Controller
+generate
+if(MPS_ENABLE=="TRUE") begin
 
 wire [UART_PORT_NUM-1:0] uart_rxd;
 wire [UART_PORT_NUM-1:0] uart_txd;
@@ -836,6 +857,9 @@ mps_wrapper #(
 	.dcd(uart_dcd)
 );
 
+end
+endgenerate
+
 ////////////////////////////////////////////////////////////////////////////////
 // Debug probes
 
@@ -844,32 +868,6 @@ if(DEBUG == "TRUE") begin
 ila_0 ila_mac_i0(
 	.clk(CLK), // input wire clk
 	.probe0({
-		p0_dbg_er,
-		p0_dbg_dv,
-		p0_dbg_data,
-		p1_dbg_er,
-		p1_dbg_dv,
-		p1_dbg_data,
-		p1_ibs_dplx,
-		p1_ibs_spd,
-		p1_ibs_up,
-		p0_ibs_dplx,
-		p0_ibs_spd,
-		p0_ibs_up,
-		mac_rx_err_flag,
-		mac_rx_ok_flag,
-		phy1_duplex,
-		phy1_speed,
-		phy1_up,
-		phy0_duplex,
-		phy0_speed,
-		phy0_up,
-		phy_speed,
-		phy_duplex,
-		phy_up,
-		phy_lsc,
-		phy_port,
-
 		P0_ADDR,
 		P0_ADDR_VLD,
 		P0_BASE_HIT,
