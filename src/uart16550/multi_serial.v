@@ -51,6 +51,10 @@ wire wb_re_i;
 wire [7:0] wb_dat_mux [0:PORT_NUM-1];
 wire [PORT_NUM-1:0] intr_int;
 
+// 16554 emulation
+wire [PORT_NUM-1:0] txrdy;
+wire [PORT_NUM-1:0] rxrdy;
+
 assign wb_dat_o = wb_dat_mux[wb_adr_i[5:3]];
 assign interrupt = |intr_int;
 
@@ -109,7 +113,11 @@ begin
 			.srx_pad_i(rxd[i]),
 			.rts_pad_o(rts[i]),
 			.dtr_pad_o(dtr[i]),
-			.int_o(intr_int[i])
+			.int_o(intr_int[i]),
+			.txrdy_o(txrdy[i]),
+			.rxrdy_o(rxrdy[i]),
+			.txrdy_i(txrdy[i/4*4+3:i/4*4]),
+			.rxrdy_i(rxrdy[i/4*4+3:i/4*4])
 		);
 	end
 end

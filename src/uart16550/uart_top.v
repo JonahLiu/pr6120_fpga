@@ -147,6 +147,10 @@ module uart_top	(
 	// UART	signals
 	// serial input/output
 	stx_pad_o, srx_pad_i,
+// Tx/Rx ready output from itself
+	txrdy_o, rxrdy_o,
+// Tx/Rx ready input from neighboring ports. It's an emulation of 16654 mode.
+	txrdy_i, rxrdy_i,
 
 	// modem signals
 	rts_pad_o, cts_pad_i, dtr_pad_o, dsr_pad_i, ri_pad_i, dcd_pad_i
@@ -171,6 +175,12 @@ input 								 wb_cyc_i;
 input [3:0]							 wb_sel_i;
 output 								 wb_ack_o;
 output 								 int_o;
+
+// FIFO status signals
+output									txrdy_o;
+output 									rxrdy_o;
+input [3:0]								txrdy_i;
+input [3:0]								rxrdy_i;
 
 // UART	signals
 input 								 srx_pad_i;
@@ -277,6 +287,10 @@ uart_regs	regs(
 	ri_pad_i,  dcd_pad_i}	),
 	.stx_pad_o(		stx_pad_o		),
 	.srx_pad_i(		srx_pad_i		),
+	.txrdy_o(     txrdy_o   ),
+	.rxrdy_o(     rxrdy_o   ),
+	.txrdy_i(     txrdy_i   ),
+	.rxrdy_i(     rxrdy_i   ),
 `ifdef DATA_BUS_WIDTH_8
 `else
 // debug interface signals	enabled

@@ -234,6 +234,10 @@ module uart_regs (clk,
 // additional signals
 	modem_inputs,
 	stx_pad_o, srx_pad_i,
+// Tx/Rx ready output from itself
+	txrdy_o, rxrdy_o,
+// Tx/Rx ready input from neighboring ports. It's an emulation of 16654 mode.
+	txrdy_i, rxrdy_i,
 
 `ifdef DATA_BUS_WIDTH_8
 `else
@@ -258,6 +262,11 @@ input 									wb_re_i;
 
 output 									stx_pad_o;
 input 									srx_pad_i;
+
+output									txrdy_o;
+output 									rxrdy_o;
+input [3:0]								txrdy_i;
+input [3:0]								rxrdy_i;
 
 input [3:0] 							modem_inputs;
 output 									rts_pad_o;
@@ -300,6 +309,8 @@ reg [7:0] 								wb_dat_o;
 wire [`UART_ADDR_WIDTH-1:0] 		wb_addr_i;
 wire [7:0] 								wb_dat_i;
 
+reg										txrdy_o;
+reg										rxrdy_o;
 
 reg [7:0] 								ier;
 reg [7:0] 								iir;
@@ -321,7 +332,7 @@ reg 										msi_reset; // reset MSR 4 lower bits indicator
 reg [15:0] 								dlc;  // 32-bit divisor latch counter
 reg 										int_o;
 
-reg [`UART_FIFO_POINTER_W-1:0]			trigger_level; // trigger level of the receiver FIFO
+reg [`UART_FIFO_POINTER_W-1:0]			rx_trig_level; // trigger level of the receiver FIFO
 reg [`UART_FIFO_POINTER_W-1:0]			tx_trig_level; // trigger level of the transmitter FIFO
 reg 										rx_reset;
 reg 										tx_reset;
@@ -411,7 +422,7 @@ uart_receiver receiver(clk, wb_rst_i, lcr, rf_pop, serial_in, enable,
 
 
 // Asynchronous reading here because the outputs are sampled in uart_wb.v file 
-always @(dl or dlab or dlab2 or ier or iir or scratch
+always @(dl or dlab or dlab2 or ier or iir or rxrdy_i or txrdy_i
 			or lcr or lsr or msr or rf_data_out or wb_addr_i or wb_re_i)   // asynchrounous reading
 begin
 	case (wb_addr_i)
@@ -422,7 +433,7 @@ begin
 		`UART_REG_MC	: wb_dat_o = dlab2 ? xon1w : mcr;
 		`UART_REG_LS	: wb_dat_o = dlab2 ? xon2w : lsr;
 		`UART_REG_MS	: wb_dat_o = dlab2 ? xoff1w : msr;
-		`UART_REG_SR	: wb_dat_o = dlab2 ? xoff2w : scratch;
+		`UART_REG_SR	: wb_dat_o = dlab2 ? xoff2w : {rxrdy_i,txrdy_i}; //16554 
 		default:  wb_dat_o = 8'b0; // ??
 	endcase // case(wb_addr_i)
 end // always @ (dl or dlab or ier or iir or scratch...
@@ -611,10 +622,10 @@ always @(posedge clk or posedge wb_rst_i)
 // Receiver FIFO trigger level selection logic (asynchronous mux)
 always @(fcr)
 	case (fcr[`UART_FC_TL])
-		2'b00 : trigger_level = 8;
-		2'b01 : trigger_level = 16;
-		2'b10 : trigger_level = 56;
-		2'b11 : trigger_level = 60;
+		2'b00 : rx_trig_level = 8;
+		2'b01 : rx_trig_level = 16;
+		2'b10 : rx_trig_level = 56;
+		2'b11 : rx_trig_level = 60;
 	endcase // case(fcr[`UART_FC_TL])
 
 // Transmitter FIFO trigger level selection logic (asynchronous mux)
@@ -827,7 +838,7 @@ assign thre_set_en = ~(|block_cnt);
 //
 
 assign rls_int  = ier[`UART_IE_RLS] && (lsr[`UART_LS_OE] || lsr[`UART_LS_PE] || lsr[`UART_LS_FE] || lsr[`UART_LS_BI]);
-assign rda_int  = ier[`UART_IE_RDA] && (rf_count >= {1'b0,trigger_level});
+assign rda_int  = ier[`UART_IE_RDA] && (rf_count >= {1'b0,rx_trig_level});
 //assign thre_int = ier[`UART_IE_THRE] && lsr[`UART_LS_TFE];
 assign thre_int = ier[`UART_IE_THRE] && (tf_count < {1'b0,tx_trig_level});
 assign ms_int   = ier[`UART_IE_MS] && (| msr[3:0]);
@@ -892,7 +903,7 @@ always  @(posedge clk or posedge wb_rst_i)
 always  @(posedge clk or posedge wb_rst_i)
 	if (wb_rst_i) rda_int_pnd <= #1 0; 
 	else 
-		rda_int_pnd <= #1 ((rf_count == {1'b0,trigger_level}) && fifo_read) ? 0 :  	// reset condition
+		rda_int_pnd <= #1 ((rf_count == {1'b0,rx_trig_level}) && fifo_read) ? 0 :  	// reset condition
 							rda_int_rise ? 1 :						// latch condition
 							rda_int_pnd && ier[`UART_IE_RDA];	// default operation: remove if masked
 
@@ -969,6 +980,29 @@ begin
 		iir[`UART_II_II] <= #1 0;
 		iir[`UART_II_IP] <= #1 1'b1;
 	end
+end
+
+always @(posedge clk or posedge wb_rst_i)
+begin
+	if(wb_rst_i)
+		txrdy_o <= #1 1'b0;
+	else
+	if(tf_count < {1'b0, tx_trig_level})
+		txrdy_o <= #1 1'b1;
+	else
+		txrdy_o <= #1 1'b0;
+end
+
+always @(posedge clk or posedge wb_rst_i)
+begin
+	if(wb_rst_i)
+		rxrdy_o <= #1 1'b0;
+	else
+	if((rf_count >= {1'b0, rx_trig_level}) || 
+		((counter_t == 10'b0) && (|rf_count)))
+		rxrdy_o <= #1 1'b0;
+	else
+		rxrdy_o <= #1 1'b1;
 end
 
 endmodule
