@@ -2,6 +2,9 @@ module phy_ft(
 	input rst,
 	input clk,	
 
+	input	[47:0] mac_address,
+	input	mac_valid,
+
 	output [1:0] speed,
 	output full_duplex,
 	output link_up,
@@ -242,6 +245,9 @@ begin
 end
 
 phy_switch switch_i(
+	.rst(rst),
+	.mac_address(mac_address),
+	.mac_valid(mac_valid),
 	.select(select),
 	.phy0_rxclk(phy0_rxclk),
 	.phy0_rxdat(phy0_rxdat),

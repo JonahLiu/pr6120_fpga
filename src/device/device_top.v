@@ -429,6 +429,9 @@ wire	p1_dbg_er;
 wire	sdp6_data;
 wire	sdp7_data;
 
+wire	[47:0] mac_address;
+wire	mac_valid;
+
 assign	p0_mdio = p0_mdio_oe?p0_mdio_o:1'bz;
 assign  p0_mdio_i = p0_mdio;
 assign	p0_resetn = !p0_reset_out;
@@ -539,6 +542,9 @@ phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30),
 ) phy_ft_i(
 	.clk(CLK),
 	.rst(RST),
+	
+	.mac_address(mac_address),
+	.mac_valid(mac_valid),
 
 	.speed(phy_speed),
 	.full_duplex(phy_duplex),
@@ -710,7 +716,9 @@ config_rom #(
 	.rst_i(RST),
 	.read_addr(eeprom_raddr),
 	.read_enable(eeprom_ren),
-	.read_data(eeprom_rdata)
+	.read_data(eeprom_rdata),
+	.mac_address(mac_address),
+	.mac_valid(mac_valid)
 );
 
 end

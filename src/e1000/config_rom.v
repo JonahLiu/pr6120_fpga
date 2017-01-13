@@ -3,13 +3,15 @@ module config_rom(
 	input rst_i,
 	input [7:0] read_addr,
 	input read_enable,
-	output reg [15:0] read_data
+	output reg [15:0] read_data,
+	output [47:0] mac_address,
+	output mac_valid
 );
 parameter [23:0] MAC_OUI=24'hEC3F05;
 parameter [15:0] ICW1=16'h6000;
 parameter [15:0] SUB_PID=16'h6120;
 parameter [15:0] SUB_VID=16'hFACE;
-parameter [15:0] PID=16'hABCD;
+parameter [15:0] PID=16'h3B00;
 parameter [15:0] VID=16'h8086;
 parameter [15:0] ICW2=16'h1000;
 parameter [15:0] BAMSO=16'h8000;
@@ -26,8 +28,10 @@ reg [23:0] mac;
 dna dna_i(
 	.clk(clk_i),
 	.id(id),
-	.valid()
+	.valid(mac_valid)
 );
+
+assign mac_address = {MAC_OUI[23:0], mac[23:0]};
 
 always @(posedge clk_i)
 	mac <= id[56:48] + id[47:24] + id[23:0];

@@ -1,5 +1,9 @@
 `timescale 1ns/1ps
 module phy_switch(
+	input	rst,
+	input	[47:0] mac_address,
+	input	mac_valid,
+
 	input	select,
 
 	input	phy0_rxclk,
@@ -138,20 +142,39 @@ begin
 	tx_sel_1 <= tx_sel_0;
 end
 
+wire [7:0] post_txdat;
+wire post_txen;
+wire post_txer;
+wire post_trigger = tx_sel_1!=tx_sel_0;
+
+post_switch post_switch_i(
+	.rst(rst),
+	.clk(txclk),
+	.mac_address(mac_address),
+	.mac_valid(mac_valid),
+	.trigger(post_trigger),
+	.up_data(txdat),
+	.up_dv(txen),
+	.up_er(txer),
+	.down_data(post_txdat),
+	.down_dv(post_txen),
+	.down_er(post_txer)
+);
+
 always @(posedge txclk)
 begin
 	if(tx_sel_1) begin
 		phy0_txdat_0 <= 1'b0;
 		phy0_txen_0 <= 1'b0;
 		phy0_txer_0 <= 1'b0;
-		phy1_txdat_0 <= txdat;
-		phy1_txen_0 <= txen;
-		phy1_txer_0 <= txer;
+		phy1_txdat_0 <= post_txdat;
+		phy1_txen_0 <= post_txen;
+		phy1_txer_0 <= post_txer;
 	end
 	else begin
-		phy0_txdat_0 <= txdat;
-		phy0_txen_0 <= txen;
-		phy0_txer_0 <= txer;
+		phy0_txdat_0 <= post_txdat;
+		phy0_txen_0 <= post_txen;
+		phy0_txer_0 <= post_txer;
 		phy1_txdat_0 <= 1'b0;
 		phy1_txen_0 <= 1'b0;
 		phy1_txer_0 <= 1'b0;
