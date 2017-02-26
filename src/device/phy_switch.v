@@ -4,6 +4,7 @@ module phy_switch(
 	input	[47:0] mac_address,
 	input	mac_valid,
 
+	input	[1:0] speed,
 	input	select,
 
 	input	phy0_rxclk,
@@ -150,6 +151,7 @@ wire post_trigger = tx_sel_1!=tx_sel_0;
 post_switch post_switch_i(
 	.rst(rst),
 	.clk(txclk),
+	.speed(speed),
 	.mac_address(mac_address),
 	.mac_valid(mac_valid),
 	.trigger(post_trigger),

@@ -1,6 +1,7 @@
 module post_switch (
 	input	rst,
 	input	clk,
+	input	[1:0] speed,
 	input	[47:0] mac_address,
 	input	mac_valid,
 	input	trigger,
@@ -14,11 +15,13 @@ module post_switch (
 
 parameter IFG_CLOCKS=125_000;
 parameter SEND_REPEAT=3;
+parameter HOLDOFF_CLOCKS=400_000; // a workaround for post switch MAC address collision.
 
 integer s1, s1_next;
 integer s2, s2_next;
 
 localparam S1_IDLE=0,
+	S1_HOLD=6,
 	S1_REPEAT=1,
 	S1_FETCH=2,
 	S1_LATENCY=3,
@@ -48,6 +51,8 @@ reg [7:0] byte_cnt;
 reg [23:0] ifg_cnt;
 reg [6:0] read_offset;
 reg [6:0] write_offset;
+
+reg [23:0] timer;
 
 reg crc_init;
 reg crc_wr;
@@ -98,9 +103,19 @@ begin
 	case(s1)
 		S1_IDLE: begin
 			if(triggered)
-				s1_next = S1_REPEAT;
+				s1_next = S1_HOLD;
 			else
 				s1_next = S1_IDLE;
+		end
+		S1_HOLD: begin
+			if(speed == 2'b00 && timer == HOLDOFF_CLOCKS/100)
+				s1_next = S1_REPEAT;
+			else if(speed == 2'b01 && timer == HOLDOFF_CLOCKS/10)
+				s1_next = S1_REPEAT;
+			else if(timer == HOLDOFF_CLOCKS)
+				s1_next = S1_REPEAT;
+			else
+				s1_next = S1_HOLD;
 		end
 		S1_REPEAT: begin
 			if(pkt_cnt==SEND_REPEAT)
@@ -142,6 +157,7 @@ begin
 		byte_cnt <= 'bx;
 		ifg_cnt <= 'bx;
 		read_offset <= 'bx;
+		timer <= 'bx;
 	end
 	else case(s1_next)
 		S1_IDLE: begin
@@ -149,6 +165,12 @@ begin
 			down_dv <= up_dv;
 			down_er <= up_er;
 			pkt_cnt <= 'b0;
+			timer <= 'b0;
+		end
+		S1_HOLD: begin
+			timer <= timer + 1;
+			down_dv <= 1'b0;
+			down_er <= 1'b0;
 		end
 		S1_REPEAT: begin
 			down_dv <= 1'b0;

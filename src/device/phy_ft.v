@@ -248,6 +248,7 @@ phy_switch switch_i(
 	.rst(rst),
 	.mac_address(mac_address),
 	.mac_valid(mac_valid),
+	.speed(speed),
 	.select(select),
 	.phy0_rxclk(phy0_rxclk),
 	.phy0_rxdat(phy0_rxdat),
