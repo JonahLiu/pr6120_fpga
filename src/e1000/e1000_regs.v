@@ -366,7 +366,7 @@ assign FLA_B = FLA; // FLA is ignored
 
 wire [31:0] CTRL_EXT, CTRL_EXT_Q, CTRL_EXT_B;
 wire CTRL_EXT_get, CTRL_EXT_set;
-e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0018),.BMSK(32'hFFFF_7F3F)) CTRL_EXT_reg_i(
+e1000_register #(.INIT(32'h0000_0000),.ADDR(16'h0018),.BMSK(32'hFFFF_7FFF)) CTRL_EXT_reg_i(
 	.C(aclk),.R(reset),.RA(read_addr),.RE(read_ready),
 	.WA(write_addr),.WE(write_enable),.BE(write_be),.D(write_data),
 	.O(CTRL_EXT),.Q(CTRL_EXT_Q),.B(CTRL_EXT_B),.S(CTRL_EXT_set),.G(CTRL_EXT_get)
