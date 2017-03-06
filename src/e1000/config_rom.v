@@ -12,7 +12,7 @@ parameter [15:0] ICW1=16'h6000;
 parameter [15:0] SUB_PID=16'h6120;
 parameter [15:0] SUB_VID=16'hFACE;
 parameter [15:0] PID=16'h3B00;
-parameter [15:0] VID=16'h8086;
+parameter [15:0] VID=16'h0706;
 parameter [15:0] ICW2=16'h1000;
 parameter [15:0] BAMSO=16'h8000;
 
