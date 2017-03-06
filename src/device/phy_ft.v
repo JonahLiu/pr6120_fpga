@@ -581,34 +581,29 @@ begin
 					change <= 1'b1;
 					select <= 1'b0;
 				end
-				//else if(select && !phy1_up) begin // if(select)
 				else if(select && phy0_up) begin // P0 has priority
 					curr_speed <= phy0_speed;
 					curr_duplex <= phy0_duplex;
-					if(phy0_speed!=curr_speed || phy0_duplex!=curr_duplex)
-						change <= 1'b1;
+					change <= 1'b1;
 					select <= 1'b0;
 				end
 				else if(!select && !phy0_up) begin
 					curr_speed <= phy1_speed;
 					curr_duplex <= phy1_duplex;
-					if(phy1_speed!=curr_speed || phy1_duplex!=curr_duplex)
-						change <= 1'b1;
+					change <= 1'b1;
 					select <= 1'b1;
 				end
 				else if(error_count[3]) begin // Switch at 8 consecutive errors
 					if(select && phy0_up) begin
 						curr_speed <= phy0_speed;
 						curr_duplex <= phy0_duplex;
-						if(phy0_speed!=curr_speed || phy0_duplex!=curr_duplex)
-							change <= 1'b1;
+						change <= 1'b1;
 						select <= 1'b0;
 					end
 					else if(!select && phy1_up) begin
 						curr_speed <= phy1_speed;
 						curr_duplex <= phy1_duplex;
-						if(phy1_speed!=curr_speed || phy1_duplex!=curr_duplex)
-							change <= 1'b1;
+						change <= 1'b1;
 						select <= 1'b1;
 					end
 				end
