@@ -33,6 +33,7 @@ add_files -fileset sources_1 -force -norecurse {
 	../../src/grpci2/techmap/memrwcol.vhd
 	../../src/grpci2/techmap/netcomp.vhd
 	../../src/grpci2/grpci2_device.vhd
+	../../src/pci/grpci2_axi_lite_tgt.v
 }
 set_property library grlib [get_files [glob ../../src/grpci2/grlib/*.vhd]]
 set_property library gaisler [get_files [glob ../../src/grpci2/gaisler/*.vhd]]
@@ -45,6 +46,7 @@ add_files -fileset sim_1 -force -norecurse {
 	../../src/test/pci_behavioral_master.v
 	../../src/test/pci_behavioral_target.v
 	../../src/test/pci_blue_arbiter.v
+	../../src/test/axi_memory_model.v
 }
 
 set_property include_dirs ../../src/test [get_filesets sim_1]

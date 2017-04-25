@@ -11,21 +11,21 @@ entity grpci2_device is
 	generic (
 	    memtech     : integer := DEFMEMTECH;
 		tbmemtech   : integer := DEFMEMTECH;  -- For trace buffers
-		oepol       : integer := 1;
-		hmindex     : integer := 0;
-		hdmindex    : integer := 0;
-		hsindex     : integer := 0;
-		haddr       : integer := 0;
-		hmask       : integer := 0;
-		ioaddr      : integer := 0;
-		pindex      : integer := 0;
-		paddr       : integer := 0;
-		pmask       : integer := 16#FFF#;
-		irq         : integer := 0;
+		oepol       : integer range 0 to 1 := 1;
+		hmindex     : integer range 0 to 15 := 0;           -- AHB Master ID
+		hdmindex    : integer range 0 to 15 := 0;           -- DMA AHB Master ID
+		hsindex     : integer range 0 to 15 := 0;           -- AHB Slave ID
+		haddr       : integer range 0 to 4095 := 0;         -- AHB MEM BAR Address[31:19] base
+		hmask       : integer range 0 to 4095 := 0;         -- AHB BAR Address[31:19] mask
+		ioaddr      : integer range 0 to 4095 := 16#FFF#;         -- AHB IO BAR Address
+		pindex      : integer := 0;           -- APB slave ID
+		paddr       : integer := 0;           -- APB slave address base
+		pmask       : integer := 0;           -- APB slave address mask
+		irq         : integer := 0;           -- AHB interrupt line
 		irqmode     : integer range 0 to 3 := 0;
-		master      : integer range 0 to 1 := 1;
-		target      : integer range 0 to 1 := 1;
-		dma         : integer range 0 to 1 := 0;
+		master      : integer range 0 to 1 := 1;  -- Enable master
+		target      : integer range 0 to 1 := 1;  -- Enable target
+		dma         : integer range 0 to 1 := 0;  -- Enable DMA
 		tracebuffer : integer range 0 to 16384 := 0;
 		confspace   : integer range 0 to 1 := 1;
 		vendorid    : integer := 16#10EE#;
@@ -37,26 +37,26 @@ entity grpci2_device is
 		iobase      : integer := 16#FFF#;
 		extcfg      : integer := 16#FFFE000#;
 		bar0        : integer range 0 to 31 := 16; -- Size in address bits
-		bar1        : integer range 0 to 31 := 16;
-		bar2        : integer range 0 to 31 := 16;
-		bar3        : integer range 0 to 31 := 16;
-		bar4        : integer range 0 to 31 := 16;
-		bar5        : integer range 0 to 31 := 16;
+		bar1        : integer range 0 to 31 := 0;
+		bar2        : integer range 0 to 31 := 0;
+		bar3        : integer range 0 to 31 := 0;
+		bar4        : integer range 0 to 31 := 0;
+		bar5        : integer range 0 to 31 := 0;
 		bar0_map    : integer := 16#000000#; -- AHB address mapping
-		bar1_map    : integer := 16#000100#;
-		bar2_map    : integer := 16#000200#;
-		bar3_map    : integer := 16#000300#;
-		bar4_map    : integer := 16#000400#;
-		bar5_map    : integer := 16#000500#;
+		bar1_map    : integer := 16#000000#;
+		bar2_map    : integer := 16#000000#;
+		bar3_map    : integer := 16#000000#;
+		bar4_map    : integer := 16#000000#;
+		bar5_map    : integer := 16#000000#;
 		bartype     : integer range 0 to 65535 := 16#0000#; -- [5:0]: Prefetch, [13:8]: Type
-		barminsize  : integer range 5 to 31 := 10;
+		barminsize  : integer range 5 to 31 := 9; -- barminsize >= 2+fifo_depth
 		fifo_depth  : integer range 3 to 7 := 7;
 		fifo_count  : integer range 2 to 4 := 2;
-		conv_endian : integer range 0 to 1 := 0; -- 1: little (PCI) <~> big (AHB), 0: big (PCI) <=> big (AHB)   
-		deviceirq   : integer range 0 to 1 := 1;
-		deviceirqmask : integer range 0 to 15 := 16#F#;
-		hostirq     : integer range 0 to 1 := 0;
-		hostirqmask : integer range 0 to 15 := 16#0#;
+		conv_endian : integer range 0 to 1 := 1; -- 1: little (PCI) <~> big (AHB), 0: big (PCI) <=> big (AHB)   
+		deviceirq   : integer range 0 to 1 := 1; -- Enable AHB to PCI interrupt relay
+		deviceirqmask : integer range 0 to 15 := 16#F#; -- dirq mask
+		hostirq     : integer range 0 to 1 := 0; -- Enable PCI to AHB interrupt relay
+		hostirqmask : integer range 0 to 15 := 16#0#;   -- host interrupt mask
 		nsync       : integer range 0 to 2 := 2; -- with nsync = 0, wrfst needed on syncram...
 		hostrst     : integer range 0 to 2 := 0; -- 0: PCI reset is never driven, 1: PCI reset is driven from AHB reset if host, 2: PCI reset is always driven from AHB reset
 		bypass      : integer range 0 to 1 := 1;
@@ -75,18 +75,18 @@ entity grpci2_device is
 		mf1_classcode       : integer := 16#000000#;
 		mf1_revisionid      : integer := 16#00#;
 		mf1_bar0            : integer range 0 to 31 := 16;
-		mf1_bar1            : integer range 0 to 31 := 16;
-		mf1_bar2            : integer range 0 to 31 := 16;
-		mf1_bar3            : integer range 0 to 31 := 16;
-		mf1_bar4            : integer range 0 to 31 := 16;
-		mf1_bar5            : integer range 0 to 31 := 16;
+		mf1_bar1            : integer range 0 to 31 := 0;
+		mf1_bar2            : integer range 0 to 31 := 0;
+		mf1_bar3            : integer range 0 to 31 := 0;
+		mf1_bar4            : integer range 0 to 31 := 0;
+		mf1_bar5            : integer range 0 to 31 := 0;
 		mf1_bartype         : integer range 0 to 65535 := 16#0000#;
-		mf1_bar0_map        : integer := 16#000800#;
-		mf1_bar1_map        : integer := 16#000900#;
-		mf1_bar2_map        : integer := 16#000A00#;
-		mf1_bar3_map        : integer := 16#000B00#;
-		mf1_bar4_map        : integer := 16#000C00#;
-		mf1_bar5_map        : integer := 16#000D00#;
+		mf1_bar0_map        : integer := 16#000000#;
+		mf1_bar1_map        : integer := 16#000000#;
+		mf1_bar2_map        : integer := 16#000000#;
+		mf1_bar3_map        : integer := 16#000000#;
+		mf1_bar4_map        : integer := 16#000000#;
+		mf1_bar5_map        : integer := 16#000000#;
 		mf1_cap_pointer     : integer := 16#40#;
 		mf1_ext_cap_pointer : integer := 16#00#;
 		mf1_extcfg          : integer := 16#FFFF000#;
@@ -141,10 +141,10 @@ entity grpci2_device is
 		pci_pme_o   : out std_logic;
 		pci_pme_oe  : out std_logic;
 
-		ahb_clk 		: in std_logic;
-		ahb_rstn	    : in std_logic;
+		ahb_hclk 		: in std_logic;
+		ahb_hresetn	    : in std_logic;
 
-		ahb_mst_hgrant	    : in std_logic_vector(0 to 15);            -- bus grant
+		ahb_mst_hgrant	    : in std_logic;                         -- bus grant
 		ahb_mst_hready      : in std_logic;                         -- transfer done
 		ahb_mst_hresp       : in std_logic_vector(1 downto 0);         -- response type
         ahb_mst_hrdata      : in std_logic_vector(31 downto 0);        -- read data bus
@@ -158,7 +158,7 @@ entity grpci2_device is
 		ahb_mst_hprot       : out std_logic_vector(3 downto 0);         -- protection control
 		ahb_mst_hwdata      : out std_logic_vector(31 downto 0);        -- write data bus
 
-		ahb_slv_hsel        : in std_logic_vector(0 to 15);            -- slave select
+		ahb_slv_hsel        : in std_logic;                            -- slave select
 		ahb_slv_haddr       : in std_logic_vector(31 downto 0);        -- address bus (byte)
 		ahb_slv_hwrite      : in std_ulogic;                           -- read/write
 		ahb_slv_htrans      : in std_logic_vector(1 downto 0);         -- transfer type
@@ -168,8 +168,8 @@ entity grpci2_device is
 		ahb_slv_hprot       : in std_logic_vector(3 downto 0);         -- protection control
 		ahb_slv_hmaster     : in std_logic_vector(3 downto 0);         -- current master
 		ahb_slv_hmastlock   : in std_ulogic;                           -- locked access
-		ahb_slv_hmbsel      : in std_logic_vector(0 to 3);             -- memory bank select
-		ahb_slv_hready      : out std_ulogic;                          -- transfer done
+		ahb_slv_hready_i    : in std_ulogic;                          -- transfer done
+		ahb_slv_hready_o    : out std_ulogic;                          -- transfer done
 		ahb_slv_hresp       : out std_logic_vector(1 downto 0);        -- response type
 		ahb_slv_hrdata      : out std_logic_vector(31 downto 0);       -- read data bus
 		ahb_slv_hsplit      : out std_logic_vector(15 downto 0);       -- split completion
@@ -277,8 +277,8 @@ begin
 		iotest               => 		iotest             
 	)
 	port map (
-		rst        =>    ahb_rstn, 
-		clk        =>    ahb_clk, 
+		rst        =>    ahb_hresetn, 
+		clk        =>    ahb_hclk, 
 		pciclk     =>    pci_clk, 
 		dirq       =>    intr_req, 
 		pcii       =>    pcii, 
@@ -358,10 +358,17 @@ begin
 	pci_pme_o <= '0';
 	pci_pme_oe <= pcio.pme_enable;
 
-	ahbmi.hgrant <= ahb_mst_hgrant;
+	ahbmi.hgrant(0) <= ahb_mst_hgrant;
+	ahbmi.hgrant(1 to 15) <= (others => '0');
+
 	ahbmi.hready <= ahb_mst_hready;
 	ahbmi.hresp <= ahb_mst_hresp;
-	ahbmi.hrdata <= ahb_mst_hrdata;
+	--ahbmi.hrdata <= ahb_mst_hrdata;
+	ahbmi.hrdata(7 downto 0) <= ahb_mst_hrdata(31 downto 24);
+	ahbmi.hrdata(15 downto 8) <= ahb_mst_hrdata(23 downto 16);
+	ahbmi.hrdata(23 downto 16) <= ahb_mst_hrdata(15 downto 8);
+	ahbmi.hrdata(31 downto 24) <= ahb_mst_hrdata(7 downto 0);
+
 	ahbmi.hirq <= (others => '0');
 	ahbmi.testen <= '0';
 	ahbmi.testrst <= '0';
@@ -377,20 +384,31 @@ begin
 	ahb_mst_hsize <= ahbmo.hsize;
 	ahb_mst_hburst <= ahbmo.hburst;
 	ahb_mst_hprot <= ahbmo.hprot;
-	ahb_mst_hwdata <= ahbmo.hwdata;
+	--ahb_mst_hwdata <= ahbmo.hwdata;
+	ahb_mst_hwdata(7 downto 0) <= ahbmo.hwdata(31 downto 24);
+	ahb_mst_hwdata(15 downto 8) <= ahbmo.hwdata(23 downto 16);
+	ahb_mst_hwdata(23 downto 16) <= ahbmo.hwdata(15 downto 8);
+	ahb_mst_hwdata(31 downto 24) <= ahbmo.hwdata(7 downto 0);
 
-	ahbsi.hsel <= ahb_slv_hsel;
+	ahbsi.hsel(0) <= ahb_slv_hsel;
+	ahbsi.hsel(1 to 15) <= (others => '0');
+
 	ahbsi.haddr <= ahb_slv_haddr;
 	ahbsi.hwrite <= ahb_slv_hwrite;
 	ahbsi.htrans <= ahb_slv_htrans;
 	ahbsi.hsize <= ahb_slv_hsize;
 	ahbsi.hburst <= ahb_slv_hburst;
-	ahbsi.hwdata <= ahb_slv_hwdata;
+	--ahbsi.hwdata <= ahb_slv_hwdata;
+	ahbsi.hwdata(7 downto 0) <= ahb_slv_hwdata(31 downto 24);
+	ahbsi.hwdata(15 downto 8) <= ahb_slv_hwdata(23 downto 16);
+	ahbsi.hwdata(23 downto 16) <= ahb_slv_hwdata(15 downto 8);
+	ahbsi.hwdata(31 downto 24) <= ahb_slv_hwdata(7 downto 0);
+
 	ahbsi.hprot <= ahb_slv_hprot;
-	ahbsi.hready <= ahbso.hready;
+	ahbsi.hready <= ahb_slv_hready_i;
 	ahbsi.hmaster <= ahb_slv_hmaster;
 	ahbsi.hmastlock <= ahb_slv_hmastlock;
-	ahbsi.hmbsel <= ahb_slv_hmbsel;
+	ahbsi.hmbsel <= (others => '0');
 	ahbsi.hirq <= (others => '0');
 	ahbsi.testen <= '0';
 	ahbsi.testrst <= '0';
@@ -398,9 +416,14 @@ begin
 	ahbsi.testoen <= '0';
 	ahbsi.testin <= (others => '0');
 
-	ahb_slv_hready <= ahbso.hready;
+	ahb_slv_hready_o <= ahbso.hready;
 	ahb_slv_hresp <= ahbso.hresp;
-	ahb_slv_hrdata <= ahbso.hrdata;
+	--ahb_slv_hrdata <= ahbso.hrdata;
+	ahb_slv_hrdata(7 downto 0) <= ahbso.hrdata(31 downto 24);
+	ahb_slv_hrdata(15 downto 8) <= ahbso.hrdata(23 downto 16);
+	ahb_slv_hrdata(23 downto 16) <= ahbso.hrdata(15 downto 8);
+	ahb_slv_hrdata(31 downto 24) <= ahbso.hrdata(7 downto 0);
+
 	ahb_slv_hsplit <= ahbso.hsplit;
 
 end rtl;

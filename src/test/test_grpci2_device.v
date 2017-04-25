@@ -4,6 +4,21 @@ module test_grpci2_device;
 parameter HOST_BASE = 32'hE000_0000;
 parameter HOST_SIZE = 4*1024*1024;
 
+// Target Addresses
+parameter TGT_CONF_ADDR = 32'h0100_0000;
+parameter TGT_BAR0_BASE = 32'h8002_0000;
+parameter TGT_BAR1_BASE = 32'h8004_0000;
+parameter TGT_BAR2_BASE = 32'h0000_0010;
+
+// PCI Configuration Registers
+parameter CONF_ID_OFFSET  = 8'h0;
+parameter CONF_CTRL_OFFSET  = 8'h4;
+parameter CONF_CLINE_OFFSET  = 8'hc;
+parameter CONF_MISC_OFFSET  = 8'h3c;
+parameter CONF_BAR0_OFFSET  = 8'h10;
+parameter CONF_BAR1_OFFSET  = 8'h14;
+parameter CONF_BAR2_OFFSET  = 8'h18;
+
 wire PCI_CLK;
 wire PCI_RST;
 wire PCI_LOCK;
@@ -52,10 +67,10 @@ wire [3:0] pci_int_oe;
 wire pci_pme_o;
 wire pci_pme_oe;
 
-wire ahb_clk;
-wire ahb_rstn;
+wire ahb_hclk;
+wire ahb_hresetn;
 
-wire [15:0] ahb_mst_hgrant;
+wire ahb_mst_hgrant;
 wire ahb_mst_hready;
 wire [1:0] ahb_mst_hresp;
 wire [31:0] ahb_mst_hrdata;
@@ -69,7 +84,7 @@ wire [2:0] ahb_mst_hburst;
 wire [3:0] ahb_mst_hprot;
 wire [31:0] ahb_mst_hwdata;
 
-wire [15:0] ahb_slv_hsel;
+wire ahb_slv_hsel;
 wire [31:0] ahb_slv_haddr;
 wire ahb_slv_hwrite;
 wire [1:0] ahb_slv_htrans;
@@ -79,13 +94,31 @@ wire [31:0] ahb_slv_hwdata;
 wire [3:0] ahb_slv_hprot;
 wire [3:0] ahb_slv_hmaster;
 wire ahb_slv_hmastlock;
-wire [0:3] ahb_slv_hmbsel;
 wire ahb_slv_hready;
 wire [1:0] ahb_slv_hresp;
 wire [31:0] ahb_slv_hrdata;
 wire [15:0] ahb_slv_hsplit;
 
 wire [3:0] intr_req;
+
+wire tgt_m_awvalid;
+wire tgt_m_awready;
+wire [31:0] tgt_m_awaddr;
+wire tgt_m_wvalid;
+wire tgt_m_wready;
+wire [31:0] tgt_m_wdata;
+wire [3:0] tgt_m_wstrb;
+wire tgt_m_bvalid;
+wire tgt_m_bready;
+wire [1:0] tgt_m_bresp;
+wire tgt_m_arvalid;
+wire [3:0] tgt_m_aruser;
+wire tgt_m_arready;
+wire [31:0] tgt_m_araddr;
+wire tgt_m_rvalid;
+wire tgt_m_rready;
+wire [31:0] tgt_m_rdata;
+wire [1:0] tgt_m_rresp;
 
 assign PCI_LOCK = pci_lock_oe ? pci_lock_o : 1'bz;
 assign PCI_FRAME = pci_frame_oe ? pci_frame_o : 1'bz;
@@ -103,15 +136,15 @@ genvar i;
 generate
 for(i=0;i<32;i=i+1)
 begin:AD
-	assign PCI_AD[i] = pci_ad_oe[i] ? pci_ad_o : 1'bz;
+	assign PCI_AD[i] = pci_ad_oe[i] ? pci_ad_o[i] : 1'bz;
 end
 for(i=0;i<4;i=i+1)
 begin:CBE
-	assign PCI_CBE[i] = pci_cbe_oe[i] ? pci_cbe_o : 1'bz;
+	assign PCI_CBE[i] = pci_cbe_oe[i] ? pci_cbe_o[i] : 1'bz;
 end
 for(i=0;i<4;i=i+1)
 begin:INT
-	assign PCI_INT[i] = pci_int_oe[i] ? pci_int_o : 1'bz;
+	assign PCI_INT[i] = pci_int_oe[i] ? pci_int_o[i] : 1'bz;
 end
 endgenerate
 
@@ -131,7 +164,24 @@ pullup pu_req [3:0] (PCI_REQ);
 pullup pu_gnt [3:0] (PCI_GNT);
 pullup pu_int [3:0] (PCI_INT);
 
-grpci2_device 
+grpci2_device #(
+	.oepol(1),
+	.vendorid(16'h10EE),
+	.deviceid(16'h0701),
+	.bar0(7),
+	.bar1(7),
+	.bar2(3),
+	.bar3(0),
+	.bar4(0),
+	.bar5(0),
+	.bar0_map(24'h000100),
+	.bar1_map(24'h000200),
+	.bar2_map(24'h000300),
+	.bar3_map(24'h000400),
+	.bar4_map(24'h000500),
+	.bar5_map(24'h000600),
+	.bartype(14'b00000100_00000000)
+)
 dut(
 	.pci_rst(PCI_RST),
 	.pci_clk(PCI_CLK),
@@ -180,8 +230,8 @@ dut(
 	.pci_pme_o(pci_pme_o),
 	.pci_pme_oe(pci_pme_oe),
 
-	.ahb_clk(ahb_clk),
-	.ahb_rstn(ahb_rstn),
+	.ahb_hclk(ahb_hclk),
+	.ahb_hresetn(ahb_hresetn),
 
 	.ahb_mst_hgrant(ahb_mst_hgrant),
 	.ahb_mst_hready(ahb_mst_hready),
@@ -207,14 +257,16 @@ dut(
 	.ahb_slv_hprot(ahb_slv_hprot),
 	.ahb_slv_hmaster(ahb_slv_hmaster),
 	.ahb_slv_hmastlock(ahb_slv_hmastlock),
-	.ahb_slv_hmbsel(ahb_slv_hmbsel),
-	.ahb_slv_hready(ahb_slv_hready),
+	.ahb_slv_hready_i(ahb_slv_hready),
+	.ahb_slv_hready_o(ahb_slv_hready),
 	.ahb_slv_hresp(ahb_slv_hresp),
 	.ahb_slv_hrdata(ahb_slv_hrdata),
 	.ahb_slv_hsplit(ahb_slv_hsplit),
 
 	.intr_req(intr_req)
 );
+
+assign ahb_mst_hgrant = 1'b1;
 
 ////////////////////////////////////////////////////////////////////////////////
 // PCI stub models
@@ -230,7 +282,7 @@ pci_behavioral_master master(
 	.IDSEL(1'b0),
 	.PERR_N(PCI_PERR),
 	.SERR_N(PCI_SERR),
-	.INTA_N(PCI_INTA),
+	.INTA_N(PCI_INT[0]),
 	.REQ_N(PCI_REQ[0]),
 	.GNT_N(PCI_GNT[0]),
 	.RST_N(PCI_RST),
@@ -284,8 +336,89 @@ pci_blue_arbiter arbiter(
     .pci_clk(PCI_CLK),
     .pci_reset_comb(!PCI_RST)
 );
-////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////
+// Target stub
+grpci2_axi_lite_tgt target_i(
+	.aclk(ahb_hclk),
+	.aresetn(ahb_hresetn),
+
+	.ahb_s_hsel(1'b1),
+	.ahb_s_haddr(ahb_mst_haddr),
+	.ahb_s_hwrite(ahb_mst_hwrite),
+	.ahb_s_htrans(ahb_mst_htrans),
+	.ahb_s_hsize(ahb_mst_hsize),
+	.ahb_s_hburst(ahb_mst_hburst),
+	.ahb_s_hprot(ahb_mst_hprot),
+	.ahb_s_hmaster(4'b0),
+	.ahb_s_hmastlock(ahb_mst_hlock),
+	.ahb_s_hwdata(ahb_mst_hwdata),
+	.ahb_s_hready_i(ahb_mst_hready),
+	.ahb_s_hready_o(ahb_mst_hready),
+	.ahb_s_hresp(ahb_mst_hresp),
+	.ahb_s_hrdata(ahb_mst_hrdata),
+	.ahb_s_hsplit(),
+
+	.tgt_m_awvalid(tgt_m_awvalid),
+	.tgt_m_awready(tgt_m_awready),
+	.tgt_m_awaddr(tgt_m_awaddr),
+
+	.tgt_m_wvalid(tgt_m_wvalid),
+	.tgt_m_wready(tgt_m_wready),
+	.tgt_m_wdata(tgt_m_wdata),
+	.tgt_m_wstrb(tgt_m_wstrb),
+
+	.tgt_m_bvalid(tgt_m_bvalid),
+	.tgt_m_bready(tgt_m_bready),
+	.tgt_m_bresp(tgt_m_bresp),
+
+	.tgt_m_arvalid(tgt_m_arvalid),
+	.tgt_m_aruser(tgt_m_aruser),
+	.tgt_m_arready(tgt_m_arready),
+	.tgt_m_araddr(tgt_m_araddr),
+
+	.tgt_m_rvalid(tgt_m_rvalid),
+	.tgt_m_rready(tgt_m_rready),
+	.tgt_m_rdata(tgt_m_rdata),
+	.tgt_m_rresp(tgt_m_rresp)
+);
+
+axi_memory_model axi_memory_model_i(
+	.s_axi_aresetn(ahb_hresetn),
+	.s_axi_aclk(ahb_hclk),
+	.s_axi_awid(4'b0),
+	.s_axi_awaddr(tgt_m_awaddr),
+	.s_axi_awlen(8'b0),
+	.s_axi_awsize(3'b0),
+	.s_axi_awburst(2'b0),
+	.s_axi_awvalid(tgt_m_awvalid),
+	.s_axi_awready(tgt_m_awready),
+	.s_axi_wdata(tgt_m_wdata),
+	.s_axi_wstrb(tgt_m_wstrb),
+	.s_axi_wlast(1'b1),
+	.s_axi_wvalid(tgt_m_wvalid),
+	.s_axi_wready(tgt_m_wready),
+	.s_axi_bready(tgt_m_bready),
+	.s_axi_bid(),
+	.s_axi_bresp(tgt_m_bresp),
+	.s_axi_bvalid(tgt_m_bvalid),
+	.s_axi_arid(4'b0),
+	.s_axi_araddr(tgt_m_araddr),
+	.s_axi_arlen(8'b0),
+	.s_axi_arsize(3'b0),
+	.s_axi_arburst(2'b0),
+	.s_axi_arvalid(tgt_m_arvalid),
+	.s_axi_arready(tgt_m_arready),
+	.s_axi_rready(tgt_m_rready),
+	.s_axi_rid(),
+	.s_axi_rdata(tgt_m_rdata),
+	.s_axi_rresp(tgt_m_rresp),
+	.s_axi_rlast(),
+	.s_axi_rvalid(tgt_m_rvalid)
+);
+
+////////////////////////////////////////////////////////////////////////////////
+//
 reg pci_clk_i;
 initial
 begin
@@ -294,13 +427,13 @@ begin
 end
 assign PCI_CLK = pci_clk_i;
 
-reg ahb_clk_i;
+reg ahb_hclk_i;
 initial
 begin
-	ahb_clk_i = 0;
-	forever #5.000 ahb_clk_i = ~ahb_clk_i;
+	ahb_hclk_i = 0;
+	forever #5.000 ahb_hclk_i = ~ahb_hclk_i;
 end
-assign ahb_clk = ahb_clk_i;
+assign ahb_hclk = ahb_hclk_i;
 
 reg pci_rst_i;
 initial
@@ -315,18 +448,68 @@ reg ahb_rst_i;
 initial
 begin
 	ahb_rst_i = 0;
-	repeat(16) @(posedge ahb_clk);
+	repeat(16) @(posedge ahb_hclk);
    	ahb_rst_i <= 1;
 end
 
-assign ahb_rstn = ahb_rst_i;
+assign ahb_hresetn = ahb_rst_i;
 
 reg [3:0] intr_req_i;
 assign intr_req = intr_req_i;
 
+task config_target;
+	reg [31:0] data;
+	begin
+		master.config_read(TGT_CONF_ADDR+CONF_ID_OFFSET, data);
+		master.config_read(TGT_CONF_ADDR+CONF_CTRL_OFFSET, data);
+
+		master.config_write(TGT_CONF_ADDR+CONF_BAR0_OFFSET,~0,4'hF);
+		master.config_read(TGT_CONF_ADDR+CONF_BAR0_OFFSET, data);
+		master.config_write(TGT_CONF_ADDR+CONF_BAR0_OFFSET,TGT_BAR0_BASE,4'hF);
+
+		master.config_write(TGT_CONF_ADDR+CONF_BAR1_OFFSET,~0,4'hF);
+		master.config_read(TGT_CONF_ADDR+CONF_BAR1_OFFSET, data);
+		master.config_write(TGT_CONF_ADDR+CONF_BAR1_OFFSET,TGT_BAR1_BASE,4'hF);
+
+		master.config_write(TGT_CONF_ADDR+CONF_BAR2_OFFSET,~0,4'hF);
+		master.config_read(TGT_CONF_ADDR+CONF_BAR2_OFFSET, data);
+		master.config_write(TGT_CONF_ADDR+CONF_BAR2_OFFSET,TGT_BAR2_BASE,4'hF);
+
+		master.config_write(TGT_CONF_ADDR+CONF_CLINE_OFFSET,32'h0000_4010,4'h3);
+		//master.config_read(TGT_CONF_ADDR+CONF_CLINE_OFFSET, data);
+
+		master.config_read(TGT_CONF_ADDR+CONF_MISC_OFFSET, data);
+
+		master.config_write(TGT_CONF_ADDR+CONF_CTRL_OFFSET, 32'h35F, 4'h3);
+	end
+endtask
+
 initial
-begin
+begin:TEST
+	reg [31:0] data;
+
 	intr_req_i = 4'h0;
+
+	#1000;
+
+	config_target();
+
+	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'hF);
+
+	master.memory_read(TGT_BAR0_BASE, data); // retry
+	master.memory_read(TGT_BAR0_BASE, data);
+
+	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'b0001);
+	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'b0010);
+	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'b0100);
+	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'b1000);
+
+	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'b0011);
+	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'b1100);
+
+	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'hF);
+
+	$stop;
 end
 
 endmodule
