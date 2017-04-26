@@ -19,11 +19,12 @@ module pci_behavioral_target(
 
 parameter DECODE_LATENCY=0;
 parameter BAR0_BASE=32'h0000_0000;
-parameter BAR0_SIZE=32'h0001_0000;
+parameter BAR0_SIZE=33'h0001_0000;
 parameter INITIAL_LATENCY=1;
 parameter DATA_LATENCY=1;
 parameter DATA_LENGTH=(~0);
 parameter DISCONNECT=(~0);
+parameter MEMORY_SIZE=4096;
 
 localparam 
 	CMD_INTR_ACK = 4'h0,
@@ -47,7 +48,7 @@ begin
 end
 endfunction
 
-localparam MEM_ADDR_MSB = clogb2(BAR0_SIZE)-1;
+localparam MEM_ADDR_MSB = clogb2(MEMORY_SIZE)-1;
 
 wire clk;
 wire rst;
@@ -193,13 +194,21 @@ always @(*)
 begin
 	cmd_valid = (!FRAME_N||busy_r) && decode_cnt==decode_latency;
 	case(cmd_a)
-		CMD_IO_READ, CMD_MEM_READ, CMD_CONF_READ, CMD_MEM_READ_MUL, CMD_MEM_READ_LN: begin
+		CMD_IO_READ, CMD_MEM_READ, CMD_MEM_READ_MUL, CMD_MEM_READ_LN: begin
 			cmd_read_valid = 1;
 			cmd_write_valid = 0;
 		end
-		CMD_IO_WRITE, CMD_MEM_WRITE, CMD_CONF_WRITE, CMD_MEM_WRITE, CMD_MEM_WRITE_INVAL: begin
+		CMD_IO_WRITE, CMD_MEM_WRITE, CMD_MEM_WRITE, CMD_MEM_WRITE_INVAL: begin
 			cmd_read_valid = 0;
 			cmd_write_valid = 1;
+		end
+		CMD_CONF_READ: begin
+			cmd_read_valid = IDSEL;
+			cmd_write_valid = 0;
+		end
+		CMD_CONF_WRITE: begin
+			cmd_read_valid = 0;
+			cmd_write_valid = IDSEL;
 		end
 		default: begin
 			cmd_read_valid = 0;
@@ -600,7 +609,7 @@ end
 task init(input [31:0] data);
 	integer i;
 begin
-	for(i=0;i<BAR0_SIZE/4;i=i+1) begin
+	for(i=0;i<MEMORY_SIZE/4;i=i+1) begin
 		mem_b0[i] = data[7:0];
 		mem_b1[i] = data[15:8];
 		mem_b2[i] = data[23:16];

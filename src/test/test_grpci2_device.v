@@ -1,8 +1,8 @@
 `timescale 1ns/1ps
 module test_grpci2_device;
 
-parameter HOST_BASE = 32'h1000_0000;
-parameter HOST_SIZE = 4*1024*1024;
+parameter HOST_BASE = 32'h0000_0000;
+parameter HOST_SIZE = 33'h1_0000_0000;
 
 // Target Addresses
 parameter TGT_CONF_ADDR = 32'h0100_0000;
@@ -664,23 +664,23 @@ begin:TEST
 		aximaster.set_write_strb(i,4'b1111);
 	end
 
-	aximaster.write(HOST_BASE, 1);
-	aximaster.write(HOST_BASE, 2);
-	aximaster.write(HOST_BASE, 4);
-	aximaster.write(HOST_BASE, 7);
-	aximaster.write(HOST_BASE, 8);
-	aximaster.write(HOST_BASE, 15);
-	aximaster.write(HOST_BASE, 16);
-	aximaster.write(HOST_BASE, 32);
-	aximaster.write(HOST_BASE, 64);
-	aximaster.write(HOST_BASE, 128);
+	aximaster.write(32'h0000_0000, 1);
+	aximaster.write(32'h1000_0000, 2);
+	aximaster.write(32'h2000_0000, 4);
+	aximaster.write(32'h4000_0000, 7);
+	aximaster.write(32'h8000_0000, 8);
+	aximaster.write(32'hB000_0000, 15);
+	aximaster.write(32'hC000_0000, 16);
+	aximaster.write(32'hD000_0000, 32);
+	aximaster.write(32'hE000_0000, 64);
+	aximaster.write(32'hF000_0000, 128);
 	#10_000;
 
 	//aximaster.read(HOST_BASE, 1);
 	//aximaster.read(HOST_BASE, 2);
 	//aximaster.read(HOST_BASE, 16);
 	host.disconnect=16;
-	aximaster.write(HOST_BASE, 128);
+	aximaster.write(32'h0000_0000, 128);
 	//aximaster.read(HOST_BASE, 128);
 
 	#10_000;
