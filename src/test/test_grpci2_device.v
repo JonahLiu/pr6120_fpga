@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 module test_grpci2_device;
 
-parameter HOST_BASE = 32'hE000_0000;
+parameter HOST_BASE = 32'h1000_0000;
 parameter HOST_SIZE = 4*1024*1024;
 
 // Target Addresses
@@ -168,6 +168,9 @@ grpci2_device #(
 	.oepol(1),
 	.vendorid(16'h10EE),
 	.deviceid(16'h0701),
+	.haddr(12'h000),
+	.hmask(12'h000),
+	.ioaddr(12'hFFF),
 	.bar0(7),
 	.bar1(7),
 	.bar2(3),
@@ -416,6 +419,141 @@ axi_memory_model axi_memory_model_i(
 	.s_axi_rlast(),
 	.s_axi_rvalid(tgt_m_rvalid)
 );
+////////////////////////////////////////////////////////////////////////////////
+//
+wire mst_s_aclk;
+wire mst_s_aresetn;
+wire [3:0] mst_s_awid;
+wire [63:0] mst_s_awaddr;
+wire [7:0] mst_s_awlen;
+wire [2:0] mst_s_awsize;
+wire [1:0] mst_s_awburst;
+wire [3:0] mst_s_awcache;
+wire mst_s_awvalid;
+wire mst_s_awready;
+wire [3:0] mst_s_wid;
+wire [31:0] mst_s_wdata;
+wire [3:0] mst_s_wstrb;
+wire mst_s_wlast;
+wire mst_s_wvalid;
+wire mst_s_wready;
+wire [3:0] mst_s_bid;
+wire [1:0] mst_s_bresp;
+wire mst_s_bvalid;
+wire mst_s_bready;
+wire [3:0] mst_s_arid;
+wire [63:0] mst_s_araddr;
+wire [7:0] mst_s_arlen;
+wire [2:0] mst_s_arsize;
+wire [1:0] mst_s_arburst;
+wire [3:0] mst_s_arcache;
+wire mst_s_arvalid;
+wire mst_s_arready;
+wire [3:0] mst_s_rid;
+wire [31:0] mst_s_rdata;
+wire [1:0] mst_s_rresp;
+wire mst_s_rlast;
+wire mst_s_rvalid;
+wire mst_s_rready;
+
+assign mst_s_aclk = ahb_hclk;
+assign mst_s_aresetn = ahb_hresetn;
+assign ahb_slv_hmaster = 'b0;
+
+grpci2_axi_mst master_i(
+	.ahb_hclk(ahb_hclk),
+	.ahb_hresetn(ahb_hresetn),
+	.ahb_m_hgrant(1'b1),
+	.ahb_m_hready(ahb_slv_hready),
+	.ahb_m_hresp(ahb_slv_hresp),
+	.ahb_m_hrdata(ahb_slv_hrdata),
+	.ahb_m_hbusreq(ahb_slv_hsel),
+	.ahb_m_hlock(ahb_slv_hmastlock),
+	.ahb_m_htrans(ahb_slv_htrans),
+	.ahb_m_haddr(ahb_slv_haddr),
+	.ahb_m_hwrite(ahb_slv_hwrite),
+	.ahb_m_hsize(ahb_slv_hsize),
+	.ahb_m_hburst(ahb_slv_hburst),
+	.ahb_m_hprot(ahb_slv_hprot),
+	.ahb_m_hwdata(ahb_slv_hwdata),
+
+	.cacheline_size(8'd16),
+
+	.mst_s_aclk(mst_s_aclk),
+	.mst_s_aresetn(mst_s_aresetn),
+
+	.mst_s_awid(mst_s_awid),
+	.mst_s_awaddr(mst_s_awaddr),
+	.mst_s_awlen(mst_s_awlen),
+	.mst_s_awsize(mst_s_awsize),
+	.mst_s_awburst(mst_s_awburst),
+	.mst_s_awcache(mst_s_awcache),
+	.mst_s_awvalid(mst_s_awvalid),
+	.mst_s_awready(mst_s_awready),
+
+	.mst_s_wid(mst_s_wid),
+	.mst_s_wdata(mst_s_wdata),
+	.mst_s_wstrb(mst_s_wstrb),
+	.mst_s_wlast(mst_s_wlast),
+	.mst_s_wvalid(mst_s_wvalid),
+	.mst_s_wready(mst_s_wready),
+
+	.mst_s_bid(mst_s_bid),
+	.mst_s_bresp(mst_s_bresp),
+	.mst_s_bvalid(mst_s_bvalid),
+	.mst_s_bready(mst_s_bready),
+
+	.mst_s_arid(mst_s_arid),
+	.mst_s_araddr(mst_s_araddr),
+	.mst_s_arlen(mst_s_arlen),
+	.mst_s_arsize(mst_s_arsize),
+	.mst_s_arburst(mst_s_arburst),
+	.mst_s_arcache(mst_s_arcache),
+	.mst_s_arvalid(mst_s_arvalid),
+	.mst_s_arready(mst_s_arready),
+
+	.mst_s_rid(mst_s_rid),
+	.mst_s_rdata(mst_s_rdata),
+	.mst_s_rresp(mst_s_rresp),
+	.mst_s_rlast(mst_s_rlast),
+	.mst_s_rvalid(mst_s_rvalid),
+	.mst_s_rready(mst_s_rready)
+);
+
+axi_master_model aximaster(
+	.m_axi_aresetn(mst_s_aresetn),
+	.m_axi_aclk(mst_s_aclk),
+	.m_axi_awid(mst_s_awid),
+	.m_axi_awaddr(mst_s_awaddr),
+	.m_axi_awlen(mst_s_awlen),
+	.m_axi_awsize(mst_s_awsize),
+	.m_axi_awburst(mst_s_awburst),
+	.m_axi_awvalid(mst_s_awvalid),
+	.m_axi_awready(mst_s_awready),
+	.m_axi_wid(mst_s_wid),
+	.m_axi_wdata(mst_s_wdata),
+	.m_axi_wstrb(mst_s_wstrb),
+	.m_axi_wlast(mst_s_wlast),
+	.m_axi_wvalid(mst_s_wvalid),
+	.m_axi_wready(mst_s_wready),
+	.m_axi_bready(mst_s_bready),
+	.m_axi_bid(mst_s_bid),
+	.m_axi_bresp(mst_s_bresp),
+	.m_axi_bvalid(mst_s_bvalid),
+	.m_axi_arid(mst_s_arid),
+	.m_axi_araddr(mst_s_araddr),
+	.m_axi_arlen(mst_s_arlen),
+	.m_axi_arsize(mst_s_arsize),
+	.m_axi_arburst(mst_s_arburst),
+	.m_axi_arvalid(mst_s_arvalid),
+	.m_axi_arready(mst_s_arready),
+	.m_axi_rready(mst_s_rready),
+	.m_axi_rid(mst_s_rid),
+	.m_axi_rdata(mst_s_rdata),
+	.m_axi_rresp(mst_s_rresp),
+	.m_axi_rlast(mst_s_rlast),
+	.m_axi_rvalid(mst_s_rvalid)
+);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -486,6 +624,7 @@ endtask
 
 initial
 begin:TEST
+	integer i;
 	reg [31:0] data;
 
 	intr_req_i = 4'h0;
@@ -496,19 +635,55 @@ begin:TEST
 
 	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'hF);
 
-	master.memory_read(TGT_BAR0_BASE, data); // retry
-	master.memory_read(TGT_BAR0_BASE, data);
+	master.memory_read(TGT_BAR0_BASE, data); 
 
-	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'b0001);
-	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'b0010);
-	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'b0100);
-	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'b1000);
+	master.memory_write(TGT_BAR0_BASE, 32'h000000dd, 4'b0001);
+	master.memory_write(TGT_BAR0_BASE, 32'h0000cc00, 4'b0010);
+	master.memory_write(TGT_BAR0_BASE, 32'h00bb0000, 4'b0100);
+	master.memory_write(TGT_BAR0_BASE, 32'haa000000, 4'b1000);
 
-	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'b0011);
-	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'b1100);
+	master.memory_read(TGT_BAR0_BASE, data); 
 
-	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'hF);
+	master.memory_write(TGT_BAR0_BASE, 32'h0000face, 4'b0011);
+	master.memory_write(TGT_BAR0_BASE, 32'h0ace0000, 4'b1100);
 
+	master.memory_read(TGT_BAR0_BASE, data); 
+
+
+	master.memory_write(TGT_BAR1_BASE, 32'h11223344, 4'hF);
+
+	master.memory_read(TGT_BAR1_BASE, data); 
+
+	master.io_write(TGT_BAR2_BASE, 32'h11223344, 4'hF);
+
+	master.io_read(TGT_BAR2_BASE, data); 
+
+	aximaster.set_id(0);
+	for(i=0;i<256;i=i+1) begin
+		aximaster.set_write_data(i,i);
+		aximaster.set_write_strb(i,4'b1111);
+	end
+
+	aximaster.write(HOST_BASE, 1);
+	aximaster.write(HOST_BASE, 2);
+	aximaster.write(HOST_BASE, 4);
+	aximaster.write(HOST_BASE, 7);
+	aximaster.write(HOST_BASE, 8);
+	aximaster.write(HOST_BASE, 15);
+	aximaster.write(HOST_BASE, 16);
+	aximaster.write(HOST_BASE, 32);
+	aximaster.write(HOST_BASE, 64);
+	aximaster.write(HOST_BASE, 128);
+	#10_000;
+
+	//aximaster.read(HOST_BASE, 1);
+	//aximaster.read(HOST_BASE, 2);
+	//aximaster.read(HOST_BASE, 16);
+	host.disconnect=16;
+	aximaster.write(HOST_BASE, 128);
+	//aximaster.read(HOST_BASE, 128);
+
+	#10_000;
 	$stop;
 end
 

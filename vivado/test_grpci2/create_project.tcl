@@ -34,6 +34,11 @@ add_files -fileset sources_1 -force -norecurse {
 	../../src/grpci2/techmap/netcomp.vhd
 	../../src/grpci2/grpci2_device.vhd
 	../../src/pci/grpci2_axi_lite_tgt.v
+	../../src/pci/grpci2_axi_mst.v
+	../../src/pci/grpci2_master_ctrl.v
+	../../src/pci/pci_master_rpath.v
+	../../src/pci/pci_master_wpath.v
+	../../src/common/fifo_async.v
 }
 set_property library grlib [get_files [glob ../../src/grpci2/grlib/*.vhd]]
 set_property library gaisler [get_files [glob ../../src/grpci2/gaisler/*.vhd]]
@@ -47,6 +52,7 @@ add_files -fileset sim_1 -force -norecurse {
 	../../src/test/pci_behavioral_target.v
 	../../src/test/pci_blue_arbiter.v
 	../../src/test/axi_memory_model.v
+	../../src/test/axi_master_model.v
 }
 
 set_property include_dirs ../../src/test [get_filesets sim_1]

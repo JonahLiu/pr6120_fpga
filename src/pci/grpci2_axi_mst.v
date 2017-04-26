@@ -1,20 +1,20 @@
-module pci_master(
-	input RST,
-	input CLK,
-	output [31:0] ADIO_IN,
-	input [31:0] ADIO_OUT,
-	output REQUEST,
-	output REQUESTHOLD,
-	output [3:0] M_CBE,
-	output M_WRDN,
-	output COMPLETE,
-	output M_READY,
-	input M_DATA_VLD,
-	input M_SRC_EN,
-	input TIME_OUT,
-	input M_DATA,
-	input M_ADDR_N,
-	input STOPQ_N,
+module grpci2_axi_mst(
+	input ahb_hclk,
+	input ahb_hresetn,
+
+	input ahb_m_hgrant,
+	input ahb_m_hready,
+	input [1:0] ahb_m_hresp,
+	input [31:0] ahb_m_hrdata,
+	output ahb_m_hbusreq,
+	output ahb_m_hlock,
+	output [1:0] ahb_m_htrans,
+	output [31:0] ahb_m_haddr,
+	output ahb_m_hwrite,
+	output [2:0] ahb_m_hsize,
+	output [2:0] ahb_m_hburst,
+	output [3:0] ahb_m_hprot,
+	output [31:0] ahb_m_hwdata,
 
 	input [7:0] cacheline_size,
 
@@ -94,18 +94,8 @@ wire rdata_ready;
 wire clk;
 wire rst;
 
-reg [1:0] reset_sync;
-
-assign clk = CLK;
-assign rst = !reset_sync[1];
-
-always @(posedge clk, negedge mst_s_aresetn)
-begin
-	if(!mst_s_aresetn)
-		reset_sync <= 1'b0;
-	else
-		reset_sync <= {reset_sync, 1'b1};
-end
+assign clk = ahb_hclk;
+assign rst = !ahb_hresetn;
 
 pci_master_wpath wpath_i(
 	.mst_s_aclk(mst_s_aclk),
@@ -192,24 +182,23 @@ pci_master_rpath rpath_i(
 	.data_ready(rdata_ready)
 );
 
-pci_master_ctrl ctrl_i(
-	.rst(rst),
+grpci2_master_ctrl ctrl_i(
 	.clk(clk),
+	.rst(rst),
 
-	.ADIO_IN(ADIO_IN),
-	.ADIO_OUT(ADIO_OUT),
-	.REQUEST(REQUEST),
-	.REQUESTHOLD(REQUESTHOLD),
-	.M_CBE(M_CBE),
-	.M_WRDN(M_WRDN),
-	.COMPLETE(COMPLETE),
-	.M_READY(M_READY),
-	.M_DATA_VLD(M_DATA_VLD),
-	.M_SRC_EN(M_SRC_EN),
-	.TIME_OUT(TIME_OUT),
-	.M_DATA(M_DATA),
-	.M_ADDR_N(M_ADDR_N),
-	.STOPQ_N(STOPQ_N),
+	.ahb_m_hgrant(ahb_m_hgrant),
+	.ahb_m_hready(ahb_m_hready),
+	.ahb_m_hresp(ahb_m_hresp),
+	.ahb_m_hrdata(ahb_m_hrdata),
+	.ahb_m_hbusreq(ahb_m_hbusreq),
+	.ahb_m_hlock(ahb_m_hlock),
+	.ahb_m_htrans(ahb_m_htrans),
+	.ahb_m_haddr(ahb_m_haddr),
+	.ahb_m_hwrite(ahb_m_hwrite),
+	.ahb_m_hsize(ahb_m_hsize),
+	.ahb_m_hburst(ahb_m_hburst),
+	.ahb_m_hprot(ahb_m_hprot),
+	.ahb_m_hwdata(ahb_m_hwdata),
 
 	.wdata_idx(wdata_idx),
 	.wdata_dout(wdata_dout),

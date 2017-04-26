@@ -408,7 +408,9 @@ begin
 	ahbsi.hready <= ahb_slv_hready_i;
 	ahbsi.hmaster <= ahb_slv_hmaster;
 	ahbsi.hmastlock <= ahb_slv_hmastlock;
-	ahbsi.hmbsel <= (others => '0');
+	ahbsi.hmbsel(0) <= '1';
+	ahbsi.hmbsel(1) <= '0';
+	ahbsi.hmbsel(2) <= '0';
 	ahbsi.hirq <= (others => '0');
 	ahbsi.testen <= '0';
 	ahbsi.testrst <= '0';

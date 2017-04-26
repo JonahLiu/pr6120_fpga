@@ -4,12 +4,14 @@ library techmap;
 use techmap.gencomp.all;
 library gaisler;
 use gaisler.pci.all;
+library grlib;
+use grlib.amba.all;
 
 entity axi_pci_device is
 	generic (
 	    memtech     : integer := DEFMEMTECH;
 		tbmemtech   : integer := DEFMEMTECH;  -- For trace buffers
-		oepol       : integer := 0;
+		oepol       : integer := 1;
 		hmindex     : integer := 0;
 		hdmindex    : integer := 0;
 		hsindex     : integer := 0;
@@ -26,34 +28,34 @@ entity axi_pci_device is
 		dma         : integer range 0 to 1 := 0;
 		tracebuffer : integer range 0 to 16384 := 0;
 		confspace   : integer range 0 to 1 := 1;
-		vendorid    : integer := 16#0000#;
-		deviceid    : integer := 16#0000#;
+		vendorid    : integer := 16#10EE#;
+		deviceid    : integer := 16#0701#;
 		classcode   : integer := 16#000000#;
 		revisionid  : integer := 16#00#;
 		cap_pointer : integer := 16#40#;
 		ext_cap_pointer : integer := 16#00#;
 		iobase      : integer := 16#FFF#;
-		extcfg      : integer := 16#0000000#;
-		bar0        : integer range 0 to 31 := 28;
-		bar1        : integer range 0 to 31 := 0;
-		bar2        : integer range 0 to 31 := 0;
-		bar3        : integer range 0 to 31 := 0;
-		bar4        : integer range 0 to 31 := 0;
-		bar5        : integer range 0 to 31 := 0;
-		bar0_map    : integer := 16#000000#;
-		bar1_map    : integer := 16#000000#;
-		bar2_map    : integer := 16#000000#;
-		bar3_map    : integer := 16#000000#;
-		bar4_map    : integer := 16#000000#;
-		bar5_map    : integer := 16#000000#;
-		bartype     : integer range 0 to 65535 := 16#0000#;
-		barminsize  : integer range 5 to 31 := 12;
-		fifo_depth  : integer range 3 to 7 := 3;
+		extcfg      : integer := 16#FFFE000#;
+		bar0        : integer range 0 to 31 := 16; -- Size in address bits
+		bar1        : integer range 0 to 31 := 16;
+		bar2        : integer range 0 to 31 := 16;
+		bar3        : integer range 0 to 31 := 16;
+		bar4        : integer range 0 to 31 := 16;
+		bar5        : integer range 0 to 31 := 16;
+		bar0_map    : integer := 16#000000#; -- AHB address mapping
+		bar1_map    : integer := 16#000100#;
+		bar2_map    : integer := 16#000200#;
+		bar3_map    : integer := 16#000300#;
+		bar4_map    : integer := 16#000400#;
+		bar5_map    : integer := 16#000500#;
+		bartype     : integer range 0 to 65535 := 16#0000#; -- [5:0]: Prefetch, [13:8]: Type
+		barminsize  : integer range 5 to 31 := 10;
+		fifo_depth  : integer range 3 to 7 := 7;
 		fifo_count  : integer range 2 to 4 := 2;
-		conv_endian : integer range 0 to 1 := 1; -- 1: little (PCI) <~> big (AHB), 0: big (PCI) <=> big (AHB)   
+		conv_endian : integer range 0 to 1 := 0; -- 1: little (PCI) <~> big (AHB), 0: big (PCI) <=> big (AHB)   
 		deviceirq   : integer range 0 to 1 := 1;
-		deviceirqmask : integer range 0 to 15 := 16#0#;
-		hostirq     : integer range 0 to 1 := 1;
+		deviceirqmask : integer range 0 to 15 := 16#F#;
+		hostirq     : integer range 0 to 1 := 0;
 		hostirqmask : integer range 0 to 15 := 16#0#;
 		nsync       : integer range 0 to 2 := 2; -- with nsync = 0, wrfst needed on syncram...
 		hostrst     : integer range 0 to 2 := 0; -- 0: PCI reset is never driven, 1: PCI reset is driven from AHB reset if host, 2: PCI reset is always driven from AHB reset
@@ -70,68 +72,77 @@ entity axi_pci_device is
 		multifunc   : integer range 0 to 1 := 0; -- Enables Multi-function support
 		multiint    : integer range 0 to 1 := 0;
 		masters     : integer := 16#FFFF#;
-		mf1_deviceid        : integer := 16#0000#;
+		mf1_deviceid        : integer := 16#0701#;
 		mf1_classcode       : integer := 16#000000#;
 		mf1_revisionid      : integer := 16#00#;
-		mf1_bar0            : integer range 0 to 31 := 0;
-		mf1_bar1            : integer range 0 to 31 := 0;
-		mf1_bar2            : integer range 0 to 31 := 0;
-		mf1_bar3            : integer range 0 to 31 := 0;
-		mf1_bar4            : integer range 0 to 31 := 0;
-		mf1_bar5            : integer range 0 to 31 := 0;
+		mf1_bar0            : integer range 0 to 31 := 16;
+		mf1_bar1            : integer range 0 to 31 := 16;
+		mf1_bar2            : integer range 0 to 31 := 16;
+		mf1_bar3            : integer range 0 to 31 := 16;
+		mf1_bar4            : integer range 0 to 31 := 16;
+		mf1_bar5            : integer range 0 to 31 := 16;
 		mf1_bartype         : integer range 0 to 65535 := 16#0000#;
-		mf1_bar0_map        : integer := 16#000000#;
-		mf1_bar1_map        : integer := 16#000000#;
-		mf1_bar2_map        : integer := 16#000000#;
-		mf1_bar3_map        : integer := 16#000000#;
-		mf1_bar4_map        : integer := 16#000000#;
-		mf1_bar5_map        : integer := 16#000000#;
+		mf1_bar0_map        : integer := 16#000800#;
+		mf1_bar1_map        : integer := 16#000900#;
+		mf1_bar2_map        : integer := 16#000A00#;
+		mf1_bar3_map        : integer := 16#000B00#;
+		mf1_bar4_map        : integer := 16#000C00#;
+		mf1_bar5_map        : integer := 16#000D00#;
 		mf1_cap_pointer     : integer := 16#40#;
 		mf1_ext_cap_pointer : integer := 16#00#;
-		mf1_extcfg          : integer := 16#0000000#;
+		mf1_extcfg          : integer := 16#FFFF000#;
 		mf1_masters         : integer := 16#0000#;
 		iotest              : integer := 0
 	);
 	port (
-		 pci_rst	: in std_logic;
-		 pci_clk	: in std_logic;
-		 pci_gnt     : in std_logic;
-		 pci_idsel   : in std_logic; 
-		 pci_lock_i  : in std_logic;
-		 pci_lock_o  : out std_logic;
-		 pci_lock_oe : out std_logic;
-		 pci_ad_i    : in std_logic_vector(31 downto 0);
-		 pci_ad_o    : out std_logic_vector(31 downto 0);
-		 pci_ad_oe   : out std_logic;
-		 pci_cbe_i   : in std_logic_vector(3 downto 0);
-		 pci_cbe_o   : out std_logic_vector(3 downto 0);
-		 pci_cbe_oe  : out std_logic;
-		 pci_frame_i : in std_logic;
-		 pci_frame_o : out std_logic;
-		 pci_frame_oe: out std_logic;
-		 pci_irdy_i  : in std_logic;
-		 pci_irdy_o  : out std_logic;
-		 pci_irdy_oe : out std_logic;
-		 pci_trdy_i  : in std_logic;
-		 pci_trdy_o  : out std_logic;
-		 pci_trdy_oe : out std_logic;
-		 pci_devsel_i: in std_logic;
-		 pci_devsel_o: out std_logic;
-		 pci_devsel_oe : out std_logic;
-		 pci_stop_i  : in std_logic;
-		 pci_stop_o  : out std_logic;
-		 pci_stop_oe : out std_logic;
-		 pci_perr_i  : in std_logic;
-		 pci_perr_o  : out std_logic;
-		 pci_perr_oe : out std_logic;
-		 pci_par_i   : in std_logic;    
-		 pci_par_o   : out std_logic;    
-		 pci_par_oe  : out std_logic;    
-		 pci_req_o   : out std_logic;
-		 pci_req_oe  : out std_logic;
-		 pci_serr_i  : in std_logic;
-		 pci_serr_o  : out std_logic;
-		 pci_serr_oe : out std_logic;
+		pci_rst	: in std_logic;
+		pci_clk	: in std_logic;
+		pci_gnt     : in std_logic;
+		pci_idsel   : in std_logic; 
+		pci_lock_i  : in std_logic;
+		pci_lock_o  : out std_logic;
+		pci_lock_oe : out std_logic;
+		pci_ad_i    : in std_logic_vector(31 downto 0);
+		pci_ad_o    : out std_logic_vector(31 downto 0);
+		pci_ad_oe   : out std_logic_vector(31 downto 0);
+		pci_cbe_i   : in std_logic_vector(3 downto 0);
+		pci_cbe_o   : out std_logic_vector(3 downto 0);
+		pci_cbe_oe  : out std_logic_vector(3 downto 0);
+		pci_frame_i : in std_logic;
+		pci_frame_o : out std_logic;
+		pci_frame_oe: out std_logic;
+		pci_irdy_i  : in std_logic;
+		pci_irdy_o  : out std_logic;
+		pci_irdy_oe : out std_logic;
+		pci_trdy_i  : in std_logic;
+		pci_trdy_o  : out std_logic;
+		pci_trdy_oe : out std_logic;
+		pci_devsel_i: in std_logic;
+		pci_devsel_o: out std_logic;
+		pci_devsel_oe : out std_logic;
+		pci_stop_i  : in std_logic;
+		pci_stop_o  : out std_logic;
+		pci_stop_oe : out std_logic;
+		pci_perr_i  : in std_logic;
+		pci_perr_o  : out std_logic;
+		pci_perr_oe : out std_logic;
+		pci_par_i   : in std_logic;    
+		pci_par_o   : out std_logic;    
+		pci_par_oe  : out std_logic;    
+		pci_req_o   : out std_logic;
+		pci_req_oe  : out std_logic;
+		pci_serr_i  : in std_logic;
+		pci_serr_o  : out std_logic;
+		pci_serr_oe : out std_logic;
+	    pci_int_i   : in std_logic;
+	    pci_int_o   : out std_logic_vector ( 3 downto 0 );
+	    pci_int_oe  : out std_logic_vector ( 3 downto 0 );
+		pci_pci66_i : in std_logic;
+		pci_pme_i   : in std_logic;
+
+		rst_out_n   : out std_logic;
+
+		irq_n       : in std_logic_vector ( 3 downto 0 );
 
 		axi_aclk 		: in  std_logic;
 		axi_aresetn	    : in  std_logic;
@@ -218,18 +229,14 @@ end;
 
 architecture rtl of axi_pci_device is
 
-	signal rstn, clkm, pciclk : std_logic;
-	signal pci_dirq : std_logic_vector(3 downto 0);
-
 	signal pcii : pci_in_type;
 	signal pcio : pci_out_type;
-	signal apbi  : apb_slv_in_type;
-	signal apbo  : apb_slv_out_type;
 	signal ahbsi : ahb_slv_in_type;
 	signal ahbso : ahb_slv_out_type;
 	signal ahbmi : ahb_mst_in_type;
 	signal ahbmo : ahb_mst_out_type;
-	signal ahbdmi : ahb_mst_in_type;
+
+begin
 
 	grpci2_0 : grpci2 
 	generic map (
@@ -319,21 +326,21 @@ architecture rtl of axi_pci_device is
 		iotest               => 		iotest             
 	)
 	port map (
-		rst        =>    rstn, 
-		clk        =>    clkm, 
-		pciclk     =>    pciclk, 
-		dirq       =>    pci_dirq, 
+		rst        =>    axi_aresetn, 
+		clk        =>    axi_aclk, 
+		pciclk     =>    pci_clk, 
+		dirq       =>    irq_n, 
 		pcii       =>    pcii, 
 		pcio       =>    pcio, 
-		apbi       =>    apbi, 
-		apbo       =>    apbo, 
+		apbi       =>    apb_slv_in_none, -- NC
+		apbo       =>    open,            -- NC
 		ahbsi      =>    ahbsi, 
 		ahbso      =>    ahbso, 
 		ahbmi      =>    ahbmi,
 		ahbmo      =>    ahbmo, 
-		ahbdmi     =>    ahbdmi, 
-	    ahbdmo     =>    open,
-	    ptarst     =>    open, 
+		ahbdmi     =>    ahbm_in_none,    -- NC
+	    ahbdmo     =>    open,            -- NC
+	    ptarst     =>    rst_out_n, 
 		tbapbi     =>    open, 
 		tbapbo     =>    open, 
 		debugo     =>    open
@@ -394,13 +401,13 @@ architecture rtl of axi_pci_device is
 
 	ahb2axi_0 : ahb2axi
 	generic map (
-		hindex		=>	0;
-		haddr		=>	0;
-		hmask		=>	16#f00#;
-		pindex		=>	0;
-		paddr		=>	0;
-		pmask		=>	16#fff#;
-		cidsz		=>	4;
+		hindex		=>	0,
+		haddr		=>	0,
+		hmask		=>	16#f00#,
+		pindex		=>	0,
+		paddr		=>	0,
+		pmask		=>	16#fff#,
+		cidsz		=>	4,
 		clensz		=>	8
 	)
 	port map (
@@ -449,5 +456,63 @@ architecture rtl of axi_pci_device is
 		m_axi_wstrb     => 		m_axi_wstrb    ,
 		m_axi_wvalid    => 		m_axi_wvalid   
 	);
+
+	pcii.rst <= pci_rst;
+	pcii.gnt <= pci_gnt;
+	pcii.idsel <= pci_idsel;
+	pcii.ad <= pci_ad_i;
+	pcii.cbe <= pci_cbe_i;
+	pcii.frame <= pci_frame_i;
+	pcii.irdy <= pci_irdy_i;
+	pcii.trdy <= pci_trdy_i;
+	pcii.devsel <= pci_devsel_i;
+	pcii.stop <= pci_stop_i;
+	pcii.lock <= pci_lock_i;
+	pcii.perr <= pci_perr_i;
+	pcii.serr <= pci_serr_i;
+	pcii.par <= pci_par_i;
+	pcii.host <= 1;
+	pcii.pci66 <= pci_pci66_i;
+	pcii.pme_status <= pci_pme_i;
+	pcii.int <= 16#F#;
+
+	pci_ad_o <= pcio.ad;
+	pci_ad_oe <= pcio.vaden;
+
+	pci_cbe_o <= pcio.cbe;
+	pci_cbe_oe <= pcio.cbeen;
+
+	pci_frame_o <= pcio.frame;
+	pci_frame_oe <= pcio.frameen;
+
+	pci_irdy_o <= pcio.irdy;
+	pci_irdy_oe <= pcio.irdyen;
+
+	pci_trdy_o <= pcio.trdy;
+	pci_trdy_oe <= pcio.trdyen;
+
+	pci_devsel_o <= pcio.devsel;
+	pci_devsel_oe <= pcio.devselen;
+
+	pci_stop_o <= pcio.stop;
+	pci_stop_oe <= pcio.stopen;
+
+	pci_perr_o <= pcio.perr;
+	pci_perr_oe <= pcio.perren;
+
+	pci_par_o <= pcio.par;
+	pci_par_oe <= pcio.paren;
+
+	pci_req_o <= pcio.req;
+	pci_req_oe <= pcio.reqen;
+
+	pci_lock_o <= pcio.lock;
+	pci_lock_oe <= pcio.locken;
+
+	pci_serr_o <= pcio.serr;
+	pci_serr_oe <= pcio.serren;
+
+	pci_int_o <= 16#0#;
+	pci_int_oe <= pcio.vinten;
 
 end;

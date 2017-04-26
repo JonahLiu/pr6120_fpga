@@ -108,73 +108,6 @@ begin
 end
 endtask
 
-task config_write(
-	input [31:0] address,
-	input [31:0] data,
-	input [3:0] be
-);
-begin
-	request_bus;
-	@(posedge clk);
-	ad_o <= `BD address;
-	cbe_o <= `BD CMD_CONF_WRITE;
-	frame_n_o <= `BD 1'b0;
-	par_o <= `BD 1'b0;
-	@(posedge clk);
-	frame_n_o <= 1'b1;
-	irdy_n_o <= `BD 1'b0;
-	par_o <= `BD ^{ad_o, cbe_o};
-	ad_o <= `BD data;
-	cbe_o <= `BD ~be;
-	while(devsel_n_i || 
-		(trdy_n_i && stop_n_i && perr_n_i && serr_n_i)) begin
-		@(posedge clk);
-		par_o <= `BD ^{ad_o, cbe_o};
-	end
-	irdy_n_o <= `BD 1'b1;
-	ad_o <= `BD 'bz;
-	cbe_o <= `BD 'bz;
-	@(posedge clk);
-	frame_n_o <= `BD 1'bz;
-	irdy_n_o <= `BD 1'bz;
-	par_o <= `BD 'bz;
-	release_bus;
-end
-endtask
-
-task config_read(
-	input [31:0] address,
-	output [31:0] data
-);
-begin
-	request_bus;
-	@(posedge clk);
-	ad_o <= `BD address;
-	cbe_o <= `BD CMD_CONF_READ;
-	frame_n_o <= `BD 1'b0;
-	par_o <= `BD 1'b0;
-	@(posedge clk);
-	par_o <= `BD ^{ad_o, cbe_o};
-	frame_n_o <= `BD 1'b1;
-	irdy_n_o <= `BD 1'b0;
-	ad_o <= `BD 'bz;
-	cbe_o <= `BD 'b0;
-	@(posedge clk);
-	par_o <= `BD 'bz;
-	while(devsel_n_i || 
-		trdy_n_i && stop_n_i && perr_n_i && serr_n_i) begin
-		@(posedge clk);
-	end
-	data = ad_i;
-	irdy_n_o <= `BD 1'b1;
-	cbe_o <= `BD 'bz;
-	@(posedge clk);
-	frame_n_o <= `BD 1'bz;
-	irdy_n_o <= `BD 1'bz;
-	release_bus;
-end
-endtask
-
 reg [31:0] write_data[0:15];
 reg [3:0] write_be[0:15];
 
@@ -284,16 +217,18 @@ begin
 end
 endtask
 
-task memory_write(
+task single_write_transfer(
 	input [31:0] address,
 	input [31:0] data,
-	input [3:0] be
+	input [3:0] be,
+	input [3:0] cmd,
+	output [3:0] resp
 );
 begin
 	request_bus;
 	@(posedge clk);
 	ad_o <= `BD address;
-	cbe_o <= `BD CMD_MEM_WRITE;
+	cbe_o <= `BD cmd;
 	frame_n_o <= `BD 1'b0;
 	par_o <= `BD 1'b0;
 	@(posedge clk);
@@ -307,6 +242,7 @@ begin
 		@(posedge clk);
 		par_o <= `BD ^{ad_o, cbe_o};
 	end
+	resp = {serr_n_i,perr_n_i,stop_n_i, trdy_n_i};
 	irdy_n_o <= `BD 1'b1;
 	ad_o <= `BD 'bz;
 	cbe_o <= `BD 'bz;
@@ -315,6 +251,100 @@ begin
 	irdy_n_o <= `BD 1'bz;
 	par_o <= `BD 'bz;
 	release_bus;
+end
+endtask
+
+task single_read_transfer(
+	input [31:0] address,
+	input [3:0] cmd,
+	output [31:0] data,
+	output [3:0] resp
+);
+begin
+	request_bus;
+	@(posedge clk);
+	ad_o <= `BD address;
+	cbe_o <= `BD cmd;
+	frame_n_o <= `BD 1'b0;
+	par_o <= `BD 1'b0;
+	@(posedge clk);
+	par_o <= `BD ^{ad_o, cbe_o};
+	frame_n_o <= `BD 1'b1;
+	irdy_n_o <= `BD 1'b0;
+	ad_o <= `BD 'bz;
+	cbe_o <= `BD 'b0;
+	@(posedge clk);
+	par_o <= `BD 'bz;
+	while(devsel_n_i || 
+		trdy_n_i && stop_n_i && perr_n_i && serr_n_i) begin
+		@(posedge clk);
+	end
+	resp = {serr_n_i,perr_n_i,stop_n_i, trdy_n_i};
+	data = ad_i;
+	irdy_n_o <= `BD 1'b1;
+	cbe_o <= `BD 'bz;
+	@(posedge clk);
+	frame_n_o <= `BD 1'bz;
+	irdy_n_o <= `BD 1'bz;
+	release_bus;
+end
+endtask
+
+task config_write( input [31:0] address,
+	input [31:0] data,
+	input [3:0] be
+);
+reg [3:0] resp;
+begin
+	resp = 4'hF;
+	while(resp[0]==1 && resp[3:2]==2'b11) begin
+		single_write_transfer(address, data, be, CMD_CONF_WRITE, resp);
+		if(resp[0]==0)
+			$display("PCI CFG WR @%x = %x (%b), OK", address, data, be);
+		else if(resp[3:2]==2'b11)
+			$display("PCI CFG WR @%x = %x (%b), Retry (%b)", address, data, be, resp);
+		else
+			$display("PCI CFG WR @%x = %x (%b), Error (%b)", address, data, be, resp);
+	end
+end
+endtask
+
+task config_read(
+	input [31:0] address,
+	output [31:0] data
+);
+reg [3:0] resp;
+begin
+	resp = 4'hF;
+	while(resp[0]==1 && resp[3:2]==2'b11) begin
+		single_read_transfer(address, CMD_CONF_READ, data, resp);
+		if(resp[0]==0)
+			$display("PCI CFG RD @%x, OK (%x)", address, data);
+		else if(resp[3:2]==2'b11)
+			$display("PCI CFG RD @%x, Retry (%b)", address, resp);
+		else
+			$display("PCI CFG RD @%x, Error (%b)", address, resp);
+	end
+end
+endtask
+
+task memory_write(
+	input [31:0] address,
+	input [31:0] data,
+	input [3:0] be
+);
+reg [3:0] resp;
+begin
+	resp = 4'hF;
+	while(resp[0]==1 && resp[3:2]==2'b11) begin
+		single_write_transfer(address, data, be, CMD_MEM_WRITE, resp);
+		if(resp[0]==0)
+			$display("PCI MEM WR @%x = %x (%b), OK", address, data, be);
+		else if(resp[3:2]==2'b11)
+			$display("PCI MEM WR @%x = %x (%b), Retry (%b)", address, data, be, resp);
+		else
+			$display("PCI MEM WR @%x = %x (%b), Error (%b)", address, data, be, resp);
+	end
 end
 endtask
 
@@ -322,67 +352,38 @@ task memory_read(
 	input [31:0] address,
 	output [31:0] data
 );
+reg [3:0] resp;
 begin
-	request_bus;
-	@(posedge clk);
-	ad_o <= `BD address;
-	cbe_o <= `BD CMD_MEM_READ;
-	frame_n_o <= `BD 1'b0;
-	par_o <= `BD 1'b0;
-	@(posedge clk);
-	par_o <= `BD ^{ad_o, cbe_o};
-	frame_n_o <= `BD 1'b1;
-	irdy_n_o <= `BD 1'b0;
-	ad_o <= `BD 'bz;
-	cbe_o <= `BD 'b0;
-	@(posedge clk);
-	par_o <= `BD 'bz;
-	while(devsel_n_i || 
-		trdy_n_i && stop_n_i && perr_n_i && serr_n_i) begin
-		@(posedge clk);
+	resp = 4'hF;
+	while(resp[0]==1 && resp[3:2]==2'b11) begin
+		single_read_transfer(address, CMD_MEM_READ, data, resp);
+		if(resp[0]==0)
+			$display("PCI MEM RD @%x, OK (%x)", address, data);
+		else if(resp[3:2]==2'b11)
+			$display("PCI MEM RD @%x, Retry (%b)", address, resp);
+		else
+			$display("PCI MEM RD @%x, Error (%b)", address, resp);
 	end
-	data = ad_i;
-	irdy_n_o <= `BD 1'b1;
-	cbe_o <= `BD 'bz;
-	@(posedge clk);
-	frame_n_o <= `BD 1'bz;
-	irdy_n_o <= `BD 1'bz;
-	release_bus;
 end
 endtask
-
 
 task io_write(
 	input [31:0] address,
 	input [31:0] data,
 	input [3:0] be
 );
+reg [3:0] resp;
 begin
-	request_bus;
-	@(posedge clk);
-	ad_o <= `BD address;
-	cbe_o <= `BD CMD_IO_WRITE;
-	frame_n_o <= `BD 1'b0;
-	par_o <= `BD 1'b0;
-	@(posedge clk);
-	frame_n_o <= 1'b1;
-	irdy_n_o <= `BD 1'b0;
-	par_o <= `BD ^{ad_o, cbe_o};
-	ad_o <= `BD data;
-	cbe_o <= `BD ~be;
-	while(devsel_n_i || 
-		(trdy_n_i && stop_n_i && perr_n_i && serr_n_i)) begin
-		@(posedge clk);
-		par_o <= `BD ^{ad_o, cbe_o};
+	resp = 4'hF;
+	while(resp[0]==1 && resp[3:2]==2'b11) begin
+		single_write_transfer(address, data, be, CMD_IO_WRITE, resp);
+		if(resp[0]==0)
+			$display("PCI IO WR @%x = %x (%b), OK", address, data, be);
+		else if(resp[3:2]==2'b11)
+			$display("PCI IO WR @%x = %x (%b), Retry (%b)", address, data, be, resp);
+		else
+			$display("PCI IO WR @%x = %x (%b), Error (%b)", address, data, be, resp);
 	end
-	irdy_n_o <= `BD 1'b1;
-	ad_o <= `BD 'bz;
-	cbe_o <= `BD 'bz;
-	@(posedge clk);
-	frame_n_o <= `BD 1'bz;
-	irdy_n_o <= `BD 1'bz;
-	par_o <= `BD 'bz;
-	release_bus;
 end
 endtask
 
@@ -390,32 +391,18 @@ task io_read(
 	input [31:0] address,
 	output [31:0] data
 );
+reg [3:0] resp;
 begin
-	request_bus;
-	@(posedge clk);
-	ad_o <= `BD address;
-	cbe_o <= `BD CMD_IO_READ;
-	frame_n_o <= `BD 1'b0;
-	par_o <= `BD 1'b0;
-	@(posedge clk);
-	par_o <= `BD ^{ad_o, cbe_o};
-	frame_n_o <= `BD 1'b1;
-	irdy_n_o <= `BD 1'b0;
-	ad_o <= `BD 'bz;
-	cbe_o <= `BD 'b0;
-	@(posedge clk);
-	par_o <= `BD 'bz;
-	while(devsel_n_i || 
-		trdy_n_i && stop_n_i && perr_n_i && serr_n_i) begin
-		@(posedge clk);
+	resp = 4'hF;
+	while(resp[0]==1 && resp[3:2]==2'b11) begin
+		single_read_transfer(address, CMD_IO_READ, data, resp);
+		if(resp[0]==0)
+			$display("PCI IO RD @%x, OK (%x)", address, data);
+		else if(resp[3:2]==2'b11)
+			$display("PCI IO RD @%x, Retry (%b)", address, resp);
+		else
+			$display("PCI IO RD @%x, Error (%b)", address, resp);
 	end
-	data = ad_i;
-	irdy_n_o <= `BD 1'b1;
-	cbe_o <= `BD 'bz;
-	@(posedge clk);
-	frame_n_o <= `BD 1'bz;
-	irdy_n_o <= `BD 1'bz;
-	release_bus;
 end
 endtask
 
