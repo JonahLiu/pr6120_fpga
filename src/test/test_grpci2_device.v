@@ -633,6 +633,8 @@ begin:TEST
 
 	config_target();
 
+	#10_000;
+
 	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'hF);
 
 	master.memory_read(TGT_BAR0_BASE, data); 
@@ -658,6 +660,8 @@ begin:TEST
 
 	master.io_read(TGT_BAR2_BASE, data); 
 
+	#10_000;
+
 	aximaster.set_id(0);
 	for(i=0;i<256;i=i+1) begin
 		aximaster.set_write_data(i,i);
@@ -674,16 +678,33 @@ begin:TEST
 	aximaster.write(32'hD000_0000, 32);
 	aximaster.write(32'hE000_0000, 64);
 	aximaster.write(32'hF000_0000, 128);
+	aximaster.wait_for_write();
 	#10_000;
-
-	//aximaster.read(HOST_BASE, 1);
-	//aximaster.read(HOST_BASE, 2);
-	//aximaster.read(HOST_BASE, 16);
 	host.disconnect=16;
 	aximaster.write(32'h0000_0000, 128);
-	//aximaster.read(HOST_BASE, 128);
+	aximaster.wait_for_write();
 
+	#20_000;
+
+	//host.disconnect=8'hFF;
+
+	aximaster.read(32'h0000_0000, 1);
 	#10_000;
+	aximaster.read(32'h1000_0000, 2);
+	#10_000;
+	aximaster.read(32'h2000_0000, 3);
+	#10_000;
+	aximaster.read(32'h3000_0000, 8);
+	#10_000;
+	aximaster.read(32'h4000_0000, 16);
+	#10_000;
+	aximaster.read(32'h5000_0000, 32);
+	#10_000;
+	aximaster.read(32'h6000_0000, 64);
+	#10_000;
+	aximaster.read(32'h7000_0000, 128);
+	#10_000;
+
 	$stop;
 end
 

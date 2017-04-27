@@ -66,6 +66,7 @@ reg hwrite_r;
 reg [1:0] htrans_r;
 reg [2:0] hsize_r;
 reg [31:0] hwdata_r;
+reg [2:0] hburst_r;
 
 reg wcmd_ready_r;
 reg [1:0] wresp_err_r;
@@ -73,6 +74,8 @@ reg wresp_valid_r;
 reg rcmd_ready_r;
 reg [1:0] rresp_err_r;
 reg rresp_valid_r;
+reg [31:0] rdata_din_r;
+reg rdata_valid_r;
 
 reg [3:0] id;
 reg [7:0] length_m1;
@@ -85,6 +88,10 @@ reg [31:0] write_ack_addr;
 reg [9:0] write_ack_idx;
 reg [8:0] write_ack_cnt;
 
+reg read_data_valid;
+reg [31:0] read_ack_addr;
+reg [8:0] read_ack_cnt;
+
 assign wdata_idx = idx_r;
 
 assign wcmd_ready = wcmd_ready_r;
@@ -92,10 +99,13 @@ assign wresp_id = id;
 assign wresp_len = length_m1;
 assign wresp_err = wresp_err_r;
 assign wresp_valid = wresp_valid_r;
+assign rcmd_ready = rcmd_ready_r;
 assign rresp_id = id;
 assign rresp_len = length_m1;
 assign rresp_err = rresp_err_r;
 assign rresp_valid = rresp_valid_r;
+assign rdata_din = rdata_din_r;
+assign rdata_valid = rdata_valid_r;
 
 assign ahb_m_hbusreq = hbusreq_r;
 assign ahb_m_hlock = 1'b0;
@@ -103,15 +113,19 @@ assign ahb_m_htrans = htrans_r;
 assign ahb_m_haddr = haddr_r;
 assign ahb_m_hwrite = hwrite_r;
 assign ahb_m_hsize = hsize_r;
-assign ahb_m_hburst = AHB_INCR;
+assign ahb_m_hburst = hburst_r;
 assign ahb_m_hprot = 4'b1111;
 assign ahb_m_hwdata = hwdata_r;
 
 integer s1, s1_next;
 
-localparam S1_IDLE=0, S1_WRITE_INIT=1, S1_WRITE_NONSEQ=2, S1_WRITE_SEQ=3, 
-	S1_WRITE_WAIT=4, S1_WRITE_DONE=5, S1_WRITE_FAIL=6, S1_READ_INIT=7;
-localparam S1_WRITE_RETRY=8, S1_WRITE_RESP=9, S1_WRITE_LAST=10;
+localparam S1_IDLE=0, 
+	S1_WRITE_INIT=10, S1_WRITE_NONSEQ=11, S1_WRITE_SEQ=12, 
+	S1_WRITE_WAIT=13, S1_WRITE_DONE=14, S1_WRITE_FAIL=15, 
+	S1_WRITE_RETRY=16,S1_WRITE_LAST=17,
+	S1_READ_INIT=20, S1_READ_NONSEQ=21, S1_READ_SEQ=22,
+	S1_READ_WAIT=23, S1_READ_DONE=24, S1_READ_FAIL=25,
+	S1_READ_RETRY=26, S1_READ_LAST=27;
 
 always @(posedge clk, posedge rst)
 begin
@@ -181,6 +195,48 @@ begin
 			else
 				s1_next = S1_WRITE_FAIL;
 		end
+		S1_READ_INIT: begin
+			s1_next = S1_READ_NONSEQ;
+		end
+		// FIXME: insert wait state when read fifo full
+		S1_READ_NONSEQ, S1_READ_SEQ, S1_READ_WAIT: begin
+			if(ahb_m_hready &&  ahb_m_hgrant && ahb_m_hresp==AHB_OKAY)
+				if(count == length_m1)
+					s1_next = S1_READ_LAST;
+				else
+					s1_next = S1_READ_SEQ;
+			else if(!ahb_m_hgrant || ahb_m_hresp == AHB_RETRY || ahb_m_hresp == AHB_SPLT)
+				s1_next = S1_READ_RETRY;
+			else if(ahb_m_hresp == AHB_ERROR)
+				s1_next = S1_READ_FAIL;
+			else
+				s1_next = S1_READ_WAIT;
+		end
+		S1_READ_LAST: begin
+			if(ahb_m_hready) 
+				s1_next = S1_READ_DONE;
+			else if(ahb_m_hresp==AHB_ERROR)
+				s1_next = S1_READ_FAIL;
+			else if(ahb_m_hresp==AHB_RETRY || ahb_m_hresp==AHB_SPLT)
+				s1_next = S1_READ_RETRY;
+			else
+				s1_next = S1_READ_LAST;
+		end
+		S1_READ_RETRY: begin
+			s1_next = S1_READ_NONSEQ;
+		end
+		S1_READ_DONE: begin
+			if(wresp_ready)
+				s1_next = S1_IDLE;
+			else
+				s1_next = S1_READ_DONE;
+		end
+		S1_READ_FAIL: begin
+			if(wresp_ready)
+				s1_next = S1_IDLE;
+			else
+				s1_next = S1_READ_FAIL;
+		end
 		default: begin
 			s1_next = 'bx;
 		end
@@ -197,6 +253,7 @@ begin
 		haddr_r <= 'bx;
 		hbusreq_r <= 1'b0;
 		hwrite_r <= 1'bx;
+		hburst_r <= 'bx;
 		count <= 'bx;
 		htrans_r <= AHB_IDLE;
 		hwdata_r <= 'bx;
@@ -213,6 +270,8 @@ begin
 		S1_IDLE: begin
 			wcmd_ready_r <= 1'b0;
 			wresp_valid_r <= 1'b0;
+			rcmd_ready_r <= 1'b0;
+			rresp_valid_r <= 1'b0;
 		end
 		S1_WRITE_INIT: begin
 			id <= wcmd_id;
@@ -230,6 +289,13 @@ begin
 			htrans_r <= AHB_NONSEQ;
 			count <= write_ack_cnt;
 			idx_r <= write_ack_idx;
+			case(length_m1 - write_ack_cnt)
+				8'd0: hburst_r <= AHB_SINGLE;
+				8'd3: hburst_r <= AHB_INCR4;
+				8'd7: hburst_r <= AHB_INCR8;
+				8'd15: hburst_r <= AHB_INCR16;
+				default: hburst_r <= AHB_INCR;
+			endcase
 		end
 		S1_WRITE_SEQ: begin
 			htrans_r <= AHB_SEQ;
@@ -259,6 +325,54 @@ begin
 		S1_WRITE_FAIL: begin
 			wresp_valid_r <= 1'b1;
 			wresp_err_r <= AXI_DECERR;
+		end
+		S1_READ_INIT: begin
+			id <= rcmd_id;
+			length_m1 <= rcmd_len;
+			rcmd_ready_r <= 1'b1;
+			write_cycle <= 1'b0;
+			haddr_r <= rcmd_addr;
+			hwrite_r <= 1'b0;
+			count <= 'b0;
+		end
+		S1_READ_NONSEQ: begin
+			rcmd_ready_r <= 1'b0;
+			haddr_r <= read_ack_addr;
+			hbusreq_r <= 1'b1;
+			htrans_r <= AHB_NONSEQ;
+			count <= read_ack_cnt;
+			case(length_m1 - read_ack_cnt)
+				8'd0: hburst_r <= AHB_SINGLE;
+				8'd3: hburst_r <= AHB_INCR4;
+				8'd7: hburst_r <= AHB_INCR8;
+				8'd15: hburst_r <= AHB_INCR16;
+				default: hburst_r <= AHB_INCR;
+			endcase
+		end
+		S1_READ_SEQ: begin
+			htrans_r <= AHB_SEQ;
+			haddr_r <= {haddr_r[31:2],2'b00}+4;
+
+			count <= count+1;
+		end
+		S1_READ_RETRY: begin
+			hbusreq_r <= 1'b0;
+			htrans_r <= AHB_IDLE;
+		end
+		S1_READ_WAIT: begin
+		end
+		S1_READ_LAST: begin
+			htrans_r <= AHB_IDLE;
+		end
+		S1_READ_DONE: begin
+			htrans_r <= AHB_IDLE;
+			hbusreq_r <= 1'b0;
+			rresp_valid_r <= 1'b1;
+			rresp_err_r <= AXI_OK;
+		end
+		S1_READ_FAIL: begin
+			rresp_valid_r <= 1'b1;
+			rresp_err_r <= AXI_DECERR;
 		end
 	endcase
 end
@@ -311,6 +425,49 @@ begin
 	end
 	else if(write_data_valid && ahb_m_hready && ahb_m_hresp==AHB_OKAY) begin
 		write_ack_idx <= write_ack_idx+1;
+	end
+end
+
+always @(posedge clk, posedge rst)
+begin
+	if(rst) 
+		read_data_valid <= 1'b0;
+	else if(s1==S1_READ_NONSEQ)
+		read_data_valid <= 1'b1;
+	else if(read_data_valid && ahb_m_hready && ahb_m_hresp==AHB_OKAY && read_ack_cnt==length_m1)
+		read_data_valid <= 1'b0;
+	else if(!ahb_m_hready && ahb_m_hresp!=AHB_OKAY)
+		read_data_valid <= 1'b0;
+end
+
+always @(posedge clk, posedge rst)
+begin
+	if(rst) begin
+		read_ack_cnt <= 1'b0;
+		read_ack_addr <= 'bx;
+	end
+	else if(s1_next==S1_READ_INIT) begin
+		read_ack_cnt <= 0;
+		read_ack_addr <= rcmd_addr;
+	end
+	else if(read_data_valid && ahb_m_hready && ahb_m_hresp==AHB_OKAY) begin
+		read_ack_cnt <= read_ack_cnt+1;
+		read_ack_addr <= {read_ack_addr[31:2],2'b00}+4;
+	end
+end
+
+always @(posedge clk, posedge rst)
+begin
+	if(rst) begin
+		rdata_valid_r <= 1'b0;
+		rdata_din_r <= 'bx;
+	end
+	else if(read_data_valid && ahb_m_hready && ahb_m_hresp==AHB_OKAY) begin
+		rdata_valid_r <= 1'b1;
+		rdata_din_r <= ahb_m_hrdata;
+	end
+	else begin
+		rdata_valid_r <= 1'b0;
 	end
 end
 

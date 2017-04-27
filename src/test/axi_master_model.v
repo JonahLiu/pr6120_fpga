@@ -68,6 +68,9 @@ reg always_rready;
 reg [7:0] read_idx;
 reg [8:0] last_read_length;
 
+integer read_count;
+integer write_count;
+
 task set_write_data(input [7:0] addr, input [M_AXI_DATA_WIDTH-1:0] data);
 	mem_wdata[addr]=data;
 endtask
@@ -127,6 +130,13 @@ task write(input [31:0] addr, input [8:0] length);
 	end
 endtask
 
+task wait_for_write();
+	begin
+		while(write_count>0)
+			@(posedge m_axi_aclk);
+	end
+endtask
+
 task read(input [31:0] addr, input [8:0] length);
 	begin
 		@(posedge m_axi_aclk);
@@ -140,6 +150,13 @@ task read(input [31:0] addr, input [8:0] length);
 		@(posedge m_axi_aclk);
 		while(!m_axi_arready) @(posedge m_axi_aclk);
 		m_axi_arvalid <= 1'b0;
+	end
+endtask
+
+task wait_for_read();
+	begin
+		while(read_count>0)
+			@(posedge m_axi_aclk);
 	end
 endtask
 
@@ -191,6 +208,30 @@ begin
 	end
 end
 
+always @(posedge m_axi_aclk)
+begin
+	if(m_axi_arvalid && m_axi_arready) begin
+		if(!(m_axi_rvalid && m_axi_rready && m_axi_rlast)) begin
+			read_count <= read_count+1;
+		end
+	end
+	else if(m_axi_rvalid && m_axi_rready && m_axi_rlast) begin
+		read_count <= read_count-1;
+	end
+end
+
+always @(posedge m_axi_aclk)
+begin
+	if(m_axi_awvalid && m_axi_awready) begin
+		if(!(m_axi_bvalid && m_axi_bready)) begin
+			write_count <= write_count+1;
+		end
+	end
+	else if(m_axi_bvalid && m_axi_bready) begin
+		write_count <= write_count-1;
+	end
+end
+
 initial
 begin
 	m_axi_awaddr = 0;
@@ -216,6 +257,9 @@ begin
 	always_bready=0;
 	read_idx = 0;
 	last_read_length = 0;
+
+	read_count = 0;
+	write_count = 0;
 end
 
 endmodule
