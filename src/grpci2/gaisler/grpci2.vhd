@@ -64,6 +64,8 @@ entity grpci2 is
     confspace   : integer range 0 to 1 := 1;
     vendorid    : integer := 16#0000#;
     deviceid    : integer := 16#0000#;
+    subvid      : integer := 16#0000#;
+    subsysid    : integer := 16#0000#;
     classcode   : integer := 16#000000#;
     revisionid  : integer := 16#00#;
     cap_pointer : integer := 16#40#;
@@ -107,6 +109,7 @@ entity grpci2 is
     multiint    : integer range 0 to 1 := 0;
     masters     : integer := 16#FFFF#;
     mf1_deviceid        : integer := 16#0000#;
+    mf1_subsysid        : integer := 16#0000#;
     mf1_classcode       : integer := 16#000000#;
     mf1_revisionid      : integer := 16#00#;
     mf1_bar0            : integer range 0 to 31 := 0;
@@ -803,6 +806,7 @@ constant bar_io : bar_prefetch_vector_type := (func0_bar_io, func1_bar_io, (othe
                                                      (others => '0'), (others => '0'), (others => '0'), (others => '0'));
 type conf_int_vector_type is array (0 to 7) of integer;
 constant deviceid_vector : conf_int_vector_type := (deviceid, mf1_deviceid, 0, 0, 0, 0, 0, 0);
+constant subsysid_vector : conf_int_vector_type := (subsysid, mf1_subsysid, 0, 0, 0, 0, 0, 0);
 constant classcode_vector : conf_int_vector_type := (classcode, mf1_classcode, 0, 0, 0, 0, 0, 0);
 constant revisionid_vector : conf_int_vector_type := (revisionid, mf1_revisionid, 0, 0, 0, 0, 0, 0);
 constant cap_pointer_vector : conf_int_vector_type := (cap_pointer, mf1_cap_pointer, 0, 0, 0, 0, 0, 0);
@@ -2005,7 +2009,7 @@ begin
           when "1010" =>  -- Cardbus CIS Pointer
             t_cad := (others => '0');
           when "1011" =>  -- Subsystem ID and Subsystem Vendor ID
-            t_cad := (others => '0');
+            t_cad := conv_std_logic_vector(subsysid_vector(conf_func),16) & conv_std_logic_vector(subvid,16);
           when "1100" =>  -- Expansion ROM Base Address
             t_cad := (others => '0');
           when "1101" =>  -- Reserved and Capabillities Pointer
