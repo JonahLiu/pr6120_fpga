@@ -96,7 +96,7 @@ module multi_top(
 parameter NIC_ENABLE="TRUE";
 parameter MPC_ENABLE="TRUE";
 parameter MPS_ENABLE="TRUE";
-parameter DEBUG="TRUE";
+parameter DEBUG="FALSE";
 
 parameter [23:0] NIC_MAC_OUI=24'hEC3F05;
 parameter [15:0] NIC_SUBSYSID=16'h0050;
@@ -577,8 +577,10 @@ nic_pci_wrapper #(
     .gnti(p0_gnti),
     .reqo(p0_reqo),
     .reqt(p0_reqt),
+	.inti(1'b1),
     .into(p0_into),
     .intt(p0_intt),
+	.pmei(1'b1),
     .pmeo(p0_pmeo),
     .pmet(p0_pmet),
 	.m66eni(1'b0),
@@ -856,6 +858,7 @@ wire [CAN_PORT_NUM-1:0] can_rx;
 wire [CAN_PORT_NUM-1:0] can_tx;
 wire [CAN_PORT_NUM-1:0] can_bus_off_on;
 
+// TODO: control can_rs[*] with can_bus_off_on
 assign can0_tx = can_tx[0];
 assign can0_rs = 1'b0;
 assign can_rx[0] = can0_rx;
@@ -913,8 +916,10 @@ mpc_pci_wrapper #(
     .gnti(p1_gnti),
     .reqo(p1_reqo),
     .reqt(p1_reqt),
+	.inti(1'b1),
     .into(p1_into),
     .intt(p1_intt),
+	.pmei(1'b1),
     .pmeo(p1_pmeo),
     .pmet(p1_pmet),
 	.m66eni(1'b0),
@@ -1036,8 +1041,10 @@ mps_pci_wrapper #(
     .gnti(p2_gnti),
     .reqo(p2_reqo),
     .reqt(p2_reqt),
+	.inti(1'b1),
     .into(p2_into),
     .intt(p2_intt),
+	.pmei(1'b1),
     .pmeo(p2_pmeo),
     .pmet(p2_pmet),
 	.m66eni(1'b0),

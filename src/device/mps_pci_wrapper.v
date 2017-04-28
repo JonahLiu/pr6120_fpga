@@ -152,6 +152,8 @@ grpci2_device #(
 	.subsysid(SUBSYSID),
 	.subvid(SUBVID),
 	.classcode(CLASSCODE),
+	.barminsize(5),
+	.fifo_depth(3),
 	.bar0(7), // 128 Byte Memory
 	.bar1(7), // 128 Byte IO
 	.bar2(6), // 64 Byte IO
@@ -206,7 +208,7 @@ pci_i (
 	.pci_serr_i(serri),
 	.pci_serr_o(serro),
 	.pci_serr_oe(serrt),
-	.pci_int_i(inti),
+	.pci_int_i({3'b111,inti}),
 	.pci_int_o(into),
 	.pci_int_oe(intt),
 	.pci_m66en(m66eni),
@@ -247,7 +249,7 @@ pci_i (
 	.ahb_slv_hrdata(),
 	.ahb_slv_hsplit(),
 
-	.intr_req(intr_req)
+	.intr_req({3'b000,intr_req})
 );
 
 grpci2_axi_lite_tgt tgt_i(

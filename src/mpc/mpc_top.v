@@ -35,8 +35,7 @@ module mpc_top #(
 	// CAN signals
 	input  [PORT_NUM-1:0] rx_i,
 	output [PORT_NUM-1:0] tx_o,
-	output [PORT_NUM-1:0] bus_off_on,
-	output	interrupt
+	output [PORT_NUM-1:0] bus_off_on
 );
 
 multi_can #(.PORT_NUM(PORT_NUM)) 

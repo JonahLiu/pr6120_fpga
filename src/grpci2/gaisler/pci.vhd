@@ -490,6 +490,8 @@ component grpci2
     confspace   : integer range 0 to 1 := 1;
     vendorid    : integer := 16#0000#;
     deviceid    : integer := 16#0000#;
+    subvid		: integer := 16#0000#;
+    subsysid	: integer := 16#0000#;
     classcode   : integer := 16#000000#;
     revisionid  : integer := 16#00#;
     cap_pointer : integer := 16#40#;
@@ -532,6 +534,7 @@ component grpci2
     multiint    : integer range 0 to 1 := 0;
     masters     : integer := 16#FFFF#;
     mf1_deviceid        : integer := 16#0000#;
+    mf1_subsysid        : integer := 16#0000#;
     mf1_classcode       : integer := 16#000000#;
     mf1_revisionid      : integer := 16#00#;
     mf1_bar0            : integer range 0 to 31 := 0;

@@ -161,6 +161,7 @@ begin
 		rready_r <= 1'b0;
 		strb_r <= 'bx;
 		hresp_r <= 'b0;
+		hready_r <= 1'b0;
 	end
 	else case(s1_next)
 		S1_IDLE: begin

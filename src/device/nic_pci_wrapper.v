@@ -125,6 +125,7 @@ wire [1:0] nic_s_bresp;
 wire nic_s_arvalid;
 wire nic_s_arready;
 wire [31:0] nic_s_araddr;
+wire [3:0] nic_s_aruser;
 wire nic_s_rvalid;
 wire nic_s_rready;
 wire [31:0] nic_s_rdata;
@@ -185,7 +186,6 @@ wire [2:0] ahb_slv_hsize;
 wire [2:0] ahb_slv_hburst;
 wire [31:0] ahb_slv_hwdata;
 wire [3:0] ahb_slv_hprot;
-wire [3:0] ahb_slv_hmaster;
 wire ahb_slv_hmastlock;
 wire ahb_slv_hready;
 wire [1:0] ahb_slv_hresp;
@@ -289,7 +289,7 @@ pci_i (
 	.pci_serr_i(serri),
 	.pci_serr_o(serro),
 	.pci_serr_oe(serrt),
-	.pci_int_i(inti),
+	.pci_int_i({3'b111,inti}),
 	.pci_int_o(into),
 	.pci_int_oe(intt),
 	.pci_m66en(m66eni),
@@ -322,7 +322,7 @@ pci_i (
 	.ahb_slv_hburst(ahb_slv_hburst),
 	.ahb_slv_hwdata(ahb_slv_hwdata),
 	.ahb_slv_hprot(ahb_slv_hprot),
-	.ahb_slv_hmaster(ahb_slv_hmaster),
+	.ahb_slv_hmaster(4'b0),
 	.ahb_slv_hmastlock(ahb_slv_hmastlock),
 	.ahb_slv_hready_i(ahb_slv_hready),
 	.ahb_slv_hready_o(ahb_slv_hready),
@@ -330,7 +330,7 @@ pci_i (
 	.ahb_slv_hrdata(ahb_slv_hrdata),
 	.ahb_slv_hsplit(ahb_slv_hsplit),
 
-	.intr_req(intr_req)
+	.intr_req({3'b000,intr_req})
 );
 
 grpci2_axi_lite_tgt tgt_i(

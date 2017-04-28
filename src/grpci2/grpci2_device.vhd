@@ -30,6 +30,8 @@ entity grpci2_device is
 		confspace   : integer range 0 to 1 := 1;
 		vendorid    : integer := 16#10EE#;
 		deviceid    : integer := 16#0701#;
+	    subvid      : integer := 16#10EE#;
+	    subsysid    : integer := 16#0701#;
 		classcode   : integer := 16#000000#;
 		revisionid  : integer := 16#00#;
 		cap_pointer : integer := 16#40#;
@@ -72,6 +74,7 @@ entity grpci2_device is
 		multiint    : integer range 0 to 1 := 0;
 		masters     : integer := 16#FFFF#;
 		mf1_deviceid        : integer := 16#0701#;
+	    mf1_subsysid        : integer := 16#0701#;
 		mf1_classcode       : integer := 16#000000#;
 		mf1_revisionid      : integer := 16#00#;
 		mf1_bar0            : integer range 0 to 31 := 16;
@@ -212,6 +215,8 @@ begin
 		confspace    => 		confspace   ,
 		vendorid     => 		vendorid    ,
 		deviceid     => 		deviceid    ,
+		subvid       => 		subvid      ,
+		subsysid     => 		subsysid    ,
 		classcode    => 		classcode   ,
 		revisionid   => 		revisionid  ,
 		cap_pointer  => 		cap_pointer ,
@@ -255,6 +260,7 @@ begin
 		multiint     => 		multiint    ,
 		masters      => 		masters     ,
 		mf1_deviceid         => 		mf1_deviceid        ,
+		--mf1_subsysid         => 		mf1_subsysid        ,
 		mf1_classcode        => 		mf1_classcode       ,
 		mf1_revisionid       => 		mf1_revisionid      ,
 		mf1_bar0             => 		mf1_bar0            ,
