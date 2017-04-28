@@ -13,11 +13,14 @@ parameter TGT_BAR2_BASE = 32'h8004_0000;
 // PCI Configuration Registers
 parameter CONF_ID_OFFSET  = 8'h0;
 parameter CONF_CTRL_OFFSET  = 8'h4;
+parameter CONF_CLASS_OFFSET  = 8'h8;
 parameter CONF_CLINE_OFFSET  = 8'hc;
 parameter CONF_MISC_OFFSET  = 8'h3c;
 parameter CONF_BAR0_OFFSET  = 8'h10;
 parameter CONF_BAR1_OFFSET  = 8'h14;
 parameter CONF_BAR2_OFFSET  = 8'h18;
+parameter CONF_SUBID_OFFSET  = 8'h2C;
+parameter CONF_LAT_OFFSET  = 8'h3C;
 
 wire PCI_CLK;
 wire PCI_RST;
@@ -166,17 +169,17 @@ pullup pu_int [3:0] (PCI_INT);
 
 grpci2_device #(
 	.oepol(1),
-	.vendorid(16'h10EE),
-	.deviceid(16'h0701),
+	.vendorid(16'h8086),
+	.deviceid(16'h0050),
+	.subvid(16'h10EE),
+	.subsysid(16'h0701),
+	.classcode(24'h020000),
 	.haddr(12'h000),
 	.hmask(12'h000),
 	.ioaddr(12'hFFF),
-	//.bar0(7),
-	//.bar1(7),
-	//.bar2(3),
-	.bar0(10),
-	.bar1(10),
-	.bar2(10),
+	.bar0(7),
+	.bar1(7),
+	.bar2(3),
 	.bar3(0),
 	.bar4(0),
 	.bar5(0),
@@ -427,7 +430,7 @@ axi_memory_model axi_memory_model_i(
 wire mst_s_aclk;
 wire mst_s_aresetn;
 wire [3:0] mst_s_awid;
-wire [63:0] mst_s_awaddr;
+wire [31:0] mst_s_awaddr;
 wire [7:0] mst_s_awlen;
 wire [2:0] mst_s_awsize;
 wire [1:0] mst_s_awburst;
@@ -445,7 +448,7 @@ wire [1:0] mst_s_bresp;
 wire mst_s_bvalid;
 wire mst_s_bready;
 wire [3:0] mst_s_arid;
-wire [63:0] mst_s_araddr;
+wire [31:0] mst_s_araddr;
 wire [7:0] mst_s_arlen;
 wire [2:0] mst_s_arsize;
 wire [1:0] mst_s_arburst;
@@ -602,7 +605,10 @@ task config_target;
 	reg [31:0] data;
 	begin
 		master.config_read(TGT_CONF_ADDR+CONF_ID_OFFSET, 4'hf, data);
+		master.config_read(TGT_CONF_ADDR+CONF_SUBID_OFFSET, 4'hf, data);
 		master.config_read(TGT_CONF_ADDR+CONF_CTRL_OFFSET, 4'hf, data);
+		master.config_read(TGT_CONF_ADDR+CONF_CLASS_OFFSET, 4'hf, data);
+		master.config_read(TGT_CONF_ADDR+CONF_LAT_OFFSET, 4'hf, data);
 
 		master.config_write(TGT_CONF_ADDR+CONF_BAR0_OFFSET,~0,4'hF);
 		master.config_read(TGT_CONF_ADDR+CONF_BAR0_OFFSET, 4'hf, data);
@@ -721,6 +727,32 @@ begin:TEST
 	aximaster.read(32'h0600_0000, 64);
 	#10_000;
 	aximaster.read(32'h0700_0000, 128);
+	#10_000;
+
+	aximaster.set_write_strb(0,4'b0001);
+	aximaster.write(32'h0000_0000, 1);
+
+	aximaster.set_write_strb(0,4'b0010);
+	aximaster.write(32'h0100_0001, 1);
+
+	aximaster.set_write_strb(0,4'b0100);
+	aximaster.write(32'h0200_0002, 1);
+
+	aximaster.set_write_strb(0,4'b1000);
+	aximaster.write(32'h0300_0003, 1);
+
+	aximaster.set_write_strb(0,4'b0011);
+	aximaster.write(32'h0400_0000, 1);
+
+	aximaster.set_write_strb(0,4'b1100);
+	aximaster.write(32'h0500_0002, 1);
+
+	aximaster.set_write_strb(0,4'b1000);
+	aximaster.write(32'h0600_0003, 8);
+
+	#10_000;
+
+	aximaster.read(32'h0700_0001, 8);
 	#10_000;
 
 	$stop;

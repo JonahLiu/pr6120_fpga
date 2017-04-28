@@ -379,6 +379,8 @@ end
 
 always @(*)
 begin
+	// FIXME: AHB does not handle byte srobe properly
+	/*
 	if(write_cycle)
 		case(wdata_strb)
 			4'b0001,4'b0010,4'b0100,4'b1000: hsize_r = AHB_8BIT;
@@ -387,6 +389,7 @@ begin
 			default: hsize_r = 'bx;
 		endcase
 	else
+	*/
 		hsize_r = AHB_32BIT;
 end
 
