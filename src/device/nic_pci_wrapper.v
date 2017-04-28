@@ -194,15 +194,20 @@ wire [15:0] ahb_slv_hsplit;
 
 wire intr_req;
 
+wire ahb_hresetn;
+
 reg [6:0] rst_sync;
 (* ASYNC_REG = "TRUE" *)
 reg [1:0] intr_sync;
 
-assign intr_req = !intr_sync[1];
+reg [1:0] ahb_rst_sync;
+
+assign intr_req = intr_sync[1];
 
 assign aclk = nic_clk;
 assign areset = !rst_sync[6];
 assign aresetn = !areset;
+assign ahb_hresetn = ahb_rst_sync[1];
 
 always @(posedge aclk, negedge rstni)
 begin
@@ -214,6 +219,16 @@ begin
 	end
 	else if(!rst_sync[6])
 		rst_sync <= rst_sync+1;
+end
+
+always @(posedge aclk, negedge rstni)
+begin
+	if(!rstni)
+		ahb_rst_sync <= 'b0;
+	else if(!clk_locked) 
+		ahb_rst_sync <= 'b0;
+	else
+		ahb_rst_sync <= {ahb_rst_sync, 1'b1};
 end
 
 always @(posedge clki)
@@ -298,7 +313,7 @@ pci_i (
 	.pci_pme_oe(pmet),
 
 	.ahb_hclk(aclk),
-	.ahb_hresetn(aresetn),
+	.ahb_hresetn(ahb_hresetn),
 
 	.ahb_mst_hgrant(1'b1),
 	.ahb_mst_hready(ahb_mst_hready),

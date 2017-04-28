@@ -99,23 +99,35 @@ parameter MPS_ENABLE="TRUE";
 parameter DEBUG="FALSE";
 
 parameter [23:0] NIC_MAC_OUI=24'hEC3F05;
-parameter [15:0] NIC_SUBSYSID=16'h0050;
+//parameter [15:0] NIC_SUBSYSID=16'h0050;
+//parameter [15:0] NIC_SUBVID=16'h10EE;
+//parameter [15:0] NIC_DEVICEID=16'h0050;
+//parameter [15:0] NIC_VENDORID=16'h8086;
+parameter [15:0] NIC_VENDORID=16'h0706;
+parameter [15:0] NIC_DEVICEID=16'h3B00;
 parameter [15:0] NIC_SUBVID=16'h10EE;
-parameter [15:0] NIC_DEVICEID=16'h0050;
-parameter [15:0] NIC_VENDORID=16'h8086;
+parameter [15:0] NIC_SUBSYSID=16'h0050;
 parameter [23:0] NIC_CLASSCODE=24'h020000;
 
-parameter [15:0] CAN_SUBSYSID=16'hC202;
+//parameter [15:0] CAN_SUBSYSID=16'hC202;
+//parameter [15:0] CAN_SUBVID=16'h13FE;
+//parameter [15:0] CAN_DEVICEID=16'hC202;
+//parameter [15:0] CAN_VENDORID=16'h13FE;
+parameter [15:0] CAN_VENDORID=16'h0706;
+parameter [15:0] CAN_DEVICEID=16'h3B02;
 parameter [15:0] CAN_SUBVID=16'h13FE;
-parameter [15:0] CAN_DEVICEID=16'hC202;
-parameter [15:0] CAN_VENDORID=16'h13FE;
+parameter [15:0] CAN_SUBSYSID=16'hC202;
 parameter [23:0] CAN_CLASSCODE=24'h0C0900;
 parameter CAN_PORT_NUM = 2;
 
-parameter [15:0] UART_SUBSYSID=16'h0031;
+//parameter [15:0] UART_SUBSYSID=16'h0031;
+//parameter [15:0] UART_SUBVID=16'h12E0;
+//parameter [15:0] UART_DEVICEID=16'h9050;
+//parameter [15:0] UART_VENDORID=16'h10B5;
+parameter [15:0] UART_VENDORID=16'h0706;
+parameter [15:0] UART_DEVICEID=16'h3B01;
 parameter [15:0] UART_SUBVID=16'h12E0;
-parameter [15:0] UART_DEVICEID=16'h9050;
-parameter [15:0] UART_VENDORID=16'h10B5;
+parameter [15:0] UART_SUBSYSID=16'h0031;
 parameter [23:0] UART_CLASSCODE=24'h070200;
 parameter UART_PORT_NUM = 4;
 

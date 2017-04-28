@@ -119,7 +119,7 @@ assign aclk = uart_clk;
 assign areset = !rst_sync[6];
 assign aresetn = !areset;
 
-assign intr_req = !intr_sync[1];
+assign intr_req = intr_sync[1];
 
 always @(posedge aclk, negedge rstni)
 begin
