@@ -51,8 +51,8 @@ entity grpci2_device is
 		bar4_map    : integer := 16#000000#;
 		bar5_map    : integer := 16#000000#;
 		bartype     : integer range 0 to 65535 := 16#0000#; -- [5:0]: Prefetch, [13:8]: Type
-		barminsize  : integer range 5 to 31 := 9; -- barminsize >= 2+fifo_depth
-		fifo_depth  : integer range 3 to 7 := 7;
+		barminsize  : integer range 5 to 31 := 5; -- barminsize >= 2+fifo_depth
+		fifo_depth  : integer range 3 to 7 := 3;
 		fifo_count  : integer range 2 to 4 := 2;
 		conv_endian : integer range 0 to 1 := 1; -- 1: little (PCI) <~> big (AHB), 0: big (PCI) <=> big (AHB)   
 		deviceirq   : integer range 0 to 1 := 1; -- Enable AHB to PCI interrupt relay
