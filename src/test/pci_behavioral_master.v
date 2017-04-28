@@ -256,6 +256,7 @@ endtask
 
 task single_read_transfer(
 	input [31:0] address,
+	input [3:0] be,
 	input [3:0] cmd,
 	output [31:0] data,
 	output [3:0] resp
@@ -272,7 +273,7 @@ begin
 	frame_n_o <= `BD 1'b1;
 	irdy_n_o <= `BD 1'b0;
 	ad_o <= `BD 'bz;
-	cbe_o <= `BD 'b0;
+	cbe_o <= `BD ~be;
 	@(posedge clk);
 	par_o <= `BD 'bz;
 	while(devsel_n_i || 
@@ -311,13 +312,14 @@ endtask
 
 task config_read(
 	input [31:0] address,
+	input [3:0] be,
 	output [31:0] data
 );
 reg [3:0] resp;
 begin
 	resp = 4'hF;
 	while(resp[0]==1 && resp[3:2]==2'b11) begin
-		single_read_transfer(address, CMD_CONF_READ, data, resp);
+		single_read_transfer(address, be, CMD_CONF_READ, data, resp);
 		if(resp[0]==0)
 			$display("PCI CFG RD @%x, OK (%x)", address, data);
 		else if(resp[3:2]==2'b11)
@@ -350,13 +352,14 @@ endtask
 
 task memory_read(
 	input [31:0] address,
+	input [3:0] be,
 	output [31:0] data
 );
 reg [3:0] resp;
 begin
 	resp = 4'hF;
 	while(resp[0]==1 && resp[3:2]==2'b11) begin
-		single_read_transfer(address, CMD_MEM_READ, data, resp);
+		single_read_transfer(address, be, CMD_MEM_READ, data, resp);
 		if(resp[0]==0)
 			$display("PCI MEM RD @%x, OK (%x)", address, data);
 		else if(resp[3:2]==2'b11)
@@ -389,13 +392,14 @@ endtask
 
 task io_read(
 	input [31:0] address,
+	input [3:0] be,
 	output [31:0] data
 );
 reg [3:0] resp;
 begin
 	resp = 4'hF;
 	while(resp[0]==1 && resp[3:2]==2'b11) begin
-		single_read_transfer(address, CMD_IO_READ, data, resp);
+		single_read_transfer(address, be, CMD_IO_READ, data, resp);
 		if(resp[0]==0)
 			$display("PCI IO RD @%x, OK (%x)", address, data);
 		else if(resp[3:2]==2'b11)

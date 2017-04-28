@@ -2,13 +2,13 @@
 module test_grpci2_device;
 
 parameter HOST_BASE = 32'h0000_0000;
-parameter HOST_SIZE = 33'h1_0000_0000;
+parameter HOST_SIZE = 33'h8000_0000;
 
 // Target Addresses
 parameter TGT_CONF_ADDR = 32'h0100_0000;
-parameter TGT_BAR0_BASE = 32'h8002_0000;
-parameter TGT_BAR1_BASE = 32'h8004_0000;
-parameter TGT_BAR2_BASE = 32'h0000_0010;
+parameter TGT_BAR0_BASE = 32'h8001_0000;
+parameter TGT_BAR1_BASE = 32'h8002_0000;
+parameter TGT_BAR2_BASE = 32'h8004_0000;
 
 // PCI Configuration Registers
 parameter CONF_ID_OFFSET  = 8'h0;
@@ -171,9 +171,12 @@ grpci2_device #(
 	.haddr(12'h000),
 	.hmask(12'h000),
 	.ioaddr(12'hFFF),
-	.bar0(7),
-	.bar1(7),
-	.bar2(3),
+	//.bar0(7),
+	//.bar1(7),
+	//.bar2(3),
+	.bar0(10),
+	.bar1(10),
+	.bar2(10),
 	.bar3(0),
 	.bar4(0),
 	.bar5(0),
@@ -598,25 +601,25 @@ assign intr_req = intr_req_i;
 task config_target;
 	reg [31:0] data;
 	begin
-		master.config_read(TGT_CONF_ADDR+CONF_ID_OFFSET, data);
-		master.config_read(TGT_CONF_ADDR+CONF_CTRL_OFFSET, data);
+		master.config_read(TGT_CONF_ADDR+CONF_ID_OFFSET, 4'hf, data);
+		master.config_read(TGT_CONF_ADDR+CONF_CTRL_OFFSET, 4'hf, data);
 
 		master.config_write(TGT_CONF_ADDR+CONF_BAR0_OFFSET,~0,4'hF);
-		master.config_read(TGT_CONF_ADDR+CONF_BAR0_OFFSET, data);
+		master.config_read(TGT_CONF_ADDR+CONF_BAR0_OFFSET, 4'hf, data);
 		master.config_write(TGT_CONF_ADDR+CONF_BAR0_OFFSET,TGT_BAR0_BASE,4'hF);
 
 		master.config_write(TGT_CONF_ADDR+CONF_BAR1_OFFSET,~0,4'hF);
-		master.config_read(TGT_CONF_ADDR+CONF_BAR1_OFFSET, data);
+		master.config_read(TGT_CONF_ADDR+CONF_BAR1_OFFSET, 4'hf, data);
 		master.config_write(TGT_CONF_ADDR+CONF_BAR1_OFFSET,TGT_BAR1_BASE,4'hF);
 
 		master.config_write(TGT_CONF_ADDR+CONF_BAR2_OFFSET,~0,4'hF);
-		master.config_read(TGT_CONF_ADDR+CONF_BAR2_OFFSET, data);
+		master.config_read(TGT_CONF_ADDR+CONF_BAR2_OFFSET, 4'hf, data);
 		master.config_write(TGT_CONF_ADDR+CONF_BAR2_OFFSET,TGT_BAR2_BASE,4'hF);
 
 		master.config_write(TGT_CONF_ADDR+CONF_CLINE_OFFSET,32'h0000_4010,4'h3);
-		//master.config_read(TGT_CONF_ADDR+CONF_CLINE_OFFSET, data);
+		//master.config_read(TGT_CONF_ADDR+CONF_CLINE_OFFSET, 4'hf, data);
 
-		master.config_read(TGT_CONF_ADDR+CONF_MISC_OFFSET, data);
+		master.config_read(TGT_CONF_ADDR+CONF_MISC_OFFSET, 4'hf, data);
 
 		master.config_write(TGT_CONF_ADDR+CONF_CTRL_OFFSET, 32'h35F, 4'h3);
 	end
@@ -637,28 +640,43 @@ begin:TEST
 
 	master.memory_write(TGT_BAR0_BASE, 32'hdeadbeef, 4'hF);
 
-	master.memory_read(TGT_BAR0_BASE, data); 
+	master.memory_read(TGT_BAR0_BASE, 4'hf, data); 
 
 	master.memory_write(TGT_BAR0_BASE, 32'h000000dd, 4'b0001);
 	master.memory_write(TGT_BAR0_BASE, 32'h0000cc00, 4'b0010);
 	master.memory_write(TGT_BAR0_BASE, 32'h00bb0000, 4'b0100);
 	master.memory_write(TGT_BAR0_BASE, 32'haa000000, 4'b1000);
 
-	master.memory_read(TGT_BAR0_BASE, data); 
+	master.memory_read(TGT_BAR0_BASE, 4'b0001, data); 
+	master.memory_read(TGT_BAR0_BASE, 4'b0010, data); 
+	master.memory_read(TGT_BAR0_BASE, 4'b0100, data); 
+	master.memory_read(TGT_BAR0_BASE, 4'b1000, data); 
 
 	master.memory_write(TGT_BAR0_BASE, 32'h0000face, 4'b0011);
 	master.memory_write(TGT_BAR0_BASE, 32'h0ace0000, 4'b1100);
 
-	master.memory_read(TGT_BAR0_BASE, data); 
-
-
-	master.memory_write(TGT_BAR1_BASE, 32'h11223344, 4'hF);
-
-	master.memory_read(TGT_BAR1_BASE, data); 
+	master.memory_read(TGT_BAR0_BASE, 4'b0011, data); 
+	master.memory_read(TGT_BAR0_BASE, 4'b1100, data); 
 
 	master.io_write(TGT_BAR2_BASE, 32'h11223344, 4'hF);
 
-	master.io_read(TGT_BAR2_BASE, data); 
+	master.io_read(TGT_BAR2_BASE, 4'hf, data); 
+
+	master.io_write(TGT_BAR2_BASE, 32'h000000dd, 4'b0001);
+	master.io_write(TGT_BAR2_BASE, 32'h0000cc00, 4'b0010);
+	master.io_write(TGT_BAR2_BASE, 32'h00bb0000, 4'b0100);
+	master.io_write(TGT_BAR2_BASE, 32'haa000000, 4'b1000);
+
+	master.io_read(TGT_BAR2_BASE, 4'b0001, data); 
+	master.io_read(TGT_BAR2_BASE, 4'b0010, data); 
+	master.io_read(TGT_BAR2_BASE, 4'b0100, data); 
+	master.io_read(TGT_BAR2_BASE, 4'b1000, data); 
+
+	master.io_write(TGT_BAR2_BASE, 32'h0000face, 4'b0011);
+	master.io_write(TGT_BAR2_BASE, 32'h0ace0000, 4'b1100);
+
+	master.io_read(TGT_BAR2_BASE, 4'b0011, data); 
+	master.io_read(TGT_BAR2_BASE, 4'b1100, data); 
 
 	#10_000;
 
@@ -669,15 +687,15 @@ begin:TEST
 	end
 
 	aximaster.write(32'h0000_0000, 1);
-	aximaster.write(32'h1000_0000, 2);
-	aximaster.write(32'h2000_0000, 4);
-	aximaster.write(32'h4000_0000, 7);
-	aximaster.write(32'h8000_0000, 8);
-	aximaster.write(32'hB000_0000, 15);
-	aximaster.write(32'hC000_0000, 16);
-	aximaster.write(32'hD000_0000, 32);
-	aximaster.write(32'hE000_0000, 64);
-	aximaster.write(32'hF000_0000, 128);
+	aximaster.write(32'h0100_0000, 2);
+	aximaster.write(32'h0200_0000, 4);
+	aximaster.write(32'h0400_0000, 7);
+	aximaster.write(32'h0800_0000, 8);
+	aximaster.write(32'h0B00_0000, 15);
+	aximaster.write(32'h0C00_0000, 16);
+	aximaster.write(32'h0D00_0000, 32);
+	aximaster.write(32'h0E00_0000, 64);
+	aximaster.write(32'h0F00_0000, 128);
 	aximaster.wait_for_write();
 	#10_000;
 	host.disconnect=16;
@@ -690,19 +708,19 @@ begin:TEST
 
 	aximaster.read(32'h0000_0000, 1);
 	#10_000;
-	aximaster.read(32'h1000_0000, 2);
+	aximaster.read(32'h0100_0000, 2);
 	#10_000;
-	aximaster.read(32'h2000_0000, 3);
+	aximaster.read(32'h0200_0000, 3);
 	#10_000;
-	aximaster.read(32'h3000_0000, 8);
+	aximaster.read(32'h0300_0000, 8);
 	#10_000;
-	aximaster.read(32'h4000_0000, 16);
+	aximaster.read(32'h0400_0000, 16);
 	#10_000;
-	aximaster.read(32'h5000_0000, 32);
+	aximaster.read(32'h0500_0000, 32);
 	#10_000;
-	aximaster.read(32'h6000_0000, 64);
+	aximaster.read(32'h0600_0000, 64);
 	#10_000;
-	aximaster.read(32'h7000_0000, 128);
+	aximaster.read(32'h0700_0000, 128);
 	#10_000;
 
 	$stop;
