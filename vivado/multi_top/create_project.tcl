@@ -7,8 +7,6 @@ set outputDir ./
 
 create_project $projName $outputDir -part $part -force
 
-set projDir [get_property directory [current_project]]
-
 add_files -fileset [current_fileset] -force -norecurse {
     ../../src/common/fifo_async.v
     ../../src/common/axis_realign.v
