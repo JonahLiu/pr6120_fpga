@@ -1,6 +1,6 @@
 `timescale 1ns/10ps
-`undef TEST_TX
-`undef TEST_RX
+`define TEST_TX
+`define TEST_RX
 `define TEST_CONCURRENT
 `define TEST_MULTI_DEV
 
@@ -1186,9 +1186,9 @@ begin
 	PARAM_IDE = 0;
 	PARAM_PCSS = 0;
 
-	$dumpfile("test_device_top.vcd");
-	$dumpvars(1);
-	$dumpvars(1,dut_i);
+	//$dumpfile("test_device_top.vcd");
+	//$dumpvars(1);
+	//$dumpvars(1,dut_i);
 	//$dumpvars(1,dut_i.nic_wrapper_i);
 	//$dumpvars(1,dut_i.mpc_wrapper_i);
 	//$dumpvars(1,dut_i.mps_wrapper_i);
@@ -1260,6 +1260,8 @@ task test_host_queue_size();
 		dbg_msg = "Test Host Queue Size";
 		tx_host_base = TX_DESC_BASE;
 		PARAM_RS = REPORT_ALL;
+		PARAM_BSEX = 1'b0;
+		PARAM_BSIZE = 3'b011;
 		PARAM_IDE = 0;
 
 		initialize_nic(1/*octlen*/,0/*tidv*/,0/*tadv*/,0/*pth*/,0/*hth*/,0/*wth*/,0/*lwth*/);
@@ -1498,12 +1500,12 @@ task test_multi_device();
 		master.io_read(MPC_BAR2_BASE, ~0, data);
 		$display($time,,,"MPC Read @%08x = %08x", MPC_BAR2_BASE, data);
 
-		master.memory_read(MPS_BAR0_BASE, ~0, data);
-		$display($time,,,"MPS Read @%08x = %08x", MPS_BAR0_BASE, data);
-		master.io_read(MPS_BAR1_BASE, ~0, data);
-		$display($time,,,"MPS Read @%08x = %08x", MPS_BAR1_BASE, data);
-		master.io_read(MPS_BAR2_BASE, ~0, data);
-		$display($time,,,"MPS Read @%08x = %08x", MPS_BAR2_BASE, data);
+		master.memory_read(MPS_BAR0_BASE, 4'b1000, data);
+		$display($time,,,"MPS Read @%08x = %08x", MPS_BAR0_BASE+3, data);
+		master.io_read(MPS_BAR1_BASE+3, 4'b1000, data);
+		$display($time,,,"MPS Read @%08x = %08x", MPS_BAR1_BASE+3, data);
+		master.io_read(MPS_BAR2_BASE+3, 4'b1000, data);
+		$display($time,,,"MPS Read @%08x = %08x", MPS_BAR2_BASE+3, data);
 	end
 endtask
 

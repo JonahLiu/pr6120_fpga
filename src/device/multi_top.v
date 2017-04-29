@@ -2,24 +2,24 @@ module multi_top(
 	// PCI Local Bus
 	inout	[31:0] AD,
 	inout   [3:0] CBE,
-	inout         PAR,
-	inout         FRAME_N,
-	inout         TRDY_N,
-	inout         IRDY_N,
-	inout         STOP_N,
-	inout         DEVSEL_N,
-	//input         IDSEL, // not connected on current board
-	inout         PERR_N,
-	inout         SERR_N,
-	output        INTA_N,
-	output        INTB_N,
-	output        INTC_N,
-	output        INTD_N,
-	//output        PMEA_N, // not connected on current board
-	output        [2:0] REQ_N,
-	input         [2:0] GNT_N,
-	input         RST_N,
-	input         PCLK,
+	inout   PAR,
+	inout   FRAME_N,
+	inout   TRDY_N,
+	inout   IRDY_N,
+	inout   STOP_N,
+	inout   DEVSEL_N,
+	//input   IDSEL, // not connected on current board
+	inout   PERR_N,
+	inout   SERR_N,
+	inout   INTA_N,
+	inout   INTB_N,
+	inout   INTC_N,
+	inout   INTD_N,
+	//output  [2:0] PME_N, // not connected on current board
+	inout   [2:0] REQ_N,
+	inout   [2:0] GNT_N,
+	input   RST_N,
+	input   PCLK,
 	output	PCI_EN_N, // This signal controls interrupt output on current board
 
 	// Ethernet 0 GMII
@@ -131,22 +131,15 @@ parameter [15:0] UART_SUBSYSID=16'h0031;
 parameter [23:0] UART_CLASSCODE=24'h070200;
 parameter UART_PORT_NUM = 4;
 
-wire CLK;
-wire RST;
+wire pci_clk;
+wire pci_rst_n;
+wire pci_rst;
+assign pci_rst = !pci_rst_n;
 
 ////////////////////////////////////////////////////////////////////////////////
 // PCI Interface
 
-wire [2:0] INT_N;
-
-wire [2:0] PME_N;
-
 assign PCI_EN_N = 1'b0;
-
-assign INTA_N=INT_N[0];
-assign INTB_N=INT_N[1];
-assign INTC_N=INT_N[2];
-assign INTD_N=1'bz;
 
 wire p0_idseli;
 wire [31:0] p0_adi;
@@ -276,15 +269,18 @@ pci_mux pci_mux_i(
 	.DEVSEL_IO(DEVSEL_N),
 	.PERR_IO(PERR_N),
 	.SERR_IO(SERR_N),
-	.INT_O(INT_N),
-	.PME_O(PME_N),
-	.REQ_O(REQ_N),
-	.GNT_I(GNT_N),
+	.INTA_IO(INTA_N),
+	.INTB_IO(INTB_N),
+	.INTC_IO(INTC_N),
+	.INTD_IO(INTD_N),
+//	.PME_IO(PME_N),
+	.REQ_IO(REQ_N),
+	.GNT_IO(GNT_N),
 	.RST_I(RST_N),
 	.CLK_I(PCLK),
 
-	.clk_o(CLK),
-	.rstn_o(RST),
+	.clk_o(pci_clk),
+	.rstn_o(pci_rst_n),
 
     .p0_idseli(p0_idseli),
     .p0_adi(p0_adi),
@@ -549,8 +545,8 @@ nic_pci_wrapper #(
 	.CLASSCODE(NIC_CLASSCODE),
 	.DEBUG(DEBUG)
 )nic_wrapper_i(
-	.clki(CLK),
-	.rstni(RST),
+	.clki(pci_clk),
+	.rstni(pci_rst_n),
 
     .idseli(p0_idseli),
     .adi(p0_adi),
@@ -647,8 +643,8 @@ nic_pci_wrapper #(
 phy_ft #(.PHY_ADDR(5'b0), .CLK_PERIOD_NS(30), 
 	.INIT_EPCR("FALSE")
 ) phy_ft_i(
-	.clk(CLK),
-	.rst(RST),
+	.clk(pci_clk),
+	.rst(pci_rst),
 	
 	.mac_address(mac_address),
 	.mac_valid(mac_valid),
@@ -800,8 +796,8 @@ rgmii_if #(.DELAY_MODE("INTERNAL")) p1_if_i(
 );
 
 eeprom_emu eeprom_emu_i(
-	.clk_i(CLK),
-	.rst_i(RST),
+	.clk_i(pci_clk),
+	.rst_i(pci_rst),
 	.sk_i(eesk),
 	.cs_i(eecs),
 	.di_i(eedi),
@@ -819,8 +815,8 @@ config_rom #(
 	.PID(NIC_DEVICEID),
 	.VID(NIC_VENDORID)
 ) rom_i (
-	.clk_i(CLK),
-	.rst_i(RST),
+	.clk_i(pci_clk),
+	.rst_i(pci_rst),
 	.read_addr(eeprom_raddr),
 	.read_enable(eeprom_ren),
 	.read_data(eeprom_rdata),
@@ -888,8 +884,8 @@ mpc_pci_wrapper #(
 	.PORT_NUM(CAN_PORT_NUM),
 	.DEBUG(DEBUG)
 )mpc_wrapper_i(
-	.clki(CLK),
-	.rstni(RST),
+	.clki(pci_clk),
+	.rstni(pci_rst_n),
 
     .idseli(p1_idseli),
     .adi(p1_adi),
@@ -1013,8 +1009,8 @@ mps_pci_wrapper #(
 	.PORT_NUM(UART_PORT_NUM),
 	.DEBUG(DEBUG)
 )mps_wrapper_i(
-	.clki(CLK),
-	.rstni(RST),
+	.clki(pci_clk),
+	.rstni(pci_rst_n),
 
     .idseli(p2_idseli),
     .adi(p2_adi),
@@ -1107,36 +1103,7 @@ endgenerate
 
 generate
 if(DEBUG == "TRUE") begin
-ila_0 ila_mac_i0(
-	.clk(CLK), // input wire clk
-	.probe0({
-		p2_idseli,
-		p2_intt,
-		p2_reqt,
-		p2_gnti,
 
-		p1_idseli,
-		p1_intt,
-		p1_reqt,
-		p1_gnti,
-
-		p0_idseli,
-		p0_intt,
-		p0_reqt,
-		p0_gnti,
-
-		p0_adi,
-		p0_cbi,
-		p0_pari,
-		p0_framei,
-		p0_trdyi,
-		p0_irdyi,
-		p0_stopi,
-		p0_devseli,
-		p0_perri,
-		p0_serri
-	})
-);
 end
 endgenerate
 

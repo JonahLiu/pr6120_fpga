@@ -108,8 +108,8 @@ reg [6:0] rst_sync;
 reg [1:0] intr_sync;
 
 assign aclk = can_clk;
-assign areset = !rst_sync[6];
-assign aresetn = !areset;
+assign aresetn = rst_sync[6];
+assign areset = !aresetn;
 
 assign intr_req = intr_sync[1];
 
