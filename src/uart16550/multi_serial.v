@@ -42,7 +42,16 @@ module multi_serial #(
 	output	interrupt
 );
 
-wire [5:0] wb_adr_i;
+function integer clogb2 (input integer size);
+begin
+	size = size - 1;
+	for (clogb2=1; size>1; clogb2=clogb2+1)
+		size = size >> 1;
+end
+endfunction
+localparam ADDR_MSB=clogb2(PORT_NUM)+2;
+
+wire [ADDR_MSB:0] wb_adr_i;
 wire [7:0] wb_dat_i;
 wire [7:0] wb_dat_o;
 wire wb_we_i;
@@ -55,7 +64,7 @@ wire [PORT_NUM-1:0] intr_int;
 wire [PORT_NUM-1:0] txrdy;
 wire [PORT_NUM-1:0] rxrdy;
 
-assign wb_dat_o = wb_dat_mux[wb_adr_i[5:3]];
+assign wb_dat_o = wb_dat_mux[wb_adr_i[ADDR_MSB:3]];
 assign interrupt = |intr_int;
 
 uart_axi uart_axi_i(
@@ -99,11 +108,11 @@ begin
 	for(i=0;i<PORT_NUM;i=i+1) begin:G0
 		reg select;
 		always @(*) 
-			select = wb_adr_i[5:3]==i;
+			select = wb_adr_i[ADDR_MSB:3]==i;
 		uart_regs #(.clock_prescale(CLOCK_PRESCALE))	regs(
 			.clk(aclk),
 			.wb_rst_i(!aresetn),
-			.wb_addr_i({3'b0,wb_adr_i[2:0]}),
+			.wb_addr_i({2'b0,wb_adr_i[2:0]}),
 			.wb_dat_i(wb_dat_i),
 			.wb_dat_o(wb_dat_mux[i]),
 			.wb_we_i(select&wb_we_i),

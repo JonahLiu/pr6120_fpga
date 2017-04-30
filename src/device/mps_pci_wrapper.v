@@ -67,6 +67,14 @@ module mps_pci_wrapper #(
 	input   [PORT_NUM-1:0] dcd
 );
 
+function integer clogb2 (input integer size);
+begin
+	size = size - 1;
+	for (clogb2=1; size>1; clogb2=clogb2+1)
+		size = size >> 1;
+end
+endfunction
+localparam BARSIZE=clogb2(PORT_NUM)+3;
 
 wire aclk;
 wire aresetn;
@@ -153,9 +161,9 @@ grpci2_device #(
 	.classcode(CLASSCODE),
 	.barminsize(5),
 	.fifo_depth(3),
-	.bar0(7), // 128 Byte Memory
-	.bar1(7), // 128 Byte IO
-	.bar2(6), // 64 Byte IO
+	.bar0(8), // 256B PCI9050 Emulation, no use
+	.bar1(0), // PCI9050 Emulation, no use, disabled
+	.bar2(BARSIZE), // ST16654 regisgers
 	.bar3(0),
 	.bar4(0),
 	.bar5(0),

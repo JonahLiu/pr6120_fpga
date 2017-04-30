@@ -254,9 +254,9 @@ grpci2_device #(
 	.classcode(CLASSCODE),
 	.barminsize(6),
 	.fifo_depth(4),
-	.bar0(17), // 128K Byte Memory
-	.bar1(17), // 128K Byte IO
-	.bar2(3), // 8 Byte IO
+	.bar0(17), // 128K Byte memory mapped register space
+	.bar1(17), // 128K Byte mempry mapped Flash space
+	.bar2(3), // 8 Byte IO mapped indirect register access
 	.bar3(0),
 	.bar4(0),
 	.bar5(0),

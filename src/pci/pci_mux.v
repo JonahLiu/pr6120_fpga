@@ -250,11 +250,11 @@ assign reqo[2] = p2_reqo;
 assign reqt[2] = p2_reqt;
 
 assign intao = 1'b0;
-assign intat = p0_intt & p1_intt & p2_intt;
+assign intat = p0_intt;
 assign intbo = 1'b0;
-assign intbt = 1'b1;
+assign intbt = p1_intt;
 assign intco = 1'b0;
-assign intct = 1'b1;
+assign intct = p2_intt;
 assign intdo = 1'b0;
 assign intdt = 1'b1;
 

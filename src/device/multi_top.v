@@ -104,8 +104,8 @@ parameter [23:0] NIC_MAC_OUI=24'hEC3F05;
 //parameter [15:0] NIC_VENDORID=16'h8086;
 parameter [15:0] NIC_VENDORID=16'h0706;
 parameter [15:0] NIC_DEVICEID=16'h3B00;
-parameter [15:0] NIC_SUBVID=16'h10EE;
-parameter [15:0] NIC_SUBSYSID=16'h0050;
+parameter [15:0] NIC_SUBVID=16'h8086;
+parameter [15:0] NIC_SUBSYSID=16'h100E;
 parameter [23:0] NIC_CLASSCODE=24'h020000;
 
 //parameter [15:0] CAN_SUBSYSID=16'hC202;

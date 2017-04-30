@@ -60,6 +60,15 @@ module mpc_pci_wrapper #(
 	output [PORT_NUM-1:0] bus_off_on
 );
 
+function integer clogb2 (input integer size);
+begin
+	size = size - 1;
+	for (clogb2=1; size>1; clogb2=clogb2+1)
+		size = size >> 1;
+end
+endfunction
+localparam BARSIZE=clogb2(PORT_NUM)+10;
+
 wire aclk;
 wire aresetn;
 
@@ -145,9 +154,9 @@ grpci2_device #(
 	.classcode(CLASSCODE),
 	.barminsize(5),
 	.fifo_depth(3),
-	.bar0(12), // 4K Byte Memory
-	.bar1(12), // 4K Byte IO
-	.bar2(3), // 8 Byte IO
+	.bar0(BARSIZE), // 1KByte per port
+	.bar1(0), // no use, disabled
+	.bar2(3), // 8 Byte IO for version number
 	.bar3(0),
 	.bar4(0),
 	.bar5(0),

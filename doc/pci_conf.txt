@@ -1,32 +1,40 @@
 This file explains PCI related informations of PR6120 - Multi-function Chip.
 
-# Device IDs
+Device IDs
+-----------------------------------------
 
-There are three pci device in this chip, with IDs assigned as {VENDOR_ID,
-DEVICE_ID, SUBVENDOR_ID, SUBDEVICE_ID}
-- Network Controller: {0706, 3B00, 10EE, 0050}
-- 2-Port CAN Controller: {0706, 3B02, 13FE, C202}
-- 4-Port Serial Controller: {0706, 3B01, 12E0, 0031}
+There are three pci device in this chip, with IDs assigned as 
+  Device                               {VID,  PID,  SVID, SSID}
 
-# BAR mapping of Network Controller
+- Network Controller:                  {0706, 3B00, 8086, 100E}
+  This device is a Intel 80540 emulation
+
+- 2-Port CAN Controller:               {0706, 3B02, 13FE, C202}
+  This device is a Advantech CAN C202 emulation (FPGA + SJA1000 x 2)
+
+- 4-Port Serial Controller:            {0706, 3B01, 12E0, 0031}
+  This device is a CHASE PCI-FAST emulation (PCI9050 + ST16654)
+
+BAR mapping of Network Controller
+-----------------------------------------
 
 - BAR0: Memory, 128KB, register space of 8254x
 - BAR1: Memory, 128KB, flash access (currently not supported)
-- BAR2: IO, 8Bytes, indirect access to register space
+- BAR2: IO, 8B, indirect access to register space
 
-# BAR mapping of 2-Port CAN Controller
+BAR mapping of 2-Port CAN Controller
+-----------------------------------------
 
-- BAR0: Memory, 4KB, register space of SJA1000, register offset is 4, controller offset is 0x400
-- BAR1: Memory, 4KB, register space of mock FPGA (for version id only)
-- BAR2: IO, 8Bytes, no use
+- BAR0: Memory, 2KB, register space of SJA1000, register offset is 4,
+  controller offset is 0x400 (1KB per port)
+- BAR1: Disabled
+- BAR2: IO, 8B, register space of mock FPGA (for version id only)
 
-# BAR mapping of 4-Port Serial Controller
+BAR mapping of 4-Port Serial Controller
+-----------------------------------------
 
-- BAR0: Memory, 128Bytes, register space of 16550
-- BAR1: IO, 128Bytes, redundant mapping of 16550 register space
-- BAR2: IO, 64Bytes, no use
-
-
-
-
+- BAR0: Memory, 256, PCI9050 BAR 0 place holder but mapped to ST16654 (same as
+  BAR2)
+- BAR1: Disabled
+- BAR2: IO, 32B, ST16654 register mapping (8B per port. At least 32B as four port)
 
