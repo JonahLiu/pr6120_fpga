@@ -100,69 +100,68 @@ parameter SUBSYSID = 16'h0050;
 parameter CLASSCODE = 24'h020000;
 parameter PHY_ADDR=5'b0;
 parameter CLK_PERIOD_NS=8;
-parameter DEBUG="FALSE";
 
 wire nic_clk;
 wire nic_rst;
 
 wire clk_locked;
 
-wire intr_request;
-wire rst_request;
+(* MARK_DEBUG="TRUE" *) wire intr_request;
+(* MARK_DEBUG="TRUE" *) wire rst_request;
 
 wire aclk;
 wire aresetn;
-wire nic_s_awvalid;
-wire nic_s_awready;
-wire [31:0] nic_s_awaddr;
-wire nic_s_wvalid;
-wire nic_s_wready;
-wire [31:0] nic_s_wdata;
-wire [3:0] nic_s_wstrb;
-wire nic_s_bvalid;
-wire nic_s_bready;
-wire [1:0] nic_s_bresp;
-wire nic_s_arvalid;
-wire nic_s_arready;
-wire [31:0] nic_s_araddr;
-wire [3:0] nic_s_aruser;
-wire nic_s_rvalid;
-wire nic_s_rready;
-wire [31:0] nic_s_rdata;
-wire [1:0] nic_s_rresp;
+(* MARK_DEBUG="TRUE" *) wire nic_s_awvalid;
+(* MARK_DEBUG="TRUE" *) wire nic_s_awready;
+(* MARK_DEBUG="TRUE" *) wire [31:0] nic_s_awaddr;
+(* MARK_DEBUG="TRUE" *) wire nic_s_wvalid;
+(* MARK_DEBUG="TRUE" *) wire nic_s_wready;
+(* MARK_DEBUG="TRUE" *) wire [31:0] nic_s_wdata;
+(* MARK_DEBUG="TRUE" *) wire [3:0] nic_s_wstrb;
+(* MARK_DEBUG="TRUE" *) wire nic_s_bvalid;
+(* MARK_DEBUG="TRUE" *) wire nic_s_bready;
+(* MARK_DEBUG="TRUE" *) wire [1:0] nic_s_bresp;
+(* MARK_DEBUG="TRUE" *) wire nic_s_arvalid;
+(* MARK_DEBUG="TRUE" *) wire nic_s_arready;
+(* MARK_DEBUG="TRUE" *) wire [31:0] nic_s_araddr;
+(* MARK_DEBUG="TRUE" *) wire [3:0] nic_s_aruser;
+(* MARK_DEBUG="TRUE" *) wire nic_s_rvalid;
+(* MARK_DEBUG="TRUE" *) wire nic_s_rready;
+(* MARK_DEBUG="TRUE" *) wire [31:0] nic_s_rdata;
+(* MARK_DEBUG="TRUE" *) wire [1:0] nic_s_rresp;
 
-wire [3:0] nic_m_awid;
-wire [63:0] nic_m_awaddr;
-wire [7:0] nic_m_awlen;
-wire [2:0] nic_m_awsize;
-wire [1:0] nic_m_awburst;
-wire [3:0] nic_m_awcache;
-wire nic_m_awvalid;
-wire nic_m_awready;
-wire [3:0] nic_m_wid;
-wire [31:0] nic_m_wdata;
-wire [3:0] nic_m_wstrb;
-wire nic_m_wlast;
-wire nic_m_wvalid;
-wire nic_m_wready;
-wire [3:0] nic_m_bid;
-wire [1:0] nic_m_bresp;
-wire nic_m_bvalid;
-wire nic_m_bready;
-wire [3:0] nic_m_arid;
-wire [63:0] nic_m_araddr;
-wire [7:0] nic_m_arlen;
-wire [2:0] nic_m_arsize;
-wire [1:0] nic_m_arburst;
-wire [3:0] nic_m_arcache;
-wire nic_m_arvalid;
-wire nic_m_arready;
-wire [3:0] nic_m_rid;
-wire [31:0] nic_m_rdata;
-wire [1:0] nic_m_rresp;
-wire nic_m_rlast;
-wire nic_m_rvalid;
-wire nic_m_rready;
+(* MARK_DEBUG="TRUE" *) wire [3:0] nic_m_awid;
+(* MARK_DEBUG="TRUE" *) wire [63:0] nic_m_awaddr;
+(* MARK_DEBUG="TRUE" *) wire [7:0] nic_m_awlen;
+(* MARK_DEBUG="TRUE" *) wire [2:0] nic_m_awsize;
+(* MARK_DEBUG="TRUE" *) wire [1:0] nic_m_awburst;
+(* MARK_DEBUG="TRUE" *) wire [3:0] nic_m_awcache;
+(* MARK_DEBUG="TRUE" *) wire nic_m_awvalid;
+(* MARK_DEBUG="TRUE" *) wire nic_m_awready;
+(* MARK_DEBUG="TRUE" *) wire [3:0] nic_m_wid;
+(* MARK_DEBUG="TRUE" *) wire [31:0] nic_m_wdata;
+(* MARK_DEBUG="TRUE" *) wire [3:0] nic_m_wstrb;
+(* MARK_DEBUG="TRUE" *) wire nic_m_wlast;
+(* MARK_DEBUG="TRUE" *) wire nic_m_wvalid;
+(* MARK_DEBUG="TRUE" *) wire nic_m_wready;
+(* MARK_DEBUG="TRUE" *) wire [3:0] nic_m_bid;
+(* MARK_DEBUG="TRUE" *) wire [1:0] nic_m_bresp;
+(* MARK_DEBUG="TRUE" *) wire nic_m_bvalid;
+(* MARK_DEBUG="TRUE" *) wire nic_m_bready;
+(* MARK_DEBUG="TRUE" *) wire [3:0] nic_m_arid;
+(* MARK_DEBUG="TRUE" *) wire [63:0] nic_m_araddr;
+(* MARK_DEBUG="TRUE" *) wire [7:0] nic_m_arlen;
+(* MARK_DEBUG="TRUE" *) wire [2:0] nic_m_arsize;
+(* MARK_DEBUG="TRUE" *) wire [1:0] nic_m_arburst;
+(* MARK_DEBUG="TRUE" *) wire [3:0] nic_m_arcache;
+(* MARK_DEBUG="TRUE" *) wire nic_m_arvalid;
+(* MARK_DEBUG="TRUE" *) wire nic_m_arready;
+(* MARK_DEBUG="TRUE" *) wire [3:0] nic_m_rid;
+(* MARK_DEBUG="TRUE" *) wire [31:0] nic_m_rdata;
+(* MARK_DEBUG="TRUE" *) wire [1:0] nic_m_rresp;
+(* MARK_DEBUG="TRUE" *) wire nic_m_rlast;
+(* MARK_DEBUG="TRUE" *) wire nic_m_rvalid;
+(* MARK_DEBUG="TRUE" *) wire nic_m_rready;
 
 wire ahb_mst_hgrant;
 wire ahb_mst_hready;
@@ -459,8 +458,7 @@ grpci2_axi_mst mst_i (
 
 e1000_top #(
 	.PHY_ADDR(PHY_ADDR),
-	.CLK_PERIOD_NS(CLK_PERIOD_NS),
-	.DEBUG("FALSE")
+	.CLK_PERIOD_NS(CLK_PERIOD_NS)
 ) e1000_i(
 	.aclk(aclk),
 	.aresetn(aresetn),
@@ -573,39 +571,5 @@ e1000_top #(
 	.eedo(eedo),
 	.eedi(eedi)
 );
-
-generate
-if(DEBUG == "TRUE") begin
-ila_0 ila_i0(
-	.clk(aclk), // input wire clk
-	.probe0({
-		nic_s_awvalid,
-		nic_s_awready,
-		nic_s_awaddr,
-
-		nic_s_wvalid,
-		nic_s_wready,
-		nic_s_wdata,
-		nic_s_wstrb,
-
-		nic_s_bvalid,
-		nic_s_bready,
-		nic_s_bresp,
-
-		nic_s_arvalid,
-		nic_s_arready,
-		nic_s_araddr,
-		nic_s_aruser,
-
-		nic_s_rvalid,
-		nic_s_rready,
-		nic_s_rdata,
-		nic_s_rresp,
-
-		intr_request
-	})
-);
-end
-endgenerate
 
 endmodule

@@ -96,7 +96,6 @@ module multi_top(
 parameter NIC_ENABLE="TRUE";
 parameter MPC_ENABLE="TRUE";
 parameter MPS_ENABLE="TRUE";
-parameter DEBUG="FALSE";
 
 parameter [23:0] NIC_MAC_OUI=24'hEC3F05;
 //parameter [15:0] NIC_SUBSYSID=16'h0050;
@@ -135,6 +134,24 @@ wire pci_clk;
 wire pci_rst_n;
 wire pci_rst;
 assign pci_rst = !pci_rst_n;
+
+////////////////////////////////////////////////////////////////////////////////
+// VIO test control
+wire uart_test_en;
+wire can_test_en;
+wire nic_test_en;
+wire nouse;
+wire [35:0] vio_probe_in;
+vio_debug vio_debug_i(
+	.clk(pci_clk),
+	.probe_in0(vio_probe_in),
+	.probe_out0({
+		nouse,
+		can_test_en, 
+		uart_test_en, 
+		nic_test_en
+	})
+);
 
 ////////////////////////////////////////////////////////////////////////////////
 // PCI Interface
@@ -523,6 +540,18 @@ assign  p0_txer = 1'b0;
 assign  p1_txdat[7:4] = 4'b0;
 assign  p1_txer = 1'b0;
 
+assign vio_probe_in[0] = phy_port;
+assign vio_probe_in[1] = phy_lsc;
+assign vio_probe_in[2] = phy_up;
+assign vio_probe_in[3] = phy_duplex;
+assign vio_probe_in[5:4] = phy_speed;
+assign vio_probe_in[6] = p0_ibs_up;
+assign vio_probe_in[7] = p0_ibs_dplx;
+assign vio_probe_in[9:8] = p0_ibs_spd;
+assign vio_probe_in[10] = p1_ibs_up;
+assign vio_probe_in[11] = p1_ibs_dplx;
+assign vio_probe_in[13:12] = p1_ibs_spd;
+
 // RX clock was loop back as TX clock
 assign nic_txclk = mac_rxclk;
 // so we can use clk_x2 directly.
@@ -542,8 +571,7 @@ nic_pci_wrapper #(
 	.DEVICEID(NIC_DEVICEID),
 	.SUBVID(NIC_SUBVID),
 	.SUBSYSID(NIC_SUBSYSID),
-	.CLASSCODE(NIC_CLASSCODE),
-	.DEBUG(DEBUG)
+	.CLASSCODE(NIC_CLASSCODE)
 )nic_wrapper_i(
 	.clki(pci_clk),
 	.rstni(pci_rst_n),
@@ -864,16 +892,19 @@ if(MPC_ENABLE=="TRUE") begin
 
 wire [CAN_PORT_NUM-1:0] can_rx;
 wire [CAN_PORT_NUM-1:0] can_tx;
-wire [CAN_PORT_NUM-1:0] can_bus_off_on;
+wire [CAN_PORT_NUM-1:0] can_bus_on;
 
-// TODO: control can_rs[*] with can_bus_off_on
 assign can0_tx = can_tx[0];
-assign can0_rs = 1'b0;
-assign can_rx[0] = can0_rx;
+assign can0_rs = !can_bus_on[0];
+assign can_rx[0] = can_test_en ? (&can_tx) : can0_rx;
 
 assign can1_tx = can_tx[1];
-assign can1_rs = 1'b0;
-assign can_rx[1] = can1_rx;
+assign can1_rs = !can_bus_on[1];
+assign can_rx[1] = can_test_en ? (&can_tx) : can1_rx;
+
+assign vio_probe_in[17:16] = can_rx;
+assign vio_probe_in[19:18] = can_tx;
+assign vio_probe_in[21:20] = can_bus_on;
 
 mpc_pci_wrapper #(
 	.VENDORID(CAN_VENDORID),
@@ -881,8 +912,7 @@ mpc_pci_wrapper #(
 	.SUBVID(CAN_SUBVID),
 	.SUBSYSID(CAN_SUBSYSID),
 	.CLASSCODE(CAN_CLASSCODE),
-	.PORT_NUM(CAN_PORT_NUM),
-	.DEBUG(DEBUG)
+	.PORT_NUM(CAN_PORT_NUM)
 )mpc_wrapper_i(
 	.clki(pci_clk),
 	.rstni(pci_rst_n),
@@ -934,7 +964,7 @@ mpc_pci_wrapper #(
 
 	.rx_i(can_rx),
 	.tx_o(can_tx),
-	.bus_off_on(can_bus_off_on)
+	.bus_off_on(can_bus_on)
 );
 
 end
@@ -978,27 +1008,31 @@ wire [UART_PORT_NUM-1:0] uart_dcd;
 assign uart0_rxen_n = uart_dtr[0];
 assign uart0_tx = uart_txd[0];
 assign uart0_txen = ~uart_rts[0];
-assign uart_rxd[0] = uart0_rx;
+assign uart_rxd[0] = uart_test_en ? uart_txd[1] : uart0_rx;
 
 assign uart1_rxen_n = uart_dtr[1];
 assign uart1_tx = uart_txd[1];
 assign uart1_txen = ~uart_rts[1];
-assign uart_rxd[1] = uart1_rx;
+assign uart_rxd[1] = uart_test_en ? uart_txd[0] : uart1_rx;
 
 assign uart2_rxen_n = uart_dtr[2];
 assign uart2_tx = uart_txd[2];
 assign uart2_txen = ~uart_rts[2];
-assign uart_rxd[2] = uart2_rx;
+assign uart_rxd[2] = uart_test_en ? uart_txd[3] : uart2_rx;
 
 assign uart3_rxen_n = uart_dtr[3];
 assign uart3_tx = uart_txd[3];
 assign uart3_txen = ~uart_rts[3];
-assign uart_rxd[3] = uart3_rx;
+assign uart_rxd[3] = uart_test_en ? uart_txd[2] : uart3_rx;
 
 assign uart_cts = {UART_PORT_NUM{1'b0}};
 assign uart_dsr = {UART_PORT_NUM{1'b0}};
 assign uart_ri = {UART_PORT_NUM{1'b1}};
 assign uart_dcd = {UART_PORT_NUM{1'b1}};
+
+assign vio_probe_in[27:24] = uart_rxd;
+assign vio_probe_in[31:28] = uart_rxd;
+assign vio_probe_in[35:32] = uart_dtr;
 
 mps_pci_wrapper #(
 	.VENDORID(UART_VENDORID),
@@ -1006,8 +1040,7 @@ mps_pci_wrapper #(
 	.SUBVID(UART_SUBVID),
 	.SUBSYSID(UART_SUBSYSID),
 	.CLASSCODE(UART_CLASSCODE),
-	.PORT_NUM(UART_PORT_NUM),
-	.DEBUG(DEBUG)
+	.PORT_NUM(UART_PORT_NUM)
 )mps_wrapper_i(
 	.clki(pci_clk),
 	.rstni(pci_rst_n),
@@ -1095,15 +1128,6 @@ else begin
 	assign uart3_rxen_n = 1'bz;
 	assign uart3_tx = 1'bz;
 	assign uart3_txen = 1'bz;
-end
-endgenerate
-
-////////////////////////////////////////////////////////////////////////////////
-// Debug probes
-
-generate
-if(DEBUG == "TRUE") begin
-
 end
 endgenerate
 

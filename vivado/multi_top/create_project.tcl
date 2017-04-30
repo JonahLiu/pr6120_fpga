@@ -153,6 +153,11 @@ set_property library gaisler [get_files [glob ../../src/grpci2/gaisler/*.vhd]]
 set_property library techmap [get_files [glob ../../src/grpci2/techmap/*.vhd]]
 set_property library pci [get_files [glob ../../src/grpci2/*.vhd]]
 
+#add_files -fileset [current_fileset] -force -norecurse {
+import_ip -srcset [current_fileset] {
+	../../ip/vio_debug.xci
+}
+
 add_files -fileset [current_fileset -simset] -force -norecurse {
 	../../src/test/test_multi_top.v
 	../../src/test/eth_pkt_gen.v
@@ -163,22 +168,9 @@ add_files -fileset [current_fileset -simset] -force -norecurse {
 	../../src/test/axi_master_model.v
 }
 
-set_property include_dirs ../../src/mac [get_filesets [current_fileset]]
-set_property include_dirs ../../src/mac [get_filesets [current_fileset -simset]]
-set_property include_dirs ../../src/test [get_filesets [current_fileset -simset]]
-
-# TODO: use create_debug_core instead
-#import_ip -srcset [current_fileset] {
-#	../xci/tri_mode_ethernet_mac_0.xci
-#	../xci/selectio_wiz_0.xci
-#	../xci/axi_interconnect_0.xci
-#	../xci/vdma.xci
-#	../xci/clk_wiz_0.xci
-#	../xci/clk_wiz_1.xci
-#	../xci/proc_sys_reset_0.xci
-#	../xci/vio_debug.xci
-#	../xci/ila_36.xci
-#}
+set_property include_dirs ../../src/mac [current_fileset]
+set_property include_dirs ../../src/mac [current_fileset -simset]
+set_property include_dirs ../../src/test [current_fileset -simset]
 
 add_files -fileset [current_fileset -constrset] -force -norecurse {
     ../../constraints/io_default.xdc
@@ -187,11 +179,12 @@ add_files -fileset [current_fileset -constrset] -force -norecurse {
     ../../constraints/can.xdc
     ../../constraints/uart.xdc
     ../../constraints/device.xdc
-    ../../src/device/timing.xdc
+    ../../constraints/timing.xdc
+    ../../constraints/debug.xdc
 }
-set_property target_constrs_file {../../src/device/timing.xdc} [get_filesets [current_fileset -constrset]]
-set_property top $top [get_filesets [current_fileset]]
-set_property top $simTop [get_filesets [current_fileset -simset]]
+set_property target_constrs_file {../../constraints/debug.xdc} [current_fileset -constrset]
+set_property top $top [current_fileset]
+set_property top $simTop [current_fileset -simset]
 set_property target_language verilog [current_project]
 
 #set_property -name {steps.synth_design.args.more options} -value {-mode out_of_context} -objects [get_runs synth_1]

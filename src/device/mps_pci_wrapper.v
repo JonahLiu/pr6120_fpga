@@ -6,7 +6,6 @@ module mps_pci_wrapper #(
 	parameter CLASSCODE = 24'h070200,
 	parameter BASE_BAUD = 460800,
 	parameter CLK_PERIOD_NS=7.5,
-	parameter DEBUG = "FALSE",
 	parameter PORT_NUM=4
 ) (
 	input clki,
@@ -72,25 +71,25 @@ module mps_pci_wrapper #(
 wire aclk;
 wire aresetn;
 
-wire mps_s_awvalid;
-wire mps_s_awready;
-wire [31:0] mps_s_awaddr;
-wire mps_s_wvalid;
-wire mps_s_wready;
-wire [31:0] mps_s_wdata;
-wire [3:0] mps_s_wstrb;
-wire mps_s_bvalid;
-wire mps_s_bready;
-wire [1:0] mps_s_bresp;
-wire mps_s_arvalid;
-wire mps_s_arready;
-wire [31:0] mps_s_araddr;
-wire [3:0] mps_s_aruser;
-wire mps_s_rvalid;
-wire mps_s_rready;
-wire [31:0] mps_s_rdata;
-wire [1:0] mps_s_rresp;
-wire intr_request;
+(* MARK_DEBUG="TRUE" *) wire mps_s_awvalid;
+(* MARK_DEBUG="TRUE" *) wire mps_s_awready;
+(* MARK_DEBUG="TRUE" *) wire [31:0] mps_s_awaddr;
+(* MARK_DEBUG="TRUE" *) wire mps_s_wvalid;
+(* MARK_DEBUG="TRUE" *) wire mps_s_wready;
+(* MARK_DEBUG="TRUE" *) wire [31:0] mps_s_wdata;
+(* MARK_DEBUG="TRUE" *) wire [3:0] mps_s_wstrb;
+(* MARK_DEBUG="TRUE" *) wire mps_s_bvalid;
+(* MARK_DEBUG="TRUE" *) wire mps_s_bready;
+(* MARK_DEBUG="TRUE" *) wire [1:0] mps_s_bresp;
+(* MARK_DEBUG="TRUE" *) wire mps_s_arvalid;
+(* MARK_DEBUG="TRUE" *) wire mps_s_arready;
+(* MARK_DEBUG="TRUE" *) wire [31:0] mps_s_araddr;
+(* MARK_DEBUG="TRUE" *) wire [3:0] mps_s_aruser;
+(* MARK_DEBUG="TRUE" *) wire mps_s_rvalid;
+(* MARK_DEBUG="TRUE" *) wire mps_s_rready;
+(* MARK_DEBUG="TRUE" *) wire [31:0] mps_s_rdata;
+(* MARK_DEBUG="TRUE" *) wire [1:0] mps_s_rresp;
+(* MARK_DEBUG="TRUE" *) wire intr_request;
 
 wire ahb_mst_hgrant;
 wire ahb_mst_hready;
@@ -335,46 +334,4 @@ mps_top #(.PORT_NUM(PORT_NUM), .BASE_BAUD(BASE_BAUD),.CLK_PERIOD_NS(CLK_PERIOD_N
 	.dcd(dcd)
 );
 
-generate
-if(DEBUG == "TRUE") begin
-ila_0 ila_i0(
-	.clk(aclk), // input wire clk
-	.probe0({
-		rxd,
-		txd,
-		rts,
-		cts,
-		dtr,
-		dsr,
-		ri,
-		dcd,
-
-		mps_s_awvalid,
-		mps_s_awready,
-		mps_s_awaddr,
-
-		mps_s_wvalid,
-		mps_s_wready,
-		mps_s_wdata,
-		mps_s_wstrb,
-
-		mps_s_bvalid,
-		mps_s_bready,
-		mps_s_bresp,
-
-		mps_s_arvalid,
-		mps_s_arready,
-		mps_s_araddr,
-		mps_s_aruser,
-
-		mps_s_rvalid,
-		mps_s_rready,
-		mps_s_rdata,
-		mps_s_rresp,
-
-		intr_request
-	})
-);
-end
-endgenerate
 endmodule

@@ -124,7 +124,6 @@ parameter TX_DESC_RAM_DWORDS=256;
 parameter TX_DATA_RAM_DWORDS=8192;
 parameter RX_DESC_RAM_DWORDS=256;
 parameter RX_DATA_RAM_DWORDS=16384;
-parameter DEBUG="FALSE";
 
 localparam EEPROM_DIV = (1000000000/EEPROM_FREQ)/CLK_PERIOD_NS+1;
 localparam MDIO_DIV = (1000000000/MDIO_FREQ)/CLK_PERIOD_NS+1;
@@ -327,6 +326,7 @@ wire [2:0] dbg_desc_s2;
 wire [3:0] dbg_re_s1;
 wire [3:0] dbg_re_s2;
 wire [2:0] dbg_frm_state;
+wire [1:0] dbg_ext_mux_wr_stage;
 
 assign reset = !aresetn;
 assign phy_reset_out = CTRL_PHY_RST || reset;
@@ -813,7 +813,6 @@ mac_axis mac_i(
 	.Col(mac_col)
 );
 
-wire [1:0] dbg_ext_mux_wr_stage;
 
 axi_mux #(
 	.SLAVE_NUM(2),
@@ -901,123 +900,5 @@ axi_mux #(
 	.m_rvalid(axi_m_rvalid),
 	.m_rready(axi_m_rready)
 );
-
-generate
-if(DEBUG == "TRUE") begin
-ila_0 ila_mac_i0(
-	.clk(aclk), // input wire clk
-	.probe0({
-		CTRL_RST,
-		CTRL_PHY_RST,
-
-		TCTL_EN,
-		TDLEN,
-		TDT_set,
-		DPP,
-		TXDW_req,
-		TXQE_req,
-		TXD_LOW_req,
-
-		RCTL_EN,
-		RDLEN,
-		RDT_set,
-		BSIZE,
-		BSEX,
-		SECRC,
-		FPD,
-		FPD_set,
-		RXDMT0_req,
-		RXO_req,
-		RXT0_req,
-
-		dbg_te_desc_dext,
-
-		dbg_rx_dram_available,
-		dbg_i0_state,
-		dbg_i1_state,
-		dbg_i2_state,
-		dbg_desc_s1,
-		dbg_desc_s2,
-		dbg_re_s1,
-		dbg_re_s2,
-		dbg_frm_state,
-		dbg_ext_mux_wr_busy,
-		dbg_ext_mux_rd_busy,
-		dbg_ext_mux_wr_tmo,
-		dbg_ext_mux_rd_tmo,
-		dbg_ext_mux_wr_stage,
-		dbg_rx_ext_mux_wr_busy,
-		dbg_rx_ext_mux_rd_busy,
-		dbg_rx_desc_mux_wr_busy,
-		dbg_rx_desc_mux_rd_busy,
-
-		TDH_fb,
-		TDT,
-		RDH_fb,
-		RDT,
-
-		mac_txdat,
-		mac_txen,
-		mac_txer,
-		mac_crs,
-		mac_col,
-		
-		mac_rx_m_tdata,
-		mac_rx_m_tuser,
-		mac_rx_m_tkeep,
-		mac_rx_m_tlast,
-		mac_rx_m_tvalid,
-		mac_rx_m_tready,
-
-		mac_tx_s_tdata,
-		mac_tx_s_tkeep,
-		mac_tx_s_tlast,
-		mac_tx_s_tvalid,
-		mac_tx_s_tready
-	})
-);
-ila_0 ila_mac_i1(
-	.clk(aclk), // input wire clk
-	.probe0({
-		dbg_rx_ext_mux_wr_busy,
-		dbg_ext_mux_wr_busy,
-		dbg_ext_mux_wr_tmo,
-		dbg_ext_mux_wr_stage,
-		axi_m_awaddr[31:0],
-		axi_m_awlen,
-		axi_m_awvalid,
-		axi_m_awready,
-		axi_m_wstrb,
-		axi_m_wlast,
-		axi_m_wvalid,
-		axi_m_wready,
-		axi_m_bvalid,
-		axi_m_bready,
-
-		rx_m_awaddr[31:0],
-		rx_m_awlen,
-		rx_m_awvalid,
-		rx_m_awready,
-		rx_m_wstrb,
-		rx_m_wlast,
-		rx_m_wvalid,
-		rx_m_wready,
-		rx_m_bvalid,
-		rx_m_bready,
-
-		tx_m_awaddr[31:0],
-		tx_m_awlen,
-		tx_m_awvalid,
-		tx_m_awready,
-		tx_m_wstrb,
-		tx_m_wlast,
-		tx_m_wvalid,
-		tx_m_wready,
-		tx_m_bvalid,
-		tx_m_bready
-	})
-);
-end
-endgenerate
 
 endmodule

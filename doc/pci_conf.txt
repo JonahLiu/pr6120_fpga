@@ -4,9 +4,9 @@ This file explains PCI related informations of PR6120 - Multi-function Chip.
 
 There are three pci device in this chip, with IDs assigned as {VENDOR_ID,
 DEVICE_ID, SUBVENDOR_ID, SUBDEVICE_ID}
-- Network Controller: {8086, ABCD}
-- 2-Port CAN Controller: {13FE, C204, 13FE, C204}
-- 4-Port Serial Controller: {10B5, 9050, 12E0, 0021}
+- Network Controller: {0706, 3B00, 10EE, 0050}
+- 2-Port CAN Controller: {0706, 3B02, 13FE, C202}
+- 4-Port Serial Controller: {0706, 3B01, 12E0, 0031}
 
 # BAR mapping of Network Controller
 

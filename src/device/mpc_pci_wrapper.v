@@ -4,7 +4,6 @@ module mpc_pci_wrapper #(
 	parameter SUBVID = 16'h13FE, 
 	parameter SUBSYSID = 16'hC202, 
 	parameter CLASSCODE = 24'h0C0900,
-	parameter DEBUG = "FALSE",
 	parameter PORT_NUM=4
 ) (
 	input clki,
@@ -64,25 +63,25 @@ module mpc_pci_wrapper #(
 wire aclk;
 wire aresetn;
 
-wire mpc_s_awvalid;
-wire mpc_s_awready;
-wire [31:0] mpc_s_awaddr;
-wire mpc_s_wvalid;
-wire mpc_s_wready;
-wire [31:0] mpc_s_wdata;
-wire [3:0] mpc_s_wstrb;
-wire mpc_s_bvalid;
-wire mpc_s_bready;
-wire [1:0] mpc_s_bresp;
-wire mpc_s_arvalid;
-wire mpc_s_arready;
-wire [31:0] mpc_s_araddr;
-wire [3:0] mpc_s_aruser;
-wire mpc_s_rvalid;
-wire mpc_s_rready;
-wire [31:0] mpc_s_rdata;
-wire [1:0] mpc_s_rresp;
-wire intr_request;
+(* MARK_DEBUG="TRUE" *) wire mpc_s_awvalid;
+(* MARK_DEBUG="TRUE" *) wire mpc_s_awready;
+(* MARK_DEBUG="TRUE" *) wire [31:0] mpc_s_awaddr;
+(* MARK_DEBUG="TRUE" *) wire mpc_s_wvalid;
+(* MARK_DEBUG="TRUE" *) wire mpc_s_wready;
+(* MARK_DEBUG="TRUE" *) wire [31:0] mpc_s_wdata;
+(* MARK_DEBUG="TRUE" *) wire [3:0] mpc_s_wstrb;
+(* MARK_DEBUG="TRUE" *) wire mpc_s_bvalid;
+(* MARK_DEBUG="TRUE" *) wire mpc_s_bready;
+(* MARK_DEBUG="TRUE" *) wire [1:0] mpc_s_bresp;
+(* MARK_DEBUG="TRUE" *) wire mpc_s_arvalid;
+(* MARK_DEBUG="TRUE" *) wire mpc_s_arready;
+(* MARK_DEBUG="TRUE" *) wire [31:0] mpc_s_araddr;
+(* MARK_DEBUG="TRUE" *) wire [3:0] mpc_s_aruser;
+(* MARK_DEBUG="TRUE" *) wire mpc_s_rvalid;
+(* MARK_DEBUG="TRUE" *) wire mpc_s_rready;
+(* MARK_DEBUG="TRUE" *) wire [31:0] mpc_s_rdata;
+(* MARK_DEBUG="TRUE" *) wire [1:0] mpc_s_rresp;
+(* MARK_DEBUG="TRUE" *) wire intr_request;
 
 wire ahb_mst_hgrant;
 wire ahb_mst_hready;
@@ -321,43 +320,5 @@ mpc_top #(.PORT_NUM(PORT_NUM)) mpc_top(
 	.tx_o(tx_o),
 	.bus_off_on(bus_off_on)
 );
-
-generate
-if(DEBUG == "TRUE") begin
-ila_0 ila_i0(
-	.clk(aclk), // input wire clk
-	.probe0({
-		rx_i,
-		tx_o,
-		bus_off_on,
-
-		mpc_s_awvalid,
-		mpc_s_awready,
-		mpc_s_awaddr,
-
-		mpc_s_wvalid,
-		mpc_s_wready,
-		mpc_s_wdata,
-		mpc_s_wstrb,
-
-		mpc_s_bvalid,
-		mpc_s_bready,
-		mpc_s_bresp,
-
-		mpc_s_arvalid,
-		mpc_s_arready,
-		mpc_s_araddr,
-		mpc_s_aruser,
-
-		mpc_s_rvalid,
-		mpc_s_rready,
-		mpc_s_rdata,
-		mpc_s_rresp,
-
-		intr_request
-	})
-);
-end
-endgenerate
 
 endmodule

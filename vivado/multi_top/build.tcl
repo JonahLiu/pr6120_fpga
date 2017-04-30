@@ -5,9 +5,6 @@ source create_project.tcl
 launch_runs [current_run -synthesis]
 wait_on_run [current_run -synthesis]
 
-open_run [current_run -synthesis]
-source debug_probes.tcl
-
 launch_runs [current_run -implementation] -to_step write_bitstream
 wait_on_run [current_run -implementation]
 
