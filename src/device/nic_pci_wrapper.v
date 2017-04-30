@@ -252,6 +252,8 @@ grpci2_device #(
 	.subsysid(SUBSYSID),
 	.subvid(SUBVID),
 	.classcode(CLASSCODE),
+	.master(1),
+	.target(1),
 	.barminsize(6),
 	.fifo_depth(4),
 	.bar0(17), // 128K Byte memory mapped register space

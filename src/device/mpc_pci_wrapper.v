@@ -152,6 +152,8 @@ grpci2_device #(
 	.subsysid(SUBSYSID),
 	.subvid(SUBVID),
 	.classcode(CLASSCODE),
+	.master(0),
+	.target(1),
 	.barminsize(5),
 	.fifo_depth(3),
 	.bar0(BARSIZE), // 1KByte per port
