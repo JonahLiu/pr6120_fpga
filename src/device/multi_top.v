@@ -1031,7 +1031,7 @@ assign uart_ri = {UART_PORT_NUM{1'b1}};
 assign uart_dcd = {UART_PORT_NUM{1'b1}};
 
 assign vio_probe_in[27:24] = uart_rxd;
-assign vio_probe_in[31:28] = uart_rxd;
+assign vio_probe_in[31:28] = uart_txd;
 assign vio_probe_in[35:32] = uart_dtr;
 
 mps_pci_wrapper #(

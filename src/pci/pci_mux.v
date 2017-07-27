@@ -420,10 +420,10 @@ begin
 	PCI_RST <= rstd;
 	PCI_AD <= add;
 	PCI_CBE <= cbd;
-	PCI_INTA <= intad;
-	PCI_INTB <= intbd;
-	PCI_INTC <= intcd;
-	PCI_INTD <= intdd;
+	PCI_INTA <= intat;
+	PCI_INTB <= intbt;
+	PCI_INTC <= intct;
+	PCI_INTD <= intdt;
 	PCI_REQ <= reqd;
 	//PCI_PME <= pmed;
 	PCI_GNT <= gntd;
