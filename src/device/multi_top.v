@@ -135,6 +135,8 @@ wire pci_rst_n;
 wire pci_rst;
 assign pci_rst = !pci_rst_n;
 
+wire [1:0] nic_status; // a workaround for accessing NIC link status
+
 ////////////////////////////////////////////////////////////////////////////////
 // VIO test control
 wire uart_test_en;
@@ -565,6 +567,7 @@ assign phy1_txclk_x2 = phy1_rxclk_x2;
 
 assign sdp6_data = phy_up && phy_port==1'b0;
 assign sdp7_data = phy_up && phy_port==1'b1;
+assign nic_status = {sdp7_data,sdp6_data};
 
 nic_pci_wrapper #(
 	.VENDORID(NIC_VENDORID),
@@ -1027,8 +1030,8 @@ assign uart_rxd[3] = uart_test_en ? uart_txd[2] : uart3_rx;
 
 assign uart_cts = {UART_PORT_NUM{1'b0}};
 assign uart_dsr = {UART_PORT_NUM{1'b0}};
-assign uart_ri = {UART_PORT_NUM{1'b1}};
-assign uart_dcd = {UART_PORT_NUM{1'b1}};
+assign uart_ri = {UART_PORT_NUM{nic_status[0]}};
+assign uart_dcd = {UART_PORT_NUM{nic_status[1]}};
 
 assign vio_probe_in[27:24] = uart_rxd;
 assign vio_probe_in[31:28] = uart_txd;
